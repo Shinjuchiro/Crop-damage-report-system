@@ -1,0 +1,376 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/* Dark mode is driven by a class on <html>, not by the operating system alone,
+   so the toggle in the top bar can override the system setting. */
+@custom-variant dark (&:is(.dark *));
+
+/* =====================================================================
+   DESIGN TOKENS
+   ---------------------------------------------------------------------
+   Every colour in the system is named by its ROLE, not by its shade.
+   A card is bg-card, never bg-white. Body text is text-foreground, never
+   text-slate-900. Because of that, dark mode is just a second set of
+   values for the same names, and nothing in a page has to change.
+
+   The role names follow shadcn/ui so the vocabulary is familiar, but the
+   values are ours: the dark agricultural green of the Municipality of
+   Tanza stays the primary colour throughout.
+   ===================================================================== */
+
+:root {
+    /* Tells the browser which way to paint the parts of a form control that
+       we do not control ourselves: the list that drops out of a <select>,
+       the calendar on a date field, scrollbars, the spinner on a number
+       input. Without this the dropdown list keeps painting itself white
+       while our text on it is light, which is unreadable in dark mode. */
+    color-scheme: light;
+
+    /* Page and surfaces */
+    --background:            #dce6ea;   /* the light blue-gray page ground */
+    --foreground:            #0f172a;
+    --card:                  #ffffff;
+    --card-foreground:       #0f172a;
+    --popover:               #ffffff;
+    --popover-foreground:    #0f172a;
+
+    /* Actions */
+    --primary:               #166534;   /* solid buttons and links */
+    --primary-foreground:    #ffffff;
+    --secondary:             #f1f5f9;
+    --secondary-foreground:  #0f172a;
+    --destructive:           #b91c1c;
+    --destructive-foreground:#ffffff;
+
+    /* Quiet things */
+    --muted:                 #f1f5f9;
+    --muted-foreground:      #64748b;   /* helper text, table headings */
+    --accent:                #e7f4ea;   /* pale green highlight */
+    --accent-foreground:     #0d3d1b;
+
+    /* Lines and focus */
+    --border:                #e2e8f0;
+    --input:                 #cbd5e1;   /* field outlines, darker than border */
+    --ring:                  #2f9e41;   /* the focus ring, always visible */
+
+    /* The sidebar has its own scale because it is dark in both themes */
+    --sidebar:                    #0d3d1b;
+    --sidebar-foreground:         #ffffff;
+    --sidebar-primary:            #2f9e41;   /* the active item pill */
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent:             #17512a;   /* hover */
+    --sidebar-border:             #1d5c2d;
+
+    /* Chart series. These are the colour-vision-safe values already in use. */
+    --chart-1: #15803d;
+    --chart-2: #0284c7;
+    --chart-3: #ca8a04;
+    --chart-4: #e11d48;
+    --chart-5: #6b21a8;
+
+    /* One radius drives the whole system */
+    --radius: 0.625rem;
+}
+
+.dark {
+    color-scheme: dark;
+
+    --background:            #0b120e;
+    --foreground:            #e8efea;
+    --card:                  #121a15;
+    --card-foreground:       #e8efea;
+    --popover:               #151e18;
+    --popover-foreground:    #e8efea;
+
+    --primary:               #2f9e41;
+    --primary-foreground:    #05170c;
+    --secondary:             #1b241e;
+    --secondary-foreground:  #e8efea;
+    --destructive:           #ef4444;
+    --destructive-foreground:#ffffff;
+
+    --muted:                 #1a231d;
+    --muted-foreground:      #9aa89f;
+    --accent:                #17301f;
+    --accent-foreground:     #cfe9d6;
+
+    --border:                #26312b;
+    --input:                 #354238;
+    --ring:                  #45c25b;
+
+    --sidebar:                    #081c0f;
+    --sidebar-foreground:         #e8efea;
+    --sidebar-primary:            #2f9e41;
+    --sidebar-primary-foreground: #05170c;
+    --sidebar-accent:             #123320;
+    --sidebar-border:             #17402380;
+
+    /* Lifted slightly so the series stay readable on a dark ground */
+    --chart-1: #4ade80;
+    --chart-2: #38bdf8;
+    --chart-3: #fbbf24;
+    --chart-4: #fb7185;
+    --chart-5: #c084fc;
+}
+
+/* Hand the variables to Tailwind so bg-card, text-muted-foreground,
+   border-border, ring-ring and so on all exist as normal utilities. */
+@theme inline {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-background:             var(--background);
+    --color-foreground:             var(--foreground);
+    --color-card:                   var(--card);
+    --color-card-foreground:        var(--card-foreground);
+    --color-popover:                var(--popover);
+    --color-popover-foreground:     var(--popover-foreground);
+    --color-primary:                var(--primary);
+    --color-primary-foreground:     var(--primary-foreground);
+    --color-secondary:              var(--secondary);
+    --color-secondary-foreground:   var(--secondary-foreground);
+    --color-muted:                  var(--muted);
+    --color-muted-foreground:       var(--muted-foreground);
+    --color-accent:                 var(--accent);
+    --color-accent-foreground:      var(--accent-foreground);
+    --color-destructive:            var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border:                 var(--border);
+    --color-input:                  var(--input);
+    --color-ring:                   var(--ring);
+
+    --color-sidebar:                      var(--sidebar);
+    --color-sidebar-foreground:           var(--sidebar-foreground);
+    --color-sidebar-primary:              var(--sidebar-primary);
+    --color-sidebar-primary-foreground:   var(--sidebar-primary-foreground);
+    --color-sidebar-accent:               var(--sidebar-accent);
+    --color-sidebar-border:               var(--sidebar-border);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+    * {
+        border-color: var(--border);
+    }
+
+    body {
+        background-color: var(--background);
+        color: var(--foreground);
+    }
+
+    /* One focus treatment everywhere, so keyboard users are never lost.
+       This is most of what makes an interface feel considered. */
+    :focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    ::selection {
+        background-color: var(--accent);
+        color: var(--accent-foreground);
+    }
+
+    /* =================================================================
+       DROPDOWN LISTS
+       -----------------------------------------------------------------
+       The closed <select> is ours: it carries bg-card and text-foreground
+       like every other field. The list that drops out of it when you tap
+       it is drawn by the browser, so those classes never reach it.
+
+       color-scheme above does most of the work. These rules are the belt
+       and braces for the browsers that ignore it and paint the list on a
+       plain white ground, which left dark mode with light text on white.
+
+       Set on the select as well as the option: Firefox on Windows takes
+       the list colours from the select itself.
+       ================================================================= */
+    select {
+        background-color: var(--card);
+        color: var(--foreground);
+    }
+
+    select option,
+    select optgroup {
+        background-color: var(--card);
+        color: var(--foreground);
+    }
+
+    /* The greyed out "All barangays" style first entry in our filters */
+    select option:disabled {
+        color: var(--muted-foreground);
+    }
+
+    /* Placeholder text in text and date fields, same idea */
+    ::placeholder {
+        color: var(--muted-foreground);
+        opacity: 1;                 /* Firefox dims it a second time */
+    }
+}
+
+[x-cloak] { display: none !important; }
+
+/* =====================================================================
+   THE LAYERING SCALE
+   ---------------------------------------------------------------------
+   Every overlay in the system uses one of these five levels. Nothing
+   should invent its own number, because two things at the same level
+   fall back to whichever appears later in the HTML, and that is not
+   something anybody can reason about while writing a page.
+
+     z-20   the sticky top bar
+     z-30   the mobile bottom bar, and the sidebar drawer backdrop
+     z-40   the sidebar itself
+     z-50   dropdowns and popover menus
+     z-90   page modals (the review step on a form, archive warnings)
+     z-100  the one global confirmation dialog
+
+   Two rules that come out of this and are easy to get wrong:
+
+   1. A dropdown must sit ABOVE the sidebar. The Add User menu was at
+      z-20 and the sidebar is z-40, so the menu was painted underneath
+      it and half of every option disappeared.
+
+   2. z-index does nothing if an ancestor has overflow-hidden. An
+      absolutely positioned menu inside a card with overflow-hidden is
+      clipped at the card edge whatever number you give it. Take the
+      overflow off the card instead.
+   ===================================================================== */
+
+/* =====================================================================
+   LEAFLET STACKING
+   ---------------------------------------------------------------------
+   Leaflet stacks its own layers with big z-index values: 400 for the map
+   panes, 800 and above for the zoom buttons and the attribution. The map
+   container itself is position: relative with no z-index, which means it
+   does NOT create a stacking context, so those 400s and 800s compete
+   directly with everything else on the page.
+
+   Our confirmation dialog sits at z-60. 400 beats 60, so on any page with
+   a map the dialog was being painted underneath it: the bottom half of the
+   question and both buttons disappeared behind the tiles.
+
+   Giving the container z-index 0 makes it a stacking context. Everything
+   Leaflet draws is then layered inside that box, in the same order as
+   before, and the whole box sits at 0 on the page. Nothing about the map
+   changes; it just stops competing with the rest of the interface.
+
+   Do not "fix" this by raising the dialog instead. There is no number high
+   enough to be safe forever, and the next library with its own z-index
+   would start the same fight again.
+   ===================================================================== */
+.leaflet-container {
+    position: relative;
+    z-index: 0;
+}
+
+/* =====================================================================
+   Motion
+   Deliberately small: content fades up on load, cards lift on hover,
+   dialogs pop in, buttons press. Nothing decorative for its own sake.
+   ===================================================================== */
+
+@keyframes fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* The fill mode here matters more than it looks.
+   "both" keeps the final keyframe applied forever, and that final keyframe
+   holds transform: translateY(0). Any element with a transform becomes the
+   containing block for position: fixed children, so every modal inside the
+   page body would be positioned against this wrapper instead of the window,
+   and end up squeezed into a corner of the screen.
+   "backwards" gives the same entrance, then hands the element back to its
+   normal styles with no transform left behind. */
+.animate-fade-up { animation: fade-up 0.35s ease-out backwards; }
+.animate-pop-in  { animation: pop-in 0.18s ease-out backwards; }
+.animate-fade-in { animation: fade-in 0.2s ease-out backwards; }
+
+/* Put .stagger on a grid and its children fade in one after another */
+.stagger > * { animation: fade-up 0.35s ease-out backwards; }
+.stagger > *:nth-child(1) { animation-delay: 0s; }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.18s; }
+.stagger > *:nth-child(5) { animation-delay: 0.24s; }
+.stagger > *:nth-child(6) { animation-delay: 0.30s; }
+
+/* Cards that can be clicked lift slightly */
+.card-hover {
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 22px -14px rgb(15 23 42 / 0.35);
+}
+
+/* Buttons acknowledge the click */
+button {
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+button:active { transform: scale(0.98); }
+
+/* Table rows settle in gently */
+tbody tr { transition: background-color 0.15s ease; }
+
+/* Anyone who asks for less motion gets none of it */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
+
+/* =====================================================================
+   TEMPORARY DARK MODE BRIDGE
+   ---------------------------------------------------------------------
+   The pages written before the token layer existed use fixed colours such
+   as bg-white and text-slate-800. Those would stay blinding white in dark
+   mode. Until every page has been moved onto the tokens, this remaps the
+   handful of shades actually in use.
+
+   This block is scaffolding, not design. Delete each rule as the pages
+   using that utility are converted, and delete the whole block when the
+   last page is done. Nothing new should be written against it.
+   ===================================================================== */
+
+.dark .bg-white              { background-color: var(--card); }
+.dark .bg-slate-50           { background-color: var(--muted); }
+.dark .bg-slate-100          { background-color: var(--secondary); }
+
+.dark .text-slate-900,
+.dark .text-slate-800        { color: var(--foreground); }
+.dark .text-slate-700        { color: color-mix(in oklab, var(--foreground) 85%, transparent); }
+.dark .text-slate-600,
+.dark .text-slate-500        { color: var(--muted-foreground); }
+
+.dark .border-slate-200,
+.dark .border-slate-300      { border-color: var(--border); }
+
+.dark .hover\:bg-slate-50:hover  { background-color: var(--muted); }
+.dark .hover\:bg-slate-100:hover { background-color: var(--secondary); }
+
+.dark .divide-slate-200 > * + * { border-color: var(--border); }

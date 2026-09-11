@@ -1,0 +1,81 @@
+@php
+    // The farmer menu. Short on purpose: a farmer has four things to do here,
+    // and burying them under a long list helps nobody.
+    $items = [
+        [
+            'label'   => 'Dashboard',
+            'filipino'=> 'Dashboard',
+            'route'   => 'farmer.dashboard',
+            'pattern' => 'farmer.dashboard',
+            'icon'    => 'M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9',
+        ],
+        [
+            'label'   => 'My Profile',
+            'filipino'=> 'Aking Profile',
+            'route'   => 'farmer.profile',
+            'pattern' => 'farmer.profile',
+            'icon'    => 'M16 19v-1.5a4 4 0 00-4-4H8a4 4 0 00-4 4V19M12 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
+        ],
+        [
+            'label'   => 'Crop Planting',
+            'filipino'=> 'Pagtatanim',
+            'route'   => 'farmer.planting.index',
+            'pattern' => 'farmer.planting.*',
+            'icon'    => 'M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14zM4 21h16',
+        ],
+        [
+            'label'   => 'Report Crop Damage',
+            'filipino'=> 'Mag-ulat ng Pinsala',
+            'route'   => 'farmer.reports.create',
+            'pattern' => 'farmer.reports.create',
+            'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
+        ],
+        [
+            'label'   => 'My Reports',
+            'filipino'=> 'Aking mga Ulat',
+            'route'   => 'farmer.reports.index',
+            'pattern' => 'farmer.reports.index',
+            'icon'    => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+        ],
+        [
+            'label'   => 'Assistance',
+            'filipino'=> 'Tulong',
+            'route'   => 'farmer.assistance.index',
+            'pattern' => 'farmer.assistance.*',
+            'icon'    => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
+        ],
+    ];
+
+    /*
+     | Notifications is deliberately NOT in this list.
+     |
+     | The bell in the top bar already goes to farmer.notifications.index and
+     | already carries the unread count, so a second door to the same page was
+     | just making the menu longer. The route and the page are untouched.
+     */
+
+    $base     = 'flex items-center gap-3 rounded-lg px-3 py-3 transition';
+    $idle     = $base . ' hover:translate-x-1 hover:bg-sidebar-accent';
+    $current  = $base . ' bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm';
+    $disabled = $base . ' cursor-not-allowed opacity-45';
+@endphp
+
+@foreach ($items as $item)
+    @php $classes = $item['route'] ? (request()->routeIs($item['pattern']) ? $current : $idle) : $disabled; @endphp
+
+    <{{ $item['route'] ? 'a' : 'span' }}
+        @if ($item['route']) href="{{ route($item['route']) }}" @else title="Coming in a later build step" @endif
+        class="{{ $classes }}">
+
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="{{ $item['icon'] }}"/>
+        </svg>
+
+        <span class="min-w-0 flex-1 leading-tight">
+            <span class="block truncate">{{ $item['label'] }}</span>
+            {{-- The Filipino line is the one most farmers will actually read --}}
+            <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
+        </span>
+    </{{ $item['route'] ? 'a' : 'span' }}>
+@endforeach

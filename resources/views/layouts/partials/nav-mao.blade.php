@@ -1,0 +1,104 @@
+@php
+    // route => null renders a disabled item, so the sidebar always shows the full
+    // MAO menu even while a module is still being built.
+    $items = [
+        [
+            'label'   => 'Executive Dashboard',
+            'route'   => 'mao.dashboard',
+            'pattern' => 'mao.dashboard',
+            'icon'    => 'M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9',
+        ],
+        [
+            'label'   => 'Users Management',
+            'route'   => 'mao.users.index',
+            'pattern' => 'mao.users.*',
+            'icon'    => 'M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6',
+        ],
+        [
+            'label'   => 'Membership Applications',
+            'route'   => 'mao.membership-applications.index',
+            'pattern' => 'mao.membership-applications.*',
+            'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM8.5 14l2 2 4-4',
+        ],
+        [
+            'label'   => "Farmer's Association",
+            'route'   => 'mao.farmers.index',
+            'pattern' => 'mao.farmers.*',
+            'icon'    => 'M12 3a3 3 0 100 6 3 3 0 000-6zM5.5 21v-1.5a4 4 0 014-4h5a4 4 0 014 4V21M4 12.5a2 2 0 100-4 2 2 0 000 4zM20 12.5a2 2 0 100-4 2 2 0 000 4z',
+        ],
+        [
+            'label'   => 'Crop Planting Monitoring',
+            'route'   => 'mao.crop-planting.index',
+            'pattern' => 'mao.crop-planting.*',
+            'icon'    => 'M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14zM4 21h16',
+        ],
+        [
+            'label'   => 'Crop Damage Monitoring',
+            'route'   => 'mao.damage-reports.index',
+            'pattern' => 'mao.damage-reports.*',
+            'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
+        ],
+        [
+            'label'   => 'Validation Monitoring',
+            'route'   => 'mao.validations.index',
+            'pattern' => 'mao.validations.*',
+            'icon'    => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+        ],
+        [
+            'label'   => 'Assistance Allocation',
+            'route'   => 'mao.assistance-allocations.index',
+            'pattern' => 'mao.assistance*',
+            'icon'    => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
+        ],
+        [
+            'label'   => 'Maps and Visualization',
+            'route'   => 'mao.map.index',
+            'pattern' => 'mao.map.*',
+            'icon'    => 'M9 20l-5.4 1.8A1 1 0 013 20.9V6.4a1 1 0 01.7-1L9 3.7m0 16.3l6-2.1m-6 2.1V3.7m6 14.2l5.4 1.8a1 1 0 001.3-1V4.2a1 1 0 00-.7-1L15 1.7m0 16.2V1.7m0 0L9 3.7',
+        ],
+        [
+            'label'   => 'Notification and Alerts',
+            'route'   => 'mao.notifications.index',
+            'pattern' => 'mao.notifications.*',
+            'icon'    => 'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1',
+        ],
+        [
+            'label'   => 'Reports',
+            'route'   => null,
+            'pattern' => 'mao.reports.*',
+            'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM9 17.5V14M12 17.5v-6M15 17.5v-3',
+        ],
+        [
+            'label'   => 'Archive',
+            'route'   => 'mao.archive.index',
+            'pattern' => 'mao.archive.*',
+            'icon'    => 'M3 6.5h18v3.5H3zM5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9M9.5 14h5',
+        ],
+    ];
+
+    $base     = 'flex items-center gap-3 rounded-lg px-3 py-2.5 transition';
+    $idle     = $base . ' hover:translate-x-1 hover:bg-sidebar-accent';
+    $current  = $base . ' bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm';
+    $disabled = $base . ' cursor-not-allowed opacity-45';
+@endphp
+
+@foreach ($items as $item)
+    @if ($item['route'])
+        <a href="{{ route($item['route']) }}"
+           class="{{ request()->routeIs($item['pattern']) ? $current : $idle }}">
+            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="{{ $item['icon'] }}"/>
+            </svg>
+            <span class="truncate">{{ $item['label'] }}</span>
+        </a>
+    @else
+        <span class="{{ $disabled }}" title="Coming in a later build step">
+            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="{{ $item['icon'] }}"/>
+            </svg>
+            <span class="truncate">{{ $item['label'] }}</span>
+        </span>
+    @endif
+@endforeach
