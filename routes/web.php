@@ -445,8 +445,17 @@ Route::middleware(['auth', 'active', 'role:mao'])
         Route::get('/reports/{year}/{month}/excel', [ReportController::class, 'downloadExcel'])
             ->whereNumber(['year', 'month'])->name('reports.excel');
 
-        /* ---------- Settings and reference data ---------- */
+        /* ---------- Settings and reference data ----------
+           /settings itself is the reference-data hub (associations/crops/
+           disasters/etc). The two PUT routes below are the MAO account's
+           own login email/phone and password, via the same shared
+           ManagesAccountSettings trait Farmer/Technician/Association use -
+           see MAO/SettingsController and resources/views/settings/account.
+           blade.php, included from mao/settings/index.blade.php. */
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+        Route::put('/settings', [SettingsController::class, 'updateProfile'])->name('settings.update');
+        Route::put('/settings/password', [SettingsController::class, 'updatePassword'])
+            ->name('settings.password');
 
         Route::resource('associations', AssociationController::class)->except(['show']);
         Route::put('/associations/{association}/archive', [AssociationController::class, 'archive'])

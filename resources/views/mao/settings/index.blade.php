@@ -81,4 +81,15 @@
             carry their PSGC code, which is what the map uses to match a boundary to a record.
         </p>
     </x-ui.card>
+
+    {{-- Account Settings: the two things every account can change about
+         itself (login email/phone, password). Same shared partial Farmer,
+         Technician and Association use - see settings/account.blade.php
+         and App\Http\Controllers\Concerns\ManagesAccountSettings. This is
+         what mao/profile.blade.php's "managed on the Account Settings
+         page" note actually points at. --}}
+    <div class="mt-10">
+        <h2 class="mb-4 text-lg font-semibold text-foreground">Account Settings</h2>
+        @include('settings.account')
+    </div>
 @endsection
