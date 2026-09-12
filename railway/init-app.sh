@@ -12,6 +12,15 @@ set -e
 
 php artisan migrate --force
 
+# Seeds the one MAO/Super Admin account (mao_admin / mao@tanza.gov.ph) plus
+# the barangay, association and crop reference data the rest of the app
+# depends on (registration's barangay dropdown, crop pickers, etc.) - none
+# of that exists on a brand new database otherwise. Every seeder here uses
+# firstOrCreate, so running this on every deploy is safe and never
+# duplicates rows. CHANGE THE SEEDED MAO PASSWORD after your first login -
+# see database/seeders/MaoAdminSeeder.php.
+php artisan db:seed --force
+
 # storage:link just reports the link already exists on every deploy after
 # the first - that is expected, not a failure, so it does not block the
 # rest of this script.

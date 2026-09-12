@@ -273,10 +273,26 @@
 
                 <div class="space-y-1.5">
                     <label for="password-desktop" class="block text-sm font-medium">Password</label>
-                    <input id="password-desktop" type="password" name="password" required
-                           autocomplete="current-password"
-                           class="h-11 w-full rounded-lg border border-input bg-card px-3.5 text-sm
-                                  focus:border-primary">
+                    {{-- Same show/hide toggle as the mobile layout above, just
+                         sized for the compact desktop field. --}}
+                    <div class="relative" x-data="{ show: false }">
+                        <input id="password-desktop" :type="show ? 'text' : 'password'" name="password" required
+                               autocomplete="current-password"
+                               class="h-11 w-full rounded-lg border border-input bg-card px-3.5 pr-10 text-sm
+                                      focus:border-primary">
+                        <button type="button" @click="show = ! show"
+                                :aria-label="show ? 'Hide password' : 'Show password'"
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground">
+                            <svg x-show="! show" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="1.7"
+                                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/>
+                            </svg>
+                            <svg x-show="show" x-cloak class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="1.7"
+                                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                <path d="M3 3l18 18M10.6 10.7a2.8 2.8 0 003.8 3.8M6.5 6.7C3.9 8.3 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.5 4.5-1.1M19.5 15.5C21.2 14 22 12 22 12s-3.6-6.5-10-6.5c-.7 0-1.3.1-1.9.2"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-between gap-3 pt-1">
