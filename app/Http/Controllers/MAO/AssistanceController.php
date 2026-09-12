@@ -9,7 +9,6 @@ use App\Models\Crop;
 use App\Models\Disaster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -26,6 +25,7 @@ class AssistanceController extends Controller
     public function index(Request $request)
     {
         $assistances = Assistance::query()
+            ->notDeleted()
             ->with(['disaster', 'crop'])
             ->withCount('allocations')
             ->withSum('allocations', 'allocated_quantity')
@@ -74,20 +74,22 @@ class AssistanceController extends Controller
             ->with('status', 'Assistance updated successfully.');
     }
 
+    /**
+     * Take the assistance item out of the working system for good. Not a
+     * database delete: markDeleted() only stamps deleted_at/deleted_by, so
+     * every allocation and distribution already made against it keeps
+     * resolving its name exactly as before.
+     */
     public function destroy(Assistance $assistance)
     {
-        if (DB::table('assistance_allocations')->where('assistance_id', $assistance->id)->exists()) {
-            return back()->withErrors([
-                'assistance' => 'This assistance has already been allocated, so it cannot be deleted. Close it instead.',
-            ]);
-        }
-
         $name = $assistance->name;
-        $assistance->delete();
+        $assistance->markDeleted(Auth::id());
 
-        $this->log('Deleted assistance: ' . $name, null);
+        $this->log('Deleted assistance: ' . $name, $assistance->id);
 
-        return redirect()->route('mao.assistance.index')->with('status', 'Assistance deleted.');
+        // back() rather than a fixed route: reused by both the Assistance
+        // catalogue and the Archive page's permanent-delete action.
+        return back()->with('status', 'Assistance deleted. Its data is kept for audit purposes.');
     }
 
     /**
@@ -106,6 +108,10 @@ class AssistanceController extends Controller
 
     public function restore(Assistance $assistance)
     {
+        if ($assistance->is_deleted) {
+            return back()->withErrors(['assistance' => 'This assistance item was permanently deleted and can no longer be restored.']);
+        }
+
         $assistance->update(['status' => 'active']);
 
         $this->log('Restored assistance: ' . $assistance->name, $assistance->id);

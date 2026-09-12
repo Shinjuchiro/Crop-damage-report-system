@@ -45,10 +45,29 @@
             'icon'    => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
         ],
         [
-            'label'   => 'Assistance Allocation',
-            'route'   => 'mao.assistance-allocations.index',
-            'pattern' => 'mao.assistance*',
-            'icon'    => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
+            'label'    => 'Assistance Allocation & Tracking',
+            // Matches every sub-page below, so the group opens itself on
+            // whichever one is current, and also covers the standalone
+            // create/show/disputes pages that are not in the submenu.
+            'pattern'  => 'mao.assistance*',
+            'icon'     => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
+            'children' => [
+                [
+                    'label'   => 'Assistance Allocation',
+                    'route'   => 'mao.assistance-allocations.index',
+                    'pattern' => 'mao.assistance-allocations.index',
+                ],
+                [
+                    'label'   => 'Allocation History',
+                    'route'   => 'mao.assistance-allocations.history',
+                    'pattern' => 'mao.assistance-allocations.history',
+                ],
+                [
+                    'label'   => 'Distribution Tracking',
+                    'route'   => 'mao.assistance-allocations.distribution-tracking',
+                    'pattern' => 'mao.assistance-allocations.distribution-tracking',
+                ],
+            ],
         ],
         [
             'label'   => 'Maps and Visualization',
@@ -64,7 +83,7 @@
         ],
         [
             'label'   => 'Reports',
-            'route'   => null,
+            'route'   => 'mao.reports.index',
             'pattern' => 'mao.reports.*',
             'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM9 17.5V14M12 17.5v-6M15 17.5v-3',
         ],
@@ -76,14 +95,51 @@
         ],
     ];
 
-    $base     = 'flex items-center gap-3 rounded-lg px-3 py-2.5 transition';
-    $idle     = $base . ' hover:translate-x-1 hover:bg-sidebar-accent';
-    $current  = $base . ' bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm';
-    $disabled = $base . ' cursor-not-allowed opacity-45';
+    $base       = 'flex items-center gap-3 rounded-lg px-3 py-2.5 transition';
+    $idle       = $base . ' hover:translate-x-1 hover:bg-sidebar-accent';
+    $current    = $base . ' bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm';
+    $disabled   = $base . ' cursor-not-allowed opacity-45';
+
+    $childBase  = 'block truncate rounded-lg px-3 py-2 text-sm transition';
+    $childIdle  = $childBase . ' text-sidebar-foreground/80 hover:translate-x-1 hover:bg-sidebar-accent hover:text-sidebar-foreground';
+    $childCurr  = $childBase . ' bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-sm';
 @endphp
 
 @foreach ($items as $item)
-    @if ($item['route'])
+    @if (! empty($item['children']))
+        {{--
+            An expandable group, e.g. "Assistance Allocation & Tracking".
+            Starts open whenever the current page is one of its own children,
+            so a person landing on Allocation History never finds the group
+            collapsed and has to go hunting for what they are already on.
+        --}}
+        <div x-data="{ open: {{ request()->routeIs($item['pattern']) ? 'true' : 'false' }} }">
+            <button type="button" @click="open = ! open"
+                    class="{{ request()->routeIs($item['pattern']) ? $current : $idle }} w-full min-w-0 justify-between">
+                <span class="flex min-w-0 items-center gap-3">
+                    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="{{ $item['icon'] }}"/>
+                    </svg>
+                    <span class="min-w-0 truncate">{{ $item['label'] }}</span>
+                </span>
+                <svg class="h-4 w-4 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''"
+                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                     stroke-linejoin="round" viewBox="0 0 24 24">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </button>
+
+            <div x-show="open" x-cloak x-transition class="mt-1 space-y-0.5 pl-8">
+                @foreach ($item['children'] as $child)
+                    <a href="{{ route($child['route']) }}"
+                       class="{{ request()->routeIs($child['pattern']) ? $childCurr : $childIdle }}">
+                        {{ $child['label'] }}
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    @elseif ($item['route'])
         <a href="{{ route($item['route']) }}"
            class="{{ request()->routeIs($item['pattern']) ? $current : $idle }}">
             <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"

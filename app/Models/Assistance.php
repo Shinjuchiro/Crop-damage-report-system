@@ -2,16 +2,24 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletable;
 use Illuminate\Database\Eloquent\Model;
 
 class Assistance extends Model
 {
+    use SoftDeletable;
+
     protected $table = 'assistances'; // explicit - "assistance" does not pluralize predictably
 
     protected $fillable = [
         'name', 'type', 'description', 'disaster_id', 'crop_id',
         'available_quantity_or_amount', 'status',
     ];
+
+    protected function casts(): array
+    {
+        return ['deleted_at' => 'datetime'];
+    }
 
     public function disaster()
     {

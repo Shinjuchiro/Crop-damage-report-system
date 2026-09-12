@@ -49,14 +49,14 @@
         [
             'label'    => 'Maps and Visualization',
             'filipino' => 'Mapa',
-            'route'    => null,      // comes with a later build step
+            'route'    => 'association.map.index',
             'pattern'  => 'association.map.*',
             'icon'     => 'M9 20l-5.4 1.8A1 1 0 013 20.9V6.4a1 1 0 01.7-1L9 3.7m0 16.3l6-2.1m-6 2.1V3.7m6 14.2l5.4 1.8a1 1 0 001.3-1V4.2a1 1 0 00-.7-1L15 1.7m0 16.2V1.7m0 0L9 3.7',
         ],
         [
             'label'    => 'Reports',
             'filipino' => 'Mga Ulat',
-            'route'    => null,      // comes with a later build step
+            'route'    => 'association.summaries.index',
             'pattern'  => 'association.summaries.*',
             'icon'     => 'M6 20V10M12 20V4M18 20v-6M3.5 20h17',
         ],

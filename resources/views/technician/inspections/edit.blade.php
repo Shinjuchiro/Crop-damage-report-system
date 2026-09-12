@@ -54,7 +54,9 @@
         reportedLat: {{ $report->reported_latitude ?? 'null' }},
         reportedLng: {{ $report->reported_longitude ?? 'null' }},
         farmerEstimate: {{ $farmerEstimate }},
-        notesGap: {{ $notesGap }}
+        notesGap: {{ $notesGap }},
+        initialDisasterIds: {!! json_encode($report->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!},
+        disasterLabels: {!! json_encode($availableDisasters->pluck('name', 'id')) !!}
      })">
 
     @if ($errors->any())
@@ -402,6 +404,59 @@
                         what the farmer reported and what you found. This is what the office reads when deciding.
                     </p>
                 </x-ui.card>
+
+                {{-- Optional. Lets the technician link a disaster event the
+                     farmer never had the chance to (it may not have been
+                     declared yet when they filed), or fix one they picked
+                     wrong. Every currently active event is offered here
+                     regardless of the report's own cause, since a
+                     technician standing on the farm may simply know better
+                     than the dropdown the farmer picked from home. --}}
+                <x-ui.card title="Disaster Event"
+                           description="Optional. Add an event the farmer could not link yet, or fix one that is wrong.">
+
+                    @if ($availableDisasters->isEmpty())
+                        <p class="text-sm text-muted-foreground">
+                            The office has not declared any active disaster events yet.
+                        </p>
+                    @else
+                        <div class="space-y-2">
+                            @foreach ($availableDisasters as $disaster)
+                                @php $linkedByFarmer = optional($report->disasters->firstWhere('id', $disaster->id))->pivot?->linked_by_role === 'farmer'; @endphp
+
+                                <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2.5
+                                              transition hover:border-primary/40"
+                                       :class="disasterIds.includes('{{ $disaster->id }}') ? 'border-primary bg-accent' : ''">
+                                    <input type="checkbox" name="disasters[]" value="{{ $disaster->id }}"
+                                           x-model="disasterIds" class="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]">
+
+                                    <span class="min-w-0 flex-1">
+                                        <span class="flex flex-wrap items-center gap-2">
+                                            <span class="text-sm font-medium">{{ $disaster->name }}</span>
+                                            @if ($linkedByFarmer)
+                                                <span class="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                                    Farmer linked this
+                                                </span>
+                                            @endif
+                                        </span>
+                                        <span class="block text-xs text-muted-foreground">
+                                            {{ ucfirst($disaster->type) }}
+                                            @if ($disaster->date_start)
+                                                &middot; {{ $disaster->date_start->format('M d, Y') }}
+                                                @if ($disaster->date_end) - {{ $disaster->date_end->format('M d, Y') }} @endif
+                                            @endif
+                                        </span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <p class="mt-3 text-xs text-muted-foreground">
+                            Unchecking one the farmer already linked genuinely removes it, so only uncheck it
+                            if you are sure it is wrong - it will no longer count toward that event's totals.
+                        </p>
+                    @endif
+                </x-ui.card>
             </div>
 
             {{-- =============================================================
@@ -535,6 +590,11 @@
                                 x-text="latitude && longitude ? latitude + ', ' + longitude : 'Not set'"></dd>
                         </div>
 
+                        <div class="flex items-start justify-between gap-4 px-4 py-3">
+                            <dt class="text-sm text-muted-foreground">Disaster Event</dt>
+                            <dd class="text-right text-sm font-medium" x-text="disasterSummary()"></dd>
+                        </div>
+
                         <div class="px-4 py-3">
                             <dt class="text-sm text-muted-foreground">Notes</dt>
                             <dd class="mt-1 whitespace-pre-line text-sm"
@@ -666,6 +726,11 @@
 
             farmerEstimate: config.farmerEstimate,
             notesGap: config.notesGap,
+
+            // Checkbox values come through as strings, so this array is
+            // kept as strings too rather than mixing types with x-model.
+            disasterIds: config.initialDisasterIds,
+            disasterLabels: config.disasterLabels,
 
             init() {
                 this.$nextTick(() => this.buildMap());
@@ -819,6 +884,21 @@
             },
 
             /* ==============================================================
+             | Disaster event (optional - add or correct anytime)
+             ============================================================== */
+
+            disasterSummary() {
+                if (! this.disasterIds.length) {
+                    return 'None linked';
+                }
+
+                return this.disasterIds
+                    .map(id => this.disasterLabels[id] || this.disasterLabels[String(id)])
+                    .filter(Boolean)
+                    .join(', ') || 'None linked';
+            },
+
+            /* ==============================================================
              | Photos (section 43)
              ============================================================== */
 
@@ -962,6 +1042,7 @@
                     { label: "Farmer's estimate",   value: this.farmerEstimate + '%' },
                     { label: 'You assessed',        value: this.percent + '%' },
                     { label: 'Inspection photos',   value: this.photoSummary() },
+                    { label: 'Disaster event',      value: this.disasterSummary() },
                     { label: 'Notes',               value: this.notes ? this.notes.slice(0, 90) + (this.notes.length > 90 ? '...' : '') : 'Not written' },
                     {
                         label: 'Verified location',

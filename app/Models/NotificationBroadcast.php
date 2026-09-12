@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletable;
+use App\Services\SemaphoreSmsService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class NotificationBroadcast extends Model
 {
+    use SoftDeletable;
+
     /**
      * The kinds of alert the MAO sends, with the label shown in the interface.
      * Keys are the values stored in the category column.
@@ -56,6 +60,7 @@ class NotificationBroadcast extends Model
         return [
             'sent_at'       => 'datetime',
             'scheduled_for' => 'datetime',
+            'deleted_at'    => 'datetime',
         ];
     }
 
@@ -162,9 +167,8 @@ class NotificationBroadcast extends Model
     /**
      * Write one notification row per recipient and mark the alert sent.
      *
-     * Urgent and Critical alerts have their SMS marked 'pending'. Nothing is
-     * claimed as delivered here: the SMS provider is a separate build step, and
-     * the SMS history screen reads these rows.
+     * Urgent and Critical alerts also actually go out as SMS from here (see
+     * sendSms() below) once the rows exist to record the result against.
      */
     public function dispatchToRecipients(): int
     {
@@ -193,6 +197,50 @@ class NotificationBroadcast extends Model
 
         $this->update(['status' => 'sent', 'sent_at' => $now]);
 
+        if ($this->sends_sms) {
+            $this->sendSms($recipients);
+        }
+
         return count($rows);
+    }
+
+    /**
+     * Hand each recipient's text to the SMS provider and record what
+     * happened, one recipient at a time. Kept separate from the bulk insert
+     * above so a slow or failing SMS provider never blocks the in-app
+     * alert - that part is already saved and marked sent by the time this
+     * runs.
+     *
+     * This runs inline in the request rather than on a queue. That is a
+     * deliberate simplicity trade-off for a municipal office sending to at
+     * most a few hundred recipients at a time (proposal section 2: keep the
+     * system practical, not an enterprise platform) - if the farmer base
+     * grows enough that this becomes slow, it is a straightforward move to
+     * a queued job later without changing anything about how sms_status is
+     * recorded.
+     */
+    private function sendSms(array $recipientIds): void
+    {
+        $sms = app(SemaphoreSmsService::class);
+
+        $phones = User::whereIn('id', $recipientIds)->pluck('phone_number', 'id');
+
+        // Semaphore charges per 160-character segment; trimmed so one alert
+        // is one text for the common case instead of silently billing more.
+        $text = '[' . strtoupper($this->priority) . '] ' . $this->title . ': ' . $this->message;
+        if (mb_strlen($text) > 160) {
+            $text = mb_substr($text, 0, 157) . '...';
+        }
+
+        foreach ($recipientIds as $userId) {
+            $phone  = $phones->get($userId);
+            $result = $phone
+                ? $sms->send($phone, $text)
+                : ['success' => false, 'error' => 'No phone number on file.'];
+
+            Notification::where('notification_broadcast_id', $this->id)
+                ->where('user_id', $userId)
+                ->update(['sms_status' => $result['success'] ? 'sent' : 'failed']);
+        }
     }
 }

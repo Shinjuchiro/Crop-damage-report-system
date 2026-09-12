@@ -153,7 +153,18 @@ class DamageReportController extends Controller
             // sync() fills the damage_report_disasters pivot table for us.
             // An empty array is fine: pest, disease and heat damage have no
             // declared event, and the cause above already records what it was.
-            $report->disasters()->sync($data['disasters'] ?? []);
+            // Each row is tagged as farmer-linked so a technician correcting
+            // or adding to this list later (Technician\InspectionController)
+            // can tell which ones were the farmer's own choice.
+            $report->disasters()->sync(
+                collect($data['disasters'] ?? [])->mapWithKeys(fn ($disasterId) => [
+                    $disasterId => [
+                        'linked_by'      => Auth::id(),
+                        'linked_by_role' => 'farmer',
+                        'created_at'     => now(),
+                    ],
+                ])->all()
+            );
 
             // 4. Photos.
             $this->storePhotos($request, $report);

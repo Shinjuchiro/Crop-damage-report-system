@@ -48,36 +48,34 @@
         <div class="mx-4 border-t border-sidebar-border lg:mx-5"></div>
 
         {{-- Role navigation --}}
-        <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 py-3 text-sm">
+        <nav class="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-3 py-3 text-sm">
             @include('layouts.partials.nav-' . auth()->user()->role)
         </nav>
 
-        <div class="mx-4 border-t border-sidebar-border lg:mx-5"></div>
+        {{-- Settings. MAO only: its "Settings" is the crop/disaster/
+             association reference-data hub, a real module. Farmer,
+             Technician and Association's version is just the small
+             email/phone/password page (ManagesAccountSettings), which now
+             lives in the account dropdown at the top right instead - a
+             sidebar slot was too much weight for it. --}}
+        @if (auth()->user()->role === 'mao')
+            <div class="mx-4 border-t border-sidebar-border lg:mx-5"></div>
 
-        {{-- Settings --}}
-        <div class="px-3 py-3">
-            @php
-                $settingsBase = 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors';
-                $settingsIcon = '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-2.9-1.2l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 003.1 14H3a2 2 0 110-4h.1a1.7 1.7 0 001.2-2.9l-.1-.1a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 0010 3.1V3a2 2 0 114 0v.1a1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.2 2.9H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>';
-            @endphp
+            <div class="px-3 py-3">
+                @php
+                    $settingsBase = 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors';
+                    $settingsIcon = '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-2.9-1.2l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 003.1 14H3a2 2 0 110-4h.1a1.7 1.7 0 001.2-2.9l-.1-.1a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 0010 3.1V3a2 2 0 114 0v.1a1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.2 2.9H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>';
+                    $settingsActive = request()->routeIs('mao.settings');
+                @endphp
 
-            @if (auth()->user()->role === 'mao')
                 <a href="{{ route('mao.settings') }}"
-                   class="{{ $settingsBase }} {{ request()->routeIs('mao.settings')
-                        ? 'bg-sidebar-primary font-medium text-sidebar-primary-foreground'
-                        : 'hover:bg-sidebar-accent' }}">
+                    class="{{ $settingsBase }} {{ $settingsActive ? 'bg-sidebar-primary font-medium text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent' }}">
                     <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
                          stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $settingsIcon !!}</svg>
                     Settings
                 </a>
-            @else
-                <span class="{{ $settingsBase }} cursor-not-allowed opacity-45">
-                    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
-                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $settingsIcon !!}</svg>
-                    Settings
-                </span>
-            @endif
-        </div>
+            </div>
+        @endif
     </aside>
 
     {{-- Backdrop for the drawer --}}
@@ -131,11 +129,11 @@
                 @php
                     // The bell is the only way into a role's inbox, because
                     // Notifications is deliberately not a sidebar item for any
-                    // role. Technician has no inbox yet, so for that role this
-                    // renders as an inert icon rather than a broken link.
+                    // role.
                     $bellRoute = match (auth()->user()->role) {
                         'farmer'      => route('farmer.notifications.index'),
                         'association' => route('association.notifications.index'),
+                        'technician'  => route('technician.notifications.index'),
                         'mao'         => route('mao.notifications.index'),
                         default       => null,
                     };

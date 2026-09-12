@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\Archivable;
+use App\Models\Concerns\SoftDeletable;
 use Illuminate\Database\Eloquent\Model;
 
 class Crop extends Model
 {
-    use Archivable;
+    use Archivable, SoftDeletable;
 
     protected $table = 'crops';
 
@@ -15,7 +16,7 @@ class Crop extends Model
 
     protected function casts(): array
     {
-        return ['is_hvcc' => 'boolean'];
+        return ['is_hvcc' => 'boolean', 'deleted_at' => 'datetime'];
     }
 
     public function mainCrops()

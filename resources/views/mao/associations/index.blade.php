@@ -5,7 +5,7 @@
 @section('subheading', 'Every farmer belongs to an association, and all assistance is allocated through them.')
 
 @section('content')
-<div x-data="{ deleting: null }">
+<div>
 
     @if ($errors->any())
         <div class="mb-4 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
@@ -98,16 +98,18 @@
                                         </button>
                                     </form>
 
-                                    @if ($used === 0)
-                                        <button type="button"
-                                                @click="deleting = { id: {{ $association->id }}, name: @js($association->name) }"
+                                    <form method="POST" action="{{ route('mao.associations.destroy', $association) }}"
+                                          data-confirm="Are you sure you want to continue? {{ $association->name }} will be removed from active lists. Its data is kept for audit purposes, and this deletion will be recorded."
+                                          data-confirm-title="Delete association permanently"
+                                          data-confirm-detail="This action cannot be undone from this screen."
+                                          data-confirm-action="Delete Permanently"
+                                          data-confirm-tone="danger">
+                                        @csrf @method('DELETE')
+                                        <button type="submit"
                                                 class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
                                             Delete
                                         </button>
-                                    @else
-                                        <span class="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground"
-                                              title="This association already has records attached.">In use</span>
-                                    @endif
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -127,29 +129,5 @@
     </div>
 
     <div class="mt-4">{{ $associations->links() }}</div>
-
-    {{-- Delete confirmation --}}
-    <div x-show="deleting" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-            <h3 class="mb-2 text-lg font-semibold text-foreground">Delete this association?</h3>
-            <p class="mb-5 text-sm text-muted-foreground">
-                You are about to permanently remove <strong x-text="deleting?.name"></strong>.
-                This cannot be undone.
-            </p>
-            <div class="flex gap-3">
-                <button type="button" @click="deleting = null"
-                        class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                    Cancel
-                </button>
-                <form method="POST" :action="`{{ url('mao/associations') }}/${deleting?.id}`" class="flex-1">
-                    @csrf @method('DELETE')
-                    <button type="submit"
-                            class="w-full rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">
-                        Confirm Delete
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
 </div>
 @endsection

@@ -13,22 +13,34 @@ use App\Models\User;
 use Illuminate\Http\Request;
 
 /**
- * One place to see everything the office has archived, and to bring any of
- * it back. Proposal section 72: "Archive / Deactivate instead of permanent
- * deletion whenever appropriate."
+ * One place to see everything the office has taken out of the working
+ * system - proposal section 72 ("Archive / Deactivate instead of permanent
+ * deletion whenever appropriate") and section 91.10 ("keep a record of it").
  *
- * Each tab reads whichever mechanism that record type already uses to mean
- * "archived" - there is no single shared column across all of them:
+ * Two tabs, not one:
+ *
+ *   Archived - a record someone archived (still fully live everywhere else,
+ *              just off the active catalogues) - can be restored.
+ *   Deleted  - a record someone chose "Delete Permanently" on. Nothing was
+ *              actually removed from the database: every field, and who
+ *              deleted it and when, is kept (see
+ *              app/Models/Concerns/SoftDeletable.php). Read-only - deleting
+ *              is meant to be final, so there is no restore action here.
+ *
+ * Each tab reads whichever mechanism that record type already uses:
  *
  *   Farmers                users.status = 'inactive'   (MembershipApplicationController)
- *   Associations, Crops,   archived_at is not null     (Archivable trait)
+ *   Associations, Crops,   archived_at is not null      (Archivable trait)
  *   Disasters
  *   Technicians / Officers users.status = 'inactive'   (UserManagementController)
  *   Assistance             status = 'inactive'         (AssistanceController)
  *   Alerts                 status = 'archived'         (NotificationBroadcastController)
  *
- * Restoring is therefore also done by the owning controller for each type,
- * not here - this page only lists and links to those actions.
+ * ...and every one of those seven also has deleted_at/deleted_by
+ * (SoftDeletable), checked here independently of the mechanism above.
+ *
+ * Restoring, archiving and deleting are all done by the owning controller
+ * for each type, not here - this page only lists and links to those actions.
  */
 class ArchiveController extends Controller
 {
@@ -50,8 +62,38 @@ class ArchiveController extends Controller
             $type = 'farmers';
         }
 
-        $records = match ($type) {
+        $view = $request->query('view', 'archived');
+
+        if (! in_array($view, ['archived', 'deleted'], true)) {
+            $view = 'archived';
+        }
+
+        $records = $view === 'deleted'
+            ? $this->deletedRecords($type, $request)
+            : $this->archivedRecords($type, $request);
+
+        $counts = $view === 'deleted' ? $this->deletedCounts() : $this->archivedCounts();
+
+        return view('mao.archive.index', [
+            'type'    => $type,
+            'types'   => self::TYPES,
+            'view'    => $view,
+            'records' => $records,
+            'counts'  => $counts,
+        ]);
+    }
+
+    /**
+     * A record that is currently archived (never a deleted one - see
+     * Archivable::scopeOnlyArchived(), which already excludes deleted rows
+     * for Associations/Crops/Disasters; Farmers/Users/Assistance/Alerts are
+     * excluded explicitly below since they use a status column instead).
+     */
+    private function archivedRecords(string $type, Request $request)
+    {
+        return match ($type) {
             'farmers' => Farmer::with(['user', 'association', 'barangay'])
+                ->notDeleted()
                 ->whereHas('user', fn ($q) => $q->where('status', 'inactive'))
                 ->when($request->filled('search'), fn ($q) => $q->where(function ($sub) use ($request) {
                     $term = '%' . $request->search . '%';
@@ -71,6 +113,7 @@ class ArchiveController extends Controller
                 ->withQueryString(),
 
             'users' => User::whereIn('role', ['technician', 'association'])
+                ->notDeleted()
                 ->where('status', 'inactive')
                 ->with('associationOfficer.association')
                 ->when($request->filled('search'), fn ($q) => $q->where(function ($sub) use ($request) {
@@ -100,6 +143,7 @@ class ArchiveController extends Controller
                 ->withQueryString(),
 
             'assistance' => Assistance::where('status', 'inactive')
+                ->notDeleted()
                 ->with(['disaster', 'crop'])
                 ->withCount('allocations')
                 ->when($request->filled('search'),
@@ -109,6 +153,7 @@ class ArchiveController extends Controller
                 ->withQueryString(),
 
             'alerts' => NotificationBroadcast::where('status', 'archived')
+                ->notDeleted()
                 ->with('createdBy')
                 ->withCount('notifications')
                 ->when($request->filled('search'),
@@ -117,22 +162,104 @@ class ArchiveController extends Controller
                 ->paginate(15)
                 ->withQueryString(),
         };
+    }
 
-        $counts = [
-            'farmers'      => Farmer::whereHas('user', fn ($q) => $q->where('status', 'inactive'))->count(),
+    /**
+     * A record someone permanently deleted. Every field is intact - this
+     * reads the exact same table, filtered to deleted_at IS NOT NULL, with no
+     * regard for the type's own archived/status column (a record can be
+     * deleted straight from its own management page without ever having
+     * been archived first, for Crops/Disasters/Associations/Assistance).
+     */
+    private function deletedRecords(string $type, Request $request)
+    {
+        return match ($type) {
+            'farmers' => Farmer::onlyDeleted()
+                ->with(['user', 'association', 'barangay', 'deletedBy'])
+                ->when($request->filled('search'), fn ($q) => $q->where(function ($sub) use ($request) {
+                    $term = '%' . $request->search . '%';
+                    $sub->where('first_name', 'like', $term)->orWhere('last_name', 'like', $term);
+                }))
+                ->orderByDesc('deleted_at')
+                ->paginate(15)
+                ->withQueryString(),
+
+            'associations' => Association::onlyDeleted()
+                ->with(['barangay', 'deletedBy'])
+                ->when($request->filled('search'),
+                    fn ($q) => $q->where('name', 'like', '%' . $request->search . '%'))
+                ->orderByDesc('deleted_at')
+                ->paginate(15)
+                ->withQueryString(),
+
+            'users' => User::whereIn('role', ['technician', 'association'])
+                ->onlyDeleted()
+                ->with(['associationOfficer.association', 'deletedBy'])
+                ->when($request->filled('search'), fn ($q) => $q->where(function ($sub) use ($request) {
+                    $term = '%' . $request->search . '%';
+                    $sub->where('full_name', 'like', $term)->orWhere('username', 'like', $term);
+                }))
+                ->orderByDesc('deleted_at')
+                ->paginate(15)
+                ->withQueryString(),
+
+            'crops' => Crop::onlyDeleted()
+                ->with('deletedBy')
+                ->when($request->filled('search'),
+                    fn ($q) => $q->where('name', 'like', '%' . $request->search . '%'))
+                ->orderByDesc('deleted_at')
+                ->paginate(15)
+                ->withQueryString(),
+
+            'disasters' => Disaster::onlyDeleted()
+                ->with('deletedBy')
+                ->when($request->filled('search'),
+                    fn ($q) => $q->where('name', 'like', '%' . $request->search . '%'))
+                ->orderByDesc('deleted_at')
+                ->paginate(15)
+                ->withQueryString(),
+
+            'assistance' => Assistance::onlyDeleted()
+                ->with(['disaster', 'crop', 'deletedBy'])
+                ->when($request->filled('search'),
+                    fn ($q) => $q->where('name', 'like', '%' . $request->search . '%'))
+                ->orderByDesc('deleted_at')
+                ->paginate(15)
+                ->withQueryString(),
+
+            'alerts' => NotificationBroadcast::onlyDeleted()
+                ->with(['createdBy', 'deletedBy'])
+                ->when($request->filled('search'),
+                    fn ($q) => $q->where('title', 'like', '%' . $request->search . '%'))
+                ->orderByDesc('deleted_at')
+                ->paginate(15)
+                ->withQueryString(),
+        };
+    }
+
+    private function archivedCounts(): array
+    {
+        return [
+            'farmers'      => Farmer::notDeleted()->whereHas('user', fn ($q) => $q->where('status', 'inactive'))->count(),
             'associations' => Association::onlyArchived()->count(),
-            'users'        => User::whereIn('role', ['technician', 'association'])->where('status', 'inactive')->count(),
+            'users'        => User::whereIn('role', ['technician', 'association'])->notDeleted()->where('status', 'inactive')->count(),
             'crops'        => Crop::onlyArchived()->count(),
             'disasters'    => Disaster::onlyArchived()->count(),
-            'assistance'   => Assistance::where('status', 'inactive')->count(),
-            'alerts'       => NotificationBroadcast::where('status', 'archived')->count(),
+            'assistance'   => Assistance::where('status', 'inactive')->notDeleted()->count(),
+            'alerts'       => NotificationBroadcast::where('status', 'archived')->notDeleted()->count(),
         ];
+    }
 
-        return view('mao.archive.index', [
-            'type'    => $type,
-            'types'   => self::TYPES,
-            'records' => $records,
-            'counts'  => $counts,
-        ]);
+    private function deletedCounts(): array
+    {
+        return [
+            'farmers'      => Farmer::onlyDeleted()->count(),
+            'associations' => Association::onlyDeleted()->count(),
+            'users'        => User::whereIn('role', ['technician', 'association'])->onlyDeleted()->count(),
+            'crops'        => Crop::onlyDeleted()->count(),
+            'disasters'    => Disaster::onlyDeleted()->count(),
+            'assistance'   => Assistance::onlyDeleted()->count(),
+            'alerts'       => NotificationBroadcast::onlyDeleted()->count(),
+        ];
     }
 }

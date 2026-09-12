@@ -22,6 +22,7 @@ class UserManagementController extends Controller
     public function index(Request $request)
     {
         $users = User::query()
+            ->notDeleted()
             ->when($request->filled('role'), fn ($query) => $query->where('role', $request->role))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -40,10 +41,10 @@ class UserManagementController extends Controller
             ->withQueryString();
 
         $summary = [
-            'total'    => User::count(),
-            'active'   => User::where('status', 'active')->count(),
-            'pending'  => User::where('status', 'pending')->count(),
-            'inactive' => User::where('status', 'inactive')->count(),
+            'total'    => User::notDeleted()->count(),
+            'active'   => User::notDeleted()->where('status', 'active')->count(),
+            'pending'  => User::notDeleted()->where('status', 'pending')->count(),
+            'inactive' => User::notDeleted()->where('status', 'inactive')->count(),
         ];
 
         return view('mao.users.index', compact('users', 'summary'));
@@ -210,12 +211,42 @@ class UserManagementController extends Controller
             return back()->withErrors(['status' => 'MAO accounts cannot be archived here.']);
         }
 
+        if ($user->is_deleted) {
+            return back()->withErrors(['status' => 'This account was permanently deleted and can no longer be restored.']);
+        }
+
         $user->update(['status' => $request->status]);
 
         $this->log('Set user status to ' . $request->status . ': ' . $user->username, $user->id);
 
         return back()->with('status',
             $request->status === 'inactive' ? 'User archived.' : 'User restored.');
+    }
+
+    /**
+     * Take a technician or association officer account out of the working
+     * system for good. Not a database delete: markDeleted() only stamps
+     * deleted_at/deleted_by, so the account and everything it ever did
+     * (inspections, allocations, distributions, its own login history) is
+     * kept exactly as it was. MAO accounts and the caller's own account are
+     * never deletable here.
+     */
+    public function destroy(User $user)
+    {
+        if ($user->id === Auth::id()) {
+            return back()->withErrors(['user' => 'You cannot delete your own account.']);
+        }
+
+        if ($user->role === 'mao') {
+            return back()->withErrors(['user' => 'MAO accounts cannot be deleted here.']);
+        }
+
+        $name = $user->display_name;
+        $user->markDeleted(Auth::id());
+
+        $this->log('Deleted user account: ' . $name, $user->id);
+
+        return back()->with('status', 'User account deleted. Its information is kept for audit purposes.');
     }
 
     private function log(string $action, ?int $targetId): void

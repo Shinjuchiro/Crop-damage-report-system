@@ -7,13 +7,12 @@ use App\Models\AuditLog;
 use App\Models\Crop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
  * MAO manages the crop reference list. Crops are referenced by farmer profiles,
- * planting records and damage reports, so a crop that is already in use is
- * never deleted - it is renamed instead.
+ * planting records and damage reports, so deleting one never breaks those -
+ * see destroy() and app/Models/Concerns/SoftDeletable.php.
  */
 class CropController extends Controller
 {
@@ -62,21 +61,24 @@ class CropController extends Controller
             ->with('status', 'Crop updated successfully.');
     }
 
+    /**
+     * Take the crop out of the working system for good. Not a database
+     * delete: markDeleted() only stamps deleted_at/deleted_by, so every
+     * farmer profile, planting record and damage report that already cites
+     * this crop keeps resolving its name exactly as before (see
+     * app/Models/Concerns/SoftDeletable.php).
+     */
     public function destroy(Crop $crop)
     {
-        if ($this->timesUsed($crop) > 0) {
-            return back()->withErrors([
-                'crop' => 'This crop is already used in farmer records, so it cannot be deleted. Archive it instead.',
-            ]);
-        }
-
         $name = $crop->name;
-        $crop->delete();
+        $crop->markDeleted(Auth::id());
 
-        $this->log('Deleted crop: ' . $name, null);
+        $this->log('Deleted crop: ' . $name, $crop->id);
 
-        return redirect()->route('mao.crops.index')
-            ->with('status', 'Crop deleted.');
+        // back() rather than a fixed route: this action is reused by both the
+        // Crops list (an unarchived crop) and the Archive page (one already
+        // archived), so it returns the MAO to whichever of the two they were on.
+        return back()->with('status', 'Crop deleted. Its data is kept for audit purposes.');
     }
 
     /**
@@ -94,6 +96,10 @@ class CropController extends Controller
 
     public function restore(Crop $crop)
     {
+        if ($crop->is_deleted) {
+            return back()->withErrors(['crop' => 'This crop was permanently deleted and can no longer be restored.']);
+        }
+
         $crop->unarchive();
 
         $this->log('Restored crop: ' . $crop->name, $crop->id);
@@ -110,18 +116,6 @@ class CropController extends Controller
         $data['is_hvcc'] = $request->boolean('is_hvcc');
 
         return $data;
-    }
-
-    /**
-     * How many records point at this crop. Anything above zero blocks deletion.
-     */
-    private function timesUsed(Crop $crop): int
-    {
-        return DB::table('farmer_main_crops')->where('crop_id', $crop->id)->count()
-            + DB::table('crop_planting_record_crops')->where('crop_id', $crop->id)->count()
-            + DB::table('damage_report_crops')->where('crop_id', $crop->id)->count()
-            + DB::table('assistances')->where('crop_id', $crop->id)->count()
-            + DB::table('assistance_allocations')->where('crop_id', $crop->id)->count();
     }
 
     private function log(string $action, ?int $targetId): void

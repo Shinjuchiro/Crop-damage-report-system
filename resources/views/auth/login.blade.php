@@ -127,10 +127,9 @@
                            class="h-5 w-5 rounded border-input text-primary focus:ring-ring">
                     Remember me
                 </label>
-                <span class="text-sm font-semibold text-muted-foreground"
-                      title="Password reset is not connected yet. Please contact the office.">
+                <a href="{{ route('password.request') }}" class="text-sm font-semibold text-[#166534] dark:text-primary">
                     Forgot password?
-                </span>
+                </a>
             </div>
 
             <button type="submit"
@@ -286,10 +285,9 @@
                                class="h-4 w-4 rounded border-input text-primary focus:ring-ring">
                         Remember me
                     </label>
-                    <span class="text-sm text-muted-foreground"
-                          title="Password reset is not connected yet. Please contact the office.">
+                    <a href="{{ route('password.request') }}" class="text-sm text-[#166534] dark:text-primary">
                         Forgot password?
-                    </span>
+                    </a>
                 </div>
 
                 <button type="submit"

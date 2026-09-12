@@ -1,0 +1,25 @@
+# Railway builds this project with Nixpacks. Left to its own defaults,
+# Nixpacks' Node install step can skip devDependencies - and every one of
+# this project's Vite/Tailwind tooling (laravel-vite-plugin, vite, tailwindcss,
+# @tailwindcss/vite) lives in devDependencies (see package.json). Without this
+# file, `npm run build` fails on Railway with "vite: not found" even though
+# the exact same build works locally. `npm ci` here installs devDependencies
+# too, as long as NODE_ENV=production is NOT set as a Railway variable (only
+# set APP_ENV=production for Laravel itself - that is a different setting).
+#
+# Everything else (PHP install, serving via php-fpm + Caddy, picking a PHP
+# version from composer.json's "php": "^8.3") is still Railway's own
+# automatic Laravel detection - this file only replaces the install/build
+# phases, not the whole pipeline. See claude/DEPLOYMENT.md, "Quick demo
+# deployment (Railway)".
+
+[phases.install]
+cmds = [
+    "composer install --no-dev --optimize-autoloader",
+    "npm ci"
+]
+
+[phases.build]
+cmds = [
+    "npm run build"
+]

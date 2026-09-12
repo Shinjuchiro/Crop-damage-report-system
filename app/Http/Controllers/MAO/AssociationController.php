@@ -8,12 +8,12 @@ use App\Models\AuditLog;
 use App\Models\Barangay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
  * MAO manages the Farmers' Associations. Assistance is always allocated to an
- * association, so an association with members or allocations is never deleted.
+ * association, so deleting one never removes its members, officers or
+ * allocation history - see destroy() and app/Models/Concerns/SoftDeletable.php.
  */
 class AssociationController extends Controller
 {
@@ -71,21 +71,22 @@ class AssociationController extends Controller
             ->with('status', 'Farmers\' Association updated successfully.');
     }
 
+    /**
+     * Take the association out of the working system for good. Not a
+     * database delete: markDeleted() only stamps deleted_at/deleted_by, so
+     * every farmer, officer and assistance allocation that already points at
+     * it keeps resolving its name exactly as before.
+     */
     public function destroy(Association $association)
     {
-        if ($this->timesUsed($association) > 0) {
-            return back()->withErrors([
-                'association' => 'This association already has members, officers or assistance records, so it cannot be deleted. Archive it instead.',
-            ]);
-        }
-
         $name = $association->name;
-        $association->delete();
+        $association->markDeleted(Auth::id());
 
-        $this->log('Deleted association: ' . $name, null);
+        $this->log('Deleted association: ' . $name, $association->id);
 
-        return redirect()->route('mao.associations.index')
-            ->with('status', 'Farmers\' Association deleted.');
+        // back() rather than a fixed route: reused by both the Associations
+        // list and the Archive page's permanent-delete action.
+        return back()->with('status', 'Farmers\' Association deleted. Its data is kept for audit purposes.');
     }
 
     /**
@@ -109,6 +110,10 @@ class AssociationController extends Controller
 
     public function restore(Association $association)
     {
+        if ($association->is_deleted) {
+            return back()->withErrors(['association' => 'This association was permanently deleted and can no longer be restored.']);
+        }
+
         $association->unarchive();
 
         $this->log('Restored association: ' . $association->name, $association->id);
@@ -125,13 +130,6 @@ class AssociationController extends Controller
             'barangay_id' => ['nullable', 'exists:barangays,id'],
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
-    }
-
-    private function timesUsed(Association $association): int
-    {
-        return DB::table('farmers')->where('association_id', $association->id)->count()
-            + DB::table('association_officers')->where('association_id', $association->id)->count()
-            + DB::table('assistance_allocations')->where('association_id', $association->id)->count();
     }
 
     private function log(string $action, ?int $targetId): void

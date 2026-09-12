@@ -26,10 +26,9 @@
     ================================================================= --}}
     <x-ui.card>
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent
-                        text-xl font-bold text-accent-foreground">
-                {{ strtoupper(substr($farmer->first_name, 0, 1) . substr($farmer->last_name, 0, 1)) }}
-            </div>
+            <x-profile-photo :user="$farmer->user"
+                :update-route="route('farmer.profile.photo.update')"
+                :remove-route="route('farmer.profile.photo.remove')" />
 
             <div class="min-w-0 flex-1">
                 <p class="text-xl font-bold text-card-foreground">{{ $farmer->full_name }}</p>

@@ -21,6 +21,7 @@ class MembershipApplicationController extends Controller
         $status = $request->query('status', 'pending');
 
         $applications = Farmer::query()
+            ->notDeleted()
             ->with(['user', 'association', 'barangay'])
             ->when(in_array($status, ['pending', 'active', 'rejected', 'inactive'], true),
                 fn ($query) => $query->whereHas('user', fn ($user) => $user->where('status', $status)))
@@ -112,6 +113,12 @@ class MembershipApplicationController extends Controller
      */
     public function restore(Farmer $farmer)
     {
+        if ($farmer->is_deleted) {
+            return back()->withErrors([
+                'farmer' => 'This farmer was permanently deleted and can no longer be restored.',
+            ]);
+        }
+
         $farmer->user->update(['status' => 'active']);
 
         $this->log('Restored farmer: ' . $farmer->full_name, $farmer->id);
@@ -119,7 +126,25 @@ class MembershipApplicationController extends Controller
         return back()->with('status', 'Farmer restored.');
     }
 
-    private function log(string $action, int $farmerId): void
+    /**
+     * Take the farmer out of the working system for good. Not a database
+     * delete: markDeleted() only stamps deleted_at/deleted_by, so every field
+     * on the farmer's profile - and the login account it belongs to - is kept
+     * exactly as it was. It just stops appearing anywhere in the ordinary
+     * system (the Membership Applications queue, the Farmer Directory, the
+     * Archive page's Archived tab) and moves to the Archive page's Deleted
+     * tab instead, read-only, together with who deleted it and when.
+     */
+    public function destroy(Farmer $farmer)
+    {
+        $farmer->markDeleted(Auth::id());
+
+        $this->log('Deleted farmer: ' . $farmer->full_name, $farmer->id);
+
+        return back()->with('status', 'Farmer deleted. Their information is kept for audit purposes.');
+    }
+
+    private function log(string $action, ?int $farmerId): void
     {
         AuditLog::create([
             'user_id'      => Auth::id(),

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 class Farmer extends Model
 {
+    use SoftDeletable;
+
     /**
      * Proposal section 22: 3 months with no activity means Inactive.
      *
@@ -38,6 +41,7 @@ class Farmer extends Model
         return [
             'date_of_birth' => 'date',
             'last_activity_date' => 'date',
+            'deleted_at' => 'datetime',
         ];
     }
 

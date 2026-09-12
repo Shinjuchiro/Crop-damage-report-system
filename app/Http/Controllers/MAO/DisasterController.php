@@ -7,12 +7,12 @@ use App\Models\AuditLog;
 use App\Models\Disaster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
  * MAO records the disaster events farmers can attach to a damage report.
- * A disaster already cited by a report is kept, never deleted.
+ * A disaster already cited by a report keeps resolving even after it is
+ * deleted here - see destroy() and app/Models/Concerns/SoftDeletable.php.
  */
 class DisasterController extends Controller
 {
@@ -67,21 +67,22 @@ class DisasterController extends Controller
             ->with('status', 'Disaster event updated successfully.');
     }
 
+    /**
+     * Take the disaster event out of the working system for good. Not a
+     * database delete: markDeleted() only stamps deleted_at/deleted_by, so
+     * every damage report and assistance record that already cites this
+     * event keeps resolving its name exactly as before.
+     */
     public function destroy(Disaster $disaster)
     {
-        if ($this->timesUsed($disaster) > 0) {
-            return back()->withErrors([
-                'disaster' => 'This disaster event is already cited by damage reports or assistance records, so it cannot be deleted. Archive it instead.',
-            ]);
-        }
-
         $name = $disaster->name;
-        $disaster->delete();
+        $disaster->markDeleted(Auth::id());
 
-        $this->log('Deleted disaster event: ' . $name, null);
+        $this->log('Deleted disaster event: ' . $name, $disaster->id);
 
-        return redirect()->route('mao.disasters.index')
-            ->with('status', 'Disaster event deleted.');
+        // back() rather than a fixed route: reused by both the Disasters list
+        // and the Archive page's permanent-delete action.
+        return back()->with('status', 'Disaster event deleted. Its data is kept for audit purposes.');
     }
 
     /**
@@ -99,6 +100,10 @@ class DisasterController extends Controller
 
     public function restore(Disaster $disaster)
     {
+        if ($disaster->is_deleted) {
+            return back()->withErrors(['disaster' => 'This disaster event was permanently deleted and can no longer be restored.']);
+        }
+
         $disaster->unarchive();
 
         $this->log('Restored disaster event: ' . $disaster->name, $disaster->id);
@@ -117,13 +122,6 @@ class DisasterController extends Controller
             'date_start' => 'start date',
             'date_end'   => 'end date',
         ]);
-    }
-
-    private function timesUsed(Disaster $disaster): int
-    {
-        return DB::table('damage_report_disasters')->where('disaster_id', $disaster->id)->count()
-            + DB::table('assistances')->where('disaster_id', $disaster->id)->count()
-            + DB::table('assistance_allocations')->where('disaster_id', $disaster->id)->count();
     }
 
     private function log(string $action, ?int $targetId): void

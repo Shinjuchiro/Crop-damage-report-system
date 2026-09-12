@@ -35,4 +35,23 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Semaphore (SMS)
+    |--------------------------------------------------------------------------
+    |
+    | Semaphore (semaphore.co) is a Philippine SMS gateway billed in pesos,
+    | which is a better fit for this office's procurement than a USD-billed
+    | international provider. See App\Services\SemaphoreSmsService. Add
+    | SEMAPHORE_API_KEY (and, once a sender name is registered with
+    | Semaphore, SEMAPHORE_SENDER_NAME) to .env - this file never holds the
+    | actual key.
+    |
+    */
+
+    'semaphore' => [
+        'api_key'     => env('SEMAPHORE_API_KEY'),
+        'sender_name' => env('SEMAPHORE_SENDER_NAME', 'Semaphore'),
+    ],
+
 ];

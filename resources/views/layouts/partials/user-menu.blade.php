@@ -23,21 +23,43 @@
 
     $items = [];
 
-    // Farmers are the only role with a profile page so far.
-    if ($user->role === 'farmer') {
+    $profileIcon  = 'M16 19v-1.5a4 4 0 00-4-4H8a4 4 0 00-4 4V19M12 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z';
+    $settingsIcon = 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-2.9-1.2l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 003.1 14H3a2 2 0 110-4h.1a1.7 1.7 0 001.2-2.9l-.1-.1a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 0010 3.1V3a2 2 0 114 0v.1a1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.2 2.9H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z';
+
+    // Every role now has a "My Profile" page (photo + basic details).
+    // Farmer's is the fuller read-only registration profile that already
+    // existed; Technician, Association and MAO each got a small one added
+    // alongside this change, mainly so they have somewhere to put their photo.
+    $profileRoutes = [
+        'farmer'      => 'farmer.profile',
+        'technician'  => 'technician.profile',
+        'association' => 'association.profile',
+        'mao'         => 'mao.profile',
+    ];
+    if (isset($profileRoutes[$user->role])) {
         $items[] = [
-            'label' => 'Profile',
-            'url'   => route('farmer.profile'),
-            'icon'  => 'M16 19v-1.5a4 4 0 00-4-4H8a4 4 0 00-4 4V19M12 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
+            'label' => 'My Profile',
+            'url'   => route($profileRoutes[$user->role]),
+            'icon'  => $profileIcon,
         ];
     }
 
-    // Settings is MAO only, same as the sidebar.
-    if ($user->role === 'mao') {
+    // Account Settings used to be a sidebar item for every role. Farmer,
+    // Technician and Association's version is only the small email/phone/
+    // password page (ManagesAccountSettings), so it moved here instead of
+    // taking a sidebar slot. MAO's "Settings" is the larger reference-data
+    // hub and keeps its sidebar item too - this is just a shortcut to it.
+    $settingsRoutes = [
+        'farmer'      => 'farmer.settings.index',
+        'technician'  => 'technician.settings.index',
+        'association' => 'association.settings.index',
+        'mao'         => 'mao.settings',
+    ];
+    if (isset($settingsRoutes[$user->role])) {
         $items[] = [
             'label' => 'Account Settings',
-            'url'   => route('mao.settings'),
-            'icon'  => 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-2.9-1.2l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 003.1 14H3a2 2 0 110-4h.1a1.7 1.7 0 001.2-2.9l-.1-.1a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 0010 3.1V3a2 2 0 114 0v.1a1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.2 2.9H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z',
+            'url'   => route($settingsRoutes[$user->role]),
+            'icon'  => $settingsIcon,
         ];
     }
 @endphp

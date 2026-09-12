@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\Farmer;
 use App\Models\NotificationBroadcast;
 use App\Models\User;
+use App\Services\SemaphoreSmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -29,6 +30,7 @@ class NotificationBroadcastController extends Controller
         $category = $request->query('category');
 
         $alerts = NotificationBroadcast::query()
+            ->notDeleted()
             ->with('createdBy')
             ->withCount([
                 'notifications',
@@ -49,6 +51,7 @@ class NotificationBroadcastController extends Controller
 
         // Counts for the tab row, so each tab shows how much sits behind it
         $perCategory = NotificationBroadcast::query()
+            ->notDeleted()
             ->select('category', DB::raw('COUNT(*) as total'))
             ->groupBy('category')
             ->pluck('total', 'category');
@@ -134,9 +137,22 @@ class NotificationBroadcastController extends Controller
 
         $sent = $alert->notifications()->count();
 
+        $smsNote = '';
+
+        if ($alert->sends_sms) {
+            if (! app(SemaphoreSmsService::class)->configured()) {
+                $smsNote = ' SMS was not sent because the SMS provider is not configured yet '
+                    . '(add SEMAPHORE_API_KEY to .env) - the in-app alert above still went out.';
+            } else {
+                $smsSent   = $alert->notifications()->where('sms_status', 'sent')->count();
+                $smsFailed = $alert->notifications()->where('sms_status', 'failed')->count();
+                $smsNote   = ' SMS delivered to ' . $smsSent . ' of ' . ($smsSent + $smsFailed)
+                    . ' recipients. See SMS History for details.';
+            }
+        }
+
         return back()->with('status',
-            'Alert sent to ' . $sent . ' ' . \Illuminate\Support\Str::plural('recipient', $sent) . '.'
-            . ($alert->sends_sms ? ' SMS for this alert is queued and will go out once the SMS provider is connected.' : ''));
+            'Alert sent to ' . $sent . ' ' . \Illuminate\Support\Str::plural('recipient', $sent) . '.' . $smsNote);
     }
 
     /**
@@ -144,6 +160,10 @@ class NotificationBroadcastController extends Controller
      */
     public function send(NotificationBroadcast $notification)
     {
+        if ($notification->is_deleted) {
+            return back()->withErrors(['alert' => 'This alert was permanently deleted.']);
+        }
+
         if ($notification->status === 'sent') {
             return back()->withErrors(['alert' => 'This alert has already been sent.']);
         }
@@ -188,6 +208,12 @@ class NotificationBroadcastController extends Controller
      */
     public function restore(NotificationBroadcast $notification)
     {
+        if ($notification->is_deleted) {
+            return back()->withErrors([
+                'alert' => 'This alert was permanently deleted and can no longer be restored.',
+            ]);
+        }
+
         $notification->update([
             'status' => $notification->notifications()->exists() ? 'sent' : 'draft',
         ]);
@@ -201,6 +227,28 @@ class NotificationBroadcastController extends Controller
         ]);
 
         return back()->with('status', 'Alert restored.');
+    }
+
+    /**
+     * Take an alert out of the working system for good. Not a database
+     * delete: markDeleted() only stamps deleted_at/deleted_by, so the alert
+     * and every per-recipient notification row it already sent (read status,
+     * SMS status) are kept exactly as they were.
+     */
+    public function destroy(NotificationBroadcast $notification)
+    {
+        $title = $notification->title;
+        $notification->markDeleted(Auth::id());
+
+        AuditLog::create([
+            'user_id'      => Auth::id(),
+            'action'       => 'Deleted alert: ' . $title,
+            'target_table' => 'notification_broadcasts',
+            'target_id'    => $notification->id,
+            'created_at'   => now(),
+        ]);
+
+        return back()->with('status', 'Alert deleted. Its information is kept for audit purposes.');
     }
 
     /**

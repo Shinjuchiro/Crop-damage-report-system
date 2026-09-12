@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Farmer;
 
+use App\Http\Controllers\Concerns\ManagesProfilePhoto;
 use App\Http\Controllers\Controller;
 use App\Models\Farmer;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Farmer Profile (view only)
+ * Farmer Profile (view only, plus the profile photo)
  *
  * Proposal section 20 lists what the profile has to show.
  *
@@ -19,9 +20,15 @@ use Illuminate\Support\Facades\Auth;
  *
  * Section 20 also says the password must never be displayed. Nothing on
  * this page reads it.
+ *
+ * ManagesProfilePhoto adds the one thing that IS self-editable here: the
+ * account's profile photo. That is deliberately not "read only" like
+ * everything else on this page - see the trait for why.
  */
 class ProfileController extends Controller
 {
+    use ManagesProfilePhoto;
+
     public function show()
     {
         $farmer = Farmer::with([

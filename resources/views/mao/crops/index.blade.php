@@ -5,7 +5,7 @@
 @section('subheading', 'The crop types farmers can select in their profile, planting records and damage reports.')
 
 @section('content')
-<div x-data="{ deleting: null }">
+<div>
 
     @if ($errors->any())
         <div class="mb-4 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
@@ -92,16 +92,18 @@
                                         </button>
                                     </form>
 
-                                    @if ($used === 0)
-                                        <button type="button"
-                                                @click="deleting = { id: {{ $crop->id }}, name: @js($crop->name) }"
+                                    <form method="POST" action="{{ route('mao.crops.destroy', $crop) }}"
+                                          data-confirm="Are you sure you want to continue? {{ $crop->name }} will be removed from active lists. Its data - and any records that cite it - are kept for audit purposes, and this deletion will be recorded."
+                                          data-confirm-title="Delete crop permanently"
+                                          data-confirm-detail="This action cannot be undone from this screen."
+                                          data-confirm-action="Delete Permanently"
+                                          data-confirm-tone="danger">
+                                        @csrf @method('DELETE')
+                                        <button type="submit"
                                                 class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
                                             Delete
                                         </button>
-                                    @else
-                                        <span class="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground"
-                                              title="This crop is already used in farmer records.">In use</span>
-                                    @endif
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -119,30 +121,5 @@
     </div>
 
     <div class="mt-4">{{ $crops->links() }}</div>
-
-    {{-- Delete confirmation --}}
-    <div x-show="deleting" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-            <h3 class="mb-2 text-lg font-semibold text-foreground">Delete this crop?</h3>
-            <p class="mb-5 text-sm text-muted-foreground">
-                You are about to permanently remove
-                <strong x-text="deleting?.name"></strong> from the crop list.
-                This cannot be undone.
-            </p>
-            <div class="flex gap-3">
-                <button type="button" @click="deleting = null"
-                        class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                    Cancel
-                </button>
-                <form method="POST" :action="`{{ url('mao/crops') }}/${deleting?.id}`" class="flex-1">
-                    @csrf @method('DELETE')
-                    <button type="submit"
-                            class="w-full rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">
-                        Confirm Delete
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
 </div>
 @endsection

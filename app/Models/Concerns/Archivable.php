@@ -19,22 +19,34 @@ use App\Models\User;
  * So this trait only adds query scopes, which callers opt into on purpose:
  *
  *   Crop::active()->get()        the picker on a form (do not offer archived
- *                                 items as a fresh choice)
- *   Crop::onlyArchived()->get()  the Archive page
- *   Crop::query()->get()         everything else, unchanged, archived items
- *                                 included, because a report already citing
- *                                 one still needs to display its name
+ *                                 or deleted items as a fresh choice)
+ *   Crop::onlyArchived()->get()  the Archive page's Archived tab
+ *   Crop::onlyDeleted()->get()   the Archive page's Deleted tab (see
+ *                                 SoftDeletable, used alongside this trait)
+ *   Crop::query()->get()         everything else, unchanged, archived AND
+ *                                 deleted items included, because a report
+ *                                 already citing one still needs to display
+ *                                 its name
+ *
+ * scopeActive() and scopeOnlyArchived() below also check deleted_at, so a
+ * deleted crop/disaster/association - stronger than merely archived - never
+ * shows up as a form choice and moves out of the Archived tab into the
+ * Deleted one. Safe to couple the two here because every model using this
+ * trait also uses SoftDeletable and has both column pairs (see migrations
+ * 2024_01_04_000001 and 2024_01_07_000001).
  */
 trait Archivable
 {
     public function scopeActive($query)
     {
-        return $query->whereNull($this->getTable() . '.archived_at');
+        return $query->whereNull($this->getTable() . '.archived_at')
+            ->whereNull($this->getTable() . '.deleted_at');
     }
 
     public function scopeOnlyArchived($query)
     {
-        return $query->whereNotNull($this->getTable() . '.archived_at');
+        return $query->whereNotNull($this->getTable() . '.archived_at')
+            ->whereNull($this->getTable() . '.deleted_at');
     }
 
     public function archivedBy()

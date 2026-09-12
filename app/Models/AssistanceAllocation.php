@@ -57,4 +57,19 @@ class AssistanceAllocation extends Model
     {
         return $this->hasMany(AssistanceDistribution::class);
     }
+
+    /**
+     * The farmers MAO selected while allocating. Informational - see
+     * AssistanceAllocationBeneficiary and the migration that creates its
+     * table for why this never turns into a distribution by itself.
+     */
+    public function beneficiaries()
+    {
+        return $this->hasMany(AssistanceAllocationBeneficiary::class);
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(AssistanceAllocationDocument::class);
+    }
 }

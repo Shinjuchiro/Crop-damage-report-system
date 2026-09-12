@@ -5,7 +5,7 @@
 @section('subheading', 'The disaster events farmers can cite when reporting crop damage.')
 
 @section('content')
-<div x-data="{ deleting: null }">
+<div>
 
     @if ($errors->any())
         <div class="mb-4 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
@@ -99,16 +99,18 @@
                                         </button>
                                     </form>
 
-                                    @if ($disaster->damage_reports_count === 0)
-                                        <button type="button"
-                                                @click="deleting = { id: {{ $disaster->id }}, name: @js($disaster->name) }"
+                                    <form method="POST" action="{{ route('mao.disasters.destroy', $disaster) }}"
+                                          data-confirm="Are you sure you want to continue? {{ $disaster->name }} will be removed from active lists. Its data - and any reports that cite it - are kept for audit purposes, and this deletion will be recorded."
+                                          data-confirm-title="Delete disaster event permanently"
+                                          data-confirm-detail="This action cannot be undone from this screen."
+                                          data-confirm-action="Delete Permanently"
+                                          data-confirm-tone="danger">
+                                        @csrf @method('DELETE')
+                                        <button type="submit"
                                                 class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
                                             Delete
                                         </button>
-                                    @else
-                                        <span class="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground"
-                                              title="This event is already cited by damage reports.">In use</span>
-                                    @endif
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -128,29 +130,5 @@
     </div>
 
     <div class="mt-4">{{ $disasters->links() }}</div>
-
-    {{-- Delete confirmation --}}
-    <div x-show="deleting" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-            <h3 class="mb-2 text-lg font-semibold text-foreground">Delete this disaster event?</h3>
-            <p class="mb-5 text-sm text-muted-foreground">
-                You are about to permanently remove <strong x-text="deleting?.name"></strong>.
-                This cannot be undone.
-            </p>
-            <div class="flex gap-3">
-                <button type="button" @click="deleting = null"
-                        class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                    Cancel
-                </button>
-                <form method="POST" :action="`{{ url('mao/disasters') }}/${deleting?.id}`" class="flex-1">
-                    @csrf @method('DELETE')
-                    <button type="submit"
-                            class="w-full rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">
-                        Confirm Delete
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
 </div>
 @endsection

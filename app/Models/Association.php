@@ -3,15 +3,21 @@
 namespace App\Models;
 
 use App\Models\Concerns\Archivable;
+use App\Models\Concerns\SoftDeletable;
 use Illuminate\Database\Eloquent\Model;
 
 class Association extends Model
 {
-    use Archivable;
+    use Archivable, SoftDeletable;
 
     protected $table = 'associations';
 
     protected $fillable = ['name', 'location', 'barangay_id', 'description'];
+
+    protected function casts(): array
+    {
+        return ['deleted_at' => 'datetime'];
+    }
 
     /** Where the association's office sits. Used to place it on the map. */
     public function barangay()

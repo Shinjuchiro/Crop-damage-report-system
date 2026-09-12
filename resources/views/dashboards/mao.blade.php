@@ -29,6 +29,21 @@
 
 @section('content')
 
+    {{-- ===================== ASSISTANCE DISPUTES ===================== --}}
+    @if ($disputeCount > 0)
+        <x-ui.alert variant="warning" title="Assistance disputes need follow-up" class="mb-5">
+            <p>
+                {{ $disputeCount }} {{ $disputeCount === 1 ? 'distribution has' : 'distributions have' }}
+                been marked "not received" by the farmer. The association recorded handing it out; the
+                farmer says otherwise.
+            </p>
+            <a href="{{ route('mao.assistance-allocations.disputes') }}"
+               class="mt-1.5 inline-block text-sm font-semibold underline hover:no-underline">
+                Review disputes
+            </a>
+        </x-ui.alert>
+    @endif
+
     {{-- ===================== HEADLINE FIGURES ===================== --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-ui.stat label="Total Affected Farmers"

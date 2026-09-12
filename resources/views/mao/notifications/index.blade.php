@@ -35,10 +35,13 @@
 @endphp
 
 @section('header-actions')
-    <button type="button" @click="$dispatch('open-alert-composer')"
-            class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">
-        <span class="text-base leading-none">+</span> Create New Alert
-    </button>
+    <div class="flex flex-wrap items-center gap-2">
+        <x-ui.button variant="outline" :href="route('mao.sms-history.index')">SMS History</x-ui.button>
+        <button type="button" @click="$dispatch('open-alert-composer')"
+                class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">
+            <span class="text-base leading-none">+</span> Create New Alert
+        </button>
+    </div>
 @endsection
 
 @section('content')
@@ -224,7 +227,7 @@
                             </select>
                             <p class="mt-1.5 text-xs" :class="sendsSms() ? 'text-amber-700' : 'text-muted-foreground'"
                                x-text="sendsSms()
-                                    ? 'Urgent and Critical alerts are queued for SMS as well as in-app.'
+                                    ? 'Urgent and Critical alerts are also sent via SMS to each recipient\'s phone number.'
                                     : 'Delivered in-app only.'"></p>
                         </div>
                     </div>
@@ -374,9 +377,8 @@
 
                     <div x-show="sendsSms()" x-cloak
                          class="mt-4 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/60 px-4 py-3 text-xs text-amber-800">
-                        This priority queues an SMS for every recipient. The SMS provider is not connected yet,
-                        so those messages will sit as pending and can be reviewed in SMS history later.
-                        The in-app alert is delivered immediately either way.
+                        This priority also sends an SMS to every recipient who has a phone number on file,
+                        in addition to the in-app alert. Delivery results appear in SMS History right after sending.
                     </div>
                 </div>
 

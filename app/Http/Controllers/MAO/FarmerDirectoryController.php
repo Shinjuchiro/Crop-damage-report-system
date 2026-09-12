@@ -20,6 +20,7 @@ class FarmerDirectoryController extends Controller
     public function index(Request $request)
     {
         $farmers = Farmer::query()
+            ->notDeleted()
             ->with(['user', 'barangay', 'association'])
             ->withCount(['plantingRecords', 'damageReports'])
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -49,11 +50,11 @@ class FarmerDirectoryController extends Controller
             ->withQueryString();
 
         $summary = [
-            'total'    => Farmer::count(),
+            'total'    => Farmer::notDeleted()->count(),
             'verified' => User::where('role', 'farmer')->where('status', 'active')->count(),
             'pending'  => User::where('role', 'farmer')->where('status', 'pending')->count(),
-            'active'   => Farmer::where('activity_status', 'active')->count(),
-            'inactive' => Farmer::where('activity_status', 'inactive')->count(),
+            'active'   => Farmer::notDeleted()->where('activity_status', 'active')->count(),
+            'inactive' => Farmer::notDeleted()->where('activity_status', 'inactive')->count(),
         ];
 
         return view('mao.farmers.index', [

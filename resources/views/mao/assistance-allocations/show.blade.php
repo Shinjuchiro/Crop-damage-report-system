@@ -89,6 +89,80 @@
         </dl>
     </div>
 
+    {{-- MAO-selected beneficiaries --}}
+    @if ($allocation->beneficiaries->isNotEmpty())
+        <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div class="border-b border-border px-6 py-4">
+                <h3 class="text-sm font-semibold uppercase tracking-wide text-green-800">Qualified Beneficiaries</h3>
+                <p class="mt-0.5 text-xs text-muted-foreground">
+                    The farmers MAO selected when this pool was allocated. Informational for the association's
+                    reference - it does not by itself record that anyone was handed anything. The association
+                    still distributes and records that separately, below.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+                        <tr>
+                            <th class="px-6 py-3 font-medium">Farmer</th>
+                            <th class="px-6 py-3 font-medium">Barangay</th>
+                            <th class="px-6 py-3 font-medium">Damage Report</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach ($allocation->beneficiaries as $beneficiary)
+                            <tr class="hover:bg-muted/60">
+                                <td class="px-6 py-3 font-medium text-foreground">{{ $beneficiary->farmer?->full_name ?? 'Unknown' }}</td>
+                                <td class="px-6 py-3 text-muted-foreground">{{ $beneficiary->farmer?->barangay?->name ?? '-' }}</td>
+                                <td class="px-6 py-3 text-muted-foreground">
+                                    @if ($beneficiary->damageReport)
+                                        <a href="{{ route('mao.damage-reports.show', $beneficiary->damageReport) }}"
+                                           class="text-sky-700 underline hover:text-sky-900">
+                                            {{ $beneficiary->damageReport->reference }}
+                                        </a>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    {{-- Supporting documents --}}
+    @if ($allocation->documents->isNotEmpty())
+        <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div class="border-b border-border px-6 py-4">
+                <h3 class="text-sm font-semibold uppercase tracking-wide text-green-800">Supporting Documents</h3>
+            </div>
+
+            <ul class="divide-y divide-border">
+                @foreach ($allocation->documents as $document)
+                    <li class="flex items-center justify-between gap-4 px-6 py-3 text-sm">
+                        <span class="flex min-w-0 items-center gap-2">
+                            <svg class="h-5 w-5 shrink-0 text-muted-foreground" fill="none" stroke="currentColor"
+                                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                <path d="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"/>
+                            </svg>
+                            <span class="truncate font-medium text-foreground">{{ $document->file_name }}</span>
+                            @if ($document->size_label)
+                                <span class="shrink-0 text-xs text-muted-foreground">({{ $document->size_label }})</span>
+                            @endif
+                        </span>
+                        <a href="{{ $document->url }}" target="_blank" rel="noopener"
+                           class="shrink-0 text-sm font-medium text-sky-700 underline hover:text-sky-900">
+                            View
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- Distributions to farmers --}}
     <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div class="border-b border-border px-6 py-4">

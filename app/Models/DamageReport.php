@@ -139,7 +139,13 @@ class DamageReport extends Model
 
     public function disasters()
     {
-        return $this->belongsToMany(Disaster::class, 'damage_report_disasters');
+        // linked_by / linked_by_role say who attached this particular
+        // disaster to this particular report, and as which role - the
+        // farmer at filing, or a technician correcting/adding one during
+        // their own inspection (see migration 2024_01_09_000001 and
+        // Technician\InspectionController::syncDisasterLinks()).
+        return $this->belongsToMany(Disaster::class, 'damage_report_disasters')
+            ->withPivot(['linked_by', 'linked_by_role', 'created_at']);
     }
 
     public function photos()

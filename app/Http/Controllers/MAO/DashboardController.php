@@ -63,6 +63,14 @@ class DashboardController extends Controller
             ->distinct('farmer_id')
             ->count('farmer_id');
 
+        // Office-wide, not scoped to the period filter above - a dispute
+        // from three months ago is just as unresolved today as a new one.
+        // See MAO/AssistanceAllocationController::disputes() for the list
+        // this links to.
+        $disputeCount = DB::table('assistance_distributions')
+            ->where('receipt_status', 'not_received')
+            ->count();
+
         $headline = [
             'affected_farmers' => $affectedFarmers,
             'active_reports'   => $activeReports,
@@ -141,7 +149,8 @@ class DashboardController extends Controller
             'severity',
             'severityTotal',
             'alerts',
-            'period'
+            'period',
+            'disputeCount'
         ) + ['periods' => self::PERIODS]);
     }
 }

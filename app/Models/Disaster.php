@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\Archivable;
+use App\Models\Concerns\SoftDeletable;
 use Illuminate\Database\Eloquent\Model;
 
 class Disaster extends Model
 {
-    use Archivable;
+    use Archivable, SoftDeletable;
 
     protected $table = 'disasters';
 
@@ -15,7 +16,7 @@ class Disaster extends Model
 
     protected function casts(): array
     {
-        return ['date_start' => 'date', 'date_end' => 'date'];
+        return ['date_start' => 'date', 'date_end' => 'date', 'deleted_at' => 'datetime'];
     }
 
     public function damageReports()
