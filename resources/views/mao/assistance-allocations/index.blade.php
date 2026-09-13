@@ -329,9 +329,9 @@
                                  :options="$associations->pluck('name', 'id')" />
                 </x-ui.field>
 
-                <x-ui.field label="Disaster Event" name="disaster_id" required
-                            hint="Beneficiaries are qualified per disaster event.">
-                    <x-ui.select name="disaster_id" placeholder="Select disaster event" required
+                <x-ui.field label="Disaster Event" name="disaster_id"
+                            hint="Optional. Needed only to pull up the qualified-beneficiary checklist below; an allocation not tied to one specific event (e.g. a general seed subsidy) can skip it.">
+                    <x-ui.select name="disaster_id" placeholder="Select disaster event (optional)"
                                  x-model="disasterId" @change="fetchBeneficiaries()"
                                  :options="$disasters->pluck('name', 'id')" />
                 </x-ui.field>

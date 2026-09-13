@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Technician;
 
+use App\Http\Controllers\Concerns\SyncsDisasterLinks;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\DamageReport;
@@ -34,6 +35,8 @@ use Illuminate\Validation\ValidationException;
  */
 class InspectionController extends Controller
 {
+    use SyncsDisasterLinks;
+
     private const PHOTO_DISK = 'public';
     private const PHOTO_DIR  = 'inspections';
     private const MAX_EXTRA  = 8;
@@ -229,7 +232,7 @@ class InspectionController extends Controller
                 $this->storePhoto($validation, $report, $extra, 'other');
             }
 
-            $this->syncDisasterLinks($report, $data['disasters'] ?? []);
+            $this->syncDisasterLinks($report, $data['disasters'] ?? [], 'technician');
 
             $report->update(['status' => 'verified']);
 
@@ -326,78 +329,6 @@ class InspectionController extends Controller
                     . round($farmerEstimate) . '%. Please write a short note explaining what you actually found.',
             ]);
         }
-    }
-
-    /**
-     * Add or correct which disaster events this report is linked to.
-     *
-     * The developer's own call: the technician can do more than fill a gap
-     * the farmer left. If the farmer picked the wrong typhoon, or picked
-     * one at all when it should have been none, the technician standing on
-     * the farm during inspection is the natural place to fix that - not a
-     * separate MAO screen. So this is a real sync(), not an append: a
-     * disaster the technician unchecks is genuinely removed from the pivot.
-     *
-     * What is preserved is attribution, not the row itself: a link that
-     * survives this sync unchanged keeps whoever originally made it
-     * (farmer or an earlier technician correction), and only a link that is
-     * newly added here gets stamped with this technician. That way "who
-     * linked this" stays honest even across more than one correction, and
-     * the one thing this method will not do quietly is drop a disagreement
-     * on the floor - if anything actually changed, it is written to
-     * audit_logs by name, since the pivot table itself has no history once
-     * a row is gone.
-     */
-    private function syncDisasterLinks(DamageReport $report, array $disasterIds): void
-    {
-        $disasterIds = array_map('intval', $disasterIds);
-
-        $existing = $report->disasters()->get()->keyBy('id');
-        $before   = $existing->keys()->all();
-
-        sort($before);
-        $sortedNew = $disasterIds;
-        sort($sortedNew);
-
-        if ($before === $sortedNew) {
-            return;   // nothing actually changed, nothing to log
-        }
-
-        $syncData = [];
-
-        foreach ($disasterIds as $id) {
-            $syncData[$id] = $existing->has($id)
-                // Kept: carry its existing attribution over unchanged.
-                ? [
-                    'linked_by'      => $existing[$id]->pivot->linked_by,
-                    'linked_by_role' => $existing[$id]->pivot->linked_by_role,
-                    'created_at'     => $existing[$id]->pivot->created_at,
-                ]
-                // New: this technician just linked it.
-                : [
-                    'linked_by'      => Auth::id(),
-                    'linked_by_role' => 'technician',
-                    'created_at'     => now(),
-                ];
-        }
-
-        $report->disasters()->sync($syncData);
-
-        $added   = Disaster::whereIn('id', array_diff($disasterIds, $before))->pluck('name');
-        $removed = Disaster::whereIn('id', array_diff($before, $disasterIds))->pluck('name');
-
-        $summary = collect([
-            $added->isNotEmpty()   ? 'linked ' . $added->join(', ')     : null,
-            $removed->isNotEmpty() ? 'unlinked ' . $removed->join(', ') : null,
-        ])->filter()->join('; ');
-
-        AuditLog::create([
-            'user_id'      => Auth::id(),
-            'action'       => 'Updated disaster events on ' . $report->reference . ': ' . $summary,
-            'target_table' => 'damage_report_disasters',
-            'target_id'    => $report->id,
-            'created_at'   => now(),
-        ]);
     }
 
     /**

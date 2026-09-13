@@ -405,18 +405,19 @@ class AssistanceAllocationController extends Controller
         // officer go to Settings, add it there, and come back.
         $creatingNew = $request->input('assistance_id') === self::NEW_ASSISTANCE;
 
-        // The Allocate Assistance modal always carries this hidden field, so
-        // store() can tell "came from the new modal, a disaster is required"
-        // apart from the older standalone form, where a disaster stays
-        // optional. Checking for it directly is more reliable than inferring
-        // it from beneficiary_ids, which simply is not sent at all when MAO
-        // unchecks every name in the list.
-        $fromModal = $request->input('allocation_source') === 'modal';
+        // A disaster event is optional from either source now (Section 8's
+        // rule for the farmer's own damage report applies here too: not
+        // every assistance item is tied to one specific declared event - a
+        // general seed subsidy or a routine input give-away has nowhere
+        // sensible to attach a disaster_id). When one IS picked, it still
+        // drives the qualified-beneficiary checklist below; when it is left
+        // blank, the allocation simply is not restricted to a beneficiary
+        // list, since qualifiedReports() requires a disaster to run at all.
 
         $data = $request->validate([
             'assistance_id'  => ['required', $creatingNew ? 'string' : 'exists:assistances,id'],
             'association_id' => ['required', 'exists:associations,id'],
-            'disaster_id'    => [$fromModal ? 'required' : 'nullable', 'exists:disasters,id'],
+            'disaster_id'    => ['nullable', 'exists:disasters,id'],
             'crop_id'        => ['nullable', 'exists:crops,id'],
 
             // The new catalogue entry, only when one is being made.
@@ -445,7 +446,6 @@ class AssistanceAllocationController extends Controller
         ], [
             'new_assistance_name.required' => 'Please name the new assistance item.',
             'new_assistance_type.required' => 'Please say whether the new item is cash or in kind.',
-            'disaster_id.required'         => 'Please select the disaster event this beneficiary list was qualified under.',
             'documents.*.max'              => 'Each file must be 10 MB or smaller.',
             'documents.*.mimes'            => 'Only PDF, JPG or PNG files are accepted.',
         ]);

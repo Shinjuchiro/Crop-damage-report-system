@@ -370,6 +370,8 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('damage-reports.show');
         Route::put('/damage-reports/{damageReport}/decide', [DamageReportMonitorController::class, 'decide'])
             ->name('damage-reports.decide');
+        Route::put('/damage-reports/{damageReport}/disasters', [DamageReportMonitorController::class, 'updateDisasters'])
+            ->name('damage-reports.disasters.update');
 
         /* ---------- Validation monitoring ---------- */
         Route::get('/validations', [ValidationMonitorController::class, 'index'])

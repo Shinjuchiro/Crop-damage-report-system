@@ -28,7 +28,13 @@
 @endsection
 
 @section('content')
-<div x-data="{ decision: null }" class="space-y-6">
+<div x-data="{
+        decision: null,
+        editingDisasters: false,
+        confirmingDisasters: false,
+        disasterIds: {!! json_encode($damageReport->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!},
+        disasterLabels: {!! json_encode($availableDisasters->pluck('name', 'id')) !!},
+     }" class="space-y-6">
 
     @if ($errors->any())
         <div class="rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
@@ -121,28 +127,130 @@
             </p>
         </div>
 
-        <h4 class="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Declared event cited
-        </h4>
+        <div class="mb-3 flex items-center justify-between">
+            <h4 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Declared event cited
+            </h4>
 
-        @if ($damageReport->disasters->isNotEmpty())
-            <div class="flex flex-wrap gap-3">
-                @foreach ($damageReport->disasters as $disaster)
-                    <div class="rounded-lg border border-border bg-muted px-4 py-3">
-                        <p class="text-sm font-medium text-foreground">{{ $disaster->name }}</p>
-                        <p class="text-xs text-muted-foreground">
-                            {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
-                            &middot; {{ $disaster->date_start?->format('M d, Y') }}
-                            @if ($disaster->date_end) to {{ $disaster->date_end->format('M d, Y') }} @endif
-                        </p>
+            @if ($canEditDisasters)
+                <button type="button" x-show="! editingDisasters" @click="editingDisasters = true"
+                        class="text-xs font-semibold text-green-800 hover:underline">
+                    Correct linked event(s)
+                </button>
+            @endif
+        </div>
+
+        {{-- Read-only view: what is actually saved right now. --}}
+        <template x-if="! editingDisasters">
+            <div>
+                @if ($damageReport->disasters->isNotEmpty())
+                    <div class="flex flex-wrap gap-3">
+                        @foreach ($damageReport->disasters as $disaster)
+                            <div class="rounded-lg border border-border bg-muted px-4 py-3">
+                                <p class="text-sm font-medium text-foreground">{{ $disaster->name }}</p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
+                                    &middot; {{ $disaster->date_start?->format('M d, Y') }}
+                                    @if ($disaster->date_end) to {{ $disaster->date_end->format('M d, Y') }} @endif
+                                    @if ($disaster->pivot?->linked_by_role)
+                                        &middot; linked by {{ $disaster->pivot->linked_by_role }}
+                                    @endif
+                                </p>
+                            </div>
+                        @endforeach
                     </div>
-                @endforeach
+                @else
+                    <p class="text-sm text-muted-foreground">
+                        No declared event was attached. That is expected when the cause was pests, plant
+                        disease or heat, since the office does not declare an event for those.
+                    </p>
+                @endif
             </div>
-        @else
-            <p class="text-sm text-muted-foreground">
-                No declared event was attached. That is expected when the cause was pests, plant
-                disease or heat, since the office does not declare an event for those.
-            </p>
+        </template>
+
+        {{-- Correction picker. Only reachable once the report is past the
+             technician's own inspection form: before that, the technician
+             is the one place this belongs. Same checkbox pattern as the
+             inspection edit screen, so it reads the same way to anyone who
+             has used both. --}}
+        @if ($canEditDisasters)
+            <div x-show="editingDisasters" x-cloak>
+                @if ($availableDisasters->isEmpty())
+                    <p class="text-sm text-muted-foreground">
+                        The office has not declared any active disaster events yet.
+                    </p>
+                @else
+                    <div class="space-y-2">
+                        @foreach ($availableDisasters as $disaster)
+                            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2.5
+                                          transition hover:border-primary/40"
+                                   :class="disasterIds.includes('{{ $disaster->id }}') ? 'border-primary bg-accent' : ''">
+                                <input type="checkbox" value="{{ $disaster->id }}"
+                                       x-model="disasterIds" class="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]">
+                                <span class="min-w-0 flex-1">
+                                    <span class="text-sm font-medium">{{ $disaster->name }}</span>
+                                    <span class="block text-xs text-muted-foreground">
+                                        {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
+                                        @if ($disaster->date_start)
+                                            &middot; {{ $disaster->date_start->format('M d, Y') }}
+                                            @if ($disaster->date_end) - {{ $disaster->date_end->format('M d, Y') }} @endif
+                                        @endif
+                                    </span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+
+                <div class="mt-4 flex gap-3">
+                    <button type="button"
+                            @click="editingDisasters = false; disasterIds = {!! json_encode($damageReport->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!}"
+                            class="rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
+                        Cancel
+                    </button>
+                    <button type="button" @click="confirmingDisasters = true"
+                            class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
+                        Review Changes
+                    </button>
+                </div>
+            </div>
+
+            {{-- Proposal 91.3-style review: show what changed before it is saved. --}}
+            <div x-show="confirmingDisasters" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+                    <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm Disaster Event Changes</h3>
+                    <p class="mb-4 text-sm text-muted-foreground">
+                        This report will now be linked to:
+                    </p>
+
+                    <ul class="mb-4 space-y-1 text-sm text-foreground" x-show="disasterIds.length">
+                        <template x-for="id in disasterIds" :key="id">
+                            <li class="rounded bg-muted px-3 py-1.5" x-text="disasterLabels[id]"></li>
+                        </template>
+                    </ul>
+                    <p class="mb-4 text-sm text-muted-foreground" x-show="! disasterIds.length">
+                        No disaster event - only appropriate if the cause was pests, plant disease, or heat.
+                    </p>
+
+                    <form method="POST" action="{{ route('mao.damage-reports.disasters.update', $damageReport) }}">
+                        @csrf @method('PUT')
+                        <template x-for="id in disasterIds" :key="id">
+                            <input type="hidden" name="disasters[]" :value="id">
+                        </template>
+
+                        <div class="flex gap-3">
+                            <button type="button" @click="confirmingDisasters = false"
+                                    class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
+                                Back to Edit
+                            </button>
+                            <button type="submit"
+                                    class="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
+                                Confirm Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         @endif
     </div>
 

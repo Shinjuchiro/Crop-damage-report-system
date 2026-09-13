@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\MAO;
 
+use App\Http\Controllers\Concerns\SyncsDisasterLinks;
 use App\Http\Controllers\Controller;
 use App\Models\Association;
 use App\Models\AuditLog;
@@ -21,6 +22,21 @@ use Illuminate\Validation\Rule;
  */
 class DamageReportMonitorController extends Controller
 {
+    use SyncsDisasterLinks;
+
+    /**
+     * Statuses a report must already be in before its disaster links can be
+     * corrected from this screen. Everything before "verified" is still open
+     * in the technician's own inspection form (SyncsDisasterLinks), so this
+     * is only meant to fill the gap after that door has closed - a disaster
+     * the office declares days after the report was already signed off, or
+     * a correction the office needs to make once damage assessment is
+     * effectively done. It stays open through 'flagged' and 'approved' since
+     * assistance can still be allocated or re-evaluated for either state; a
+     * 'rejected' report has no allocation path left, so it stays untouched.
+     */
+    private const DISASTER_EDITABLE_STATUSES = ['verified', 'flagged', 'approved'];
+
     public const STATUSES = [
         'pending', 'assigned', 'under_verification', 'verified', 'flagged', 'approved', 'rejected',
     ];
@@ -72,7 +88,16 @@ class DamageReportMonitorController extends Controller
             'validation.photos',
         ]);
 
-        return view('mao.damage-reports.show', compact('damageReport'));
+        return view('mao.damage-reports.show', [
+            'damageReport'      => $damageReport,
+            // Correcting disaster links only ever offers currently active
+            // events, same rule as the technician's own inspection form -
+            // an archived event stays visible if it is already linked
+            // (loaded via ->disasters above), it just is not offered as a
+            // NEW choice going forward.
+            'availableDisasters' => Disaster::active()->orderByDesc('date_start')->orderBy('name')->get(),
+            'canEditDisasters'   => in_array($damageReport->status, self::DISASTER_EDITABLE_STATUSES, true),
+        ]);
     }
 
     /**
@@ -113,6 +138,35 @@ class DamageReportMonitorController extends Controller
         });
 
         return back()->with('status', 'Report marked as ' . $data['decision'] . '.');
+    }
+
+    /**
+     * Fixes the gap SyncsDisasterLinks documents: the technician can only
+     * correct a report's disaster links while its inspection is still open,
+     * so a disaster declared - or a mistake noticed - only after verification
+     * would otherwise be stuck forever. MAO already manages disaster records
+     * and allocates assistance per disaster, so this screen is the natural
+     * place to let them fix the link once the technician's own door has
+     * closed. Proposal 91.6-style review happens client-side (the checklist
+     * is reviewed before this PUT fires); what matters here is that the
+     * report is actually past inspection before MAO can touch it.
+     */
+    public function updateDisasters(Request $request, DamageReport $damageReport)
+    {
+        if (! in_array($damageReport->status, self::DISASTER_EDITABLE_STATUSES, true)) {
+            return back()->withErrors([
+                'disasters' => 'Disaster events can only be corrected here once a report has been verified.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'disasters'   => ['nullable', 'array'],
+            'disasters.*' => [Rule::exists('disasters', 'id')->whereNull('archived_at')],
+        ]);
+
+        $this->syncDisasterLinks($damageReport, $data['disasters'] ?? [], 'mao');
+
+        return back()->with('status', 'Disaster events updated.');
     }
 
     /**
