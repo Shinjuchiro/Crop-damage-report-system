@@ -49,13 +49,6 @@
             </div>
 
             <div>
-                <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Months Inactive</dt>
-                <dd class="mt-1 text-sm font-medium">
-                    {{ $farmer->months_inactive }} {{ $farmer->months_inactive === 1 ? 'buwan' : 'buwan' }}
-                </dd>
-            </div>
-
-            <div>
                 <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Member Since</dt>
                 <dd class="mt-1 text-sm font-medium">{{ $farmer->created_at?->format('F Y') }}</dd>
             </div>
