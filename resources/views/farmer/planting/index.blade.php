@@ -23,9 +23,7 @@
     <x-ui.card :padded="false">
         @if ($records->isEmpty())
             <x-ui.empty title="No planting recorded yet"
-                        message="Record what you planted, when you planted it, and how much land it took. This is also what keeps your account active.">
-                <x-ui.button size="lg" :href="route('farmer.planting.create')">Record Planting</x-ui.button>
-            </x-ui.empty>
+                        message="Record what you planted, when you planted it, and how much land it took. This is also what keeps your account active." />
         @else
             <x-ui.table>
                 <x-slot:head>

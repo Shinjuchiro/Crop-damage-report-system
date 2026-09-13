@@ -32,7 +32,7 @@
         </form>
     </x-ui.card>
 
-    <x-ui.card title="Report history" description="Every report generated so far, most recent first." :padded="false" class="lg:col-span-2">
+    <x-ui.card title="Report history" description="Every report generated so far, most recent first." :padded="false" class="min-w-0 lg:col-span-2">
         <x-ui.table>
             <x-slot:head>
                 <tr>

@@ -77,20 +77,20 @@
 
     {{-- Allocated against distributed. Two figures that only mean anything
          beside each other: the gap is what is still sitting here. --}}
-    <x-ui.card title="Assistance in numbers" description="Ang tulong na natanggap at naipamahagi">
+    <x-ui.card title="Assistance" description="Ang tulong na natanggap at naipamahagi">
         <div class="grid gap-4 sm:grid-cols-3">
             <div class="rounded-xl border border-border bg-muted p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Allocated to us</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Allocated</p>
                 <p class="mt-1 text-2xl font-bold">{{ number_format($summary['allocated_quantity'], 2) }}</p>
             </div>
             <div class="rounded-xl border border-primary/40 bg-accent p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-accent-foreground/70">Given to members</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-accent-foreground/70">Distributed</p>
                 <p class="mt-1 text-2xl font-bold text-accent-foreground">
                     {{ number_format($summary['distributed_quantity'], 2) }}
                 </p>
             </div>
             <div class="rounded-xl border border-border bg-muted p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Still with us</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Remaining</p>
                 <p class="mt-1 text-2xl font-bold">
                     {{ number_format(max($summary['allocated_quantity'] - $summary['distributed_quantity'], 0), 2) }}
                 </p>

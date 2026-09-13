@@ -1,5 +1,6 @@
 @extends('layouts.guest')
 @section('title', 'Pending Verification')
+@php($hideBrandHeader = true)
 
 @section('content')
 <div class="rounded-2xl bg-white p-8 text-center shadow-sm">

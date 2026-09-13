@@ -42,7 +42,7 @@
         </div>
 
         <div class="grid gap-5 lg:grid-cols-2">
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-sm font-semibold text-foreground">Main Crops</p>
                 <x-ui.table>
                     <x-slot:head><tr><th>Crop</th><th class="text-right">Farmers</th></tr></x-slot:head>
@@ -53,7 +53,7 @@
                     @endforelse
                 </x-ui.table>
             </div>
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-sm font-semibold text-foreground">Farms by Barangay</p>
                 <x-ui.table>
                     <x-slot:head><tr><th>Barangay</th><th class="text-right">Farms</th></tr></x-slot:head>
@@ -97,7 +97,7 @@
         </div>
 
         <div class="mb-5 grid gap-5 lg:grid-cols-2">
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-sm font-semibold text-foreground">By Barangay</p>
                 <x-ui.table>
                     <x-slot:head><tr><th>Barangay</th><th class="text-right">Reports</th></tr></x-slot:head>
@@ -108,7 +108,7 @@
                     @endforelse
                 </x-ui.table>
             </div>
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-sm font-semibold text-foreground">By Crop</p>
                 <x-ui.table>
                     <x-slot:head><tr><th>Crop</th><th class="text-right">Reports</th><th class="text-right">Area (ha)</th></tr></x-slot:head>
@@ -126,7 +126,7 @@
         </div>
 
         <div class="mb-5 grid gap-5 lg:grid-cols-2">
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-sm font-semibold text-foreground">By Cause of Damage</p>
                 <x-ui.table>
                     <x-slot:head><tr><th>Cause</th><th class="text-right">Reports</th></tr></x-slot:head>
@@ -135,7 +135,7 @@
                     @endforeach
                 </x-ui.table>
             </div>
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-sm font-semibold text-foreground">By Declared Disaster Event</p>
                 <p class="mb-2 text-xs text-muted-foreground">
                     Only reports linked to an event the office has declared. See Cause of Damage above for the complete picture.
@@ -152,7 +152,7 @@
         </div>
 
         <div class="grid gap-5 lg:grid-cols-2">
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-sm font-semibold text-foreground">By Status</p>
                 <x-ui.table>
                     <x-slot:head><tr><th>Status</th><th class="text-right">Reports</th></tr></x-slot:head>
@@ -161,7 +161,7 @@
                     @endforeach
                 </x-ui.table>
             </div>
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-sm font-semibold text-foreground">By Severity (Technician-Assessed)</p>
                 <x-ui.table>
                     <x-slot:head><tr><th>Severity</th><th class="text-right">Reports</th></tr></x-slot:head>

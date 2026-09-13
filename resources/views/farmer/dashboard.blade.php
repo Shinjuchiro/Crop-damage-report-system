@@ -107,9 +107,7 @@
                 </div>
             @empty
                 <x-ui.empty title="No planting recorded yet"
-                            message="Record what you planted, when, and how much land it took. This also keeps your account active.">
-                    <x-ui.button :href="route('farmer.planting.create')">Record Planting</x-ui.button>
-                </x-ui.empty>
+                            message="Record what you planted, when, and how much land it took. This also keeps your account active." />
             @endforelse
         </x-ui.card>
 
