@@ -46,7 +46,7 @@
     </x-ui.card>
 
     <x-ui.card title="Farmer">
-        <dl class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <dl class="flex flex-wrap gap-x-10 gap-y-4">
             @php
                 $details = [
                     'Name'         => $farmer->full_name,

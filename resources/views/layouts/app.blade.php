@@ -208,7 +208,7 @@
         </main>
 
         {{-- Footer, desktop only. On a phone the bottom bar is already there. --}}
-        <footer class="hidden border-t border-border px-8 py-3 text-xs text-muted-foreground lg:block">
+        <footer class="hidden border-t border-foreground/20 px-8 py-3 text-xs text-muted-foreground lg:block">
             <div class="flex items-center justify-between gap-4">
                 <span>&copy; {{ date('Y') }} Farmers Information and Technology Services Center.
                       All rights reserved.</span>
