@@ -131,26 +131,6 @@ class AssistanceAllocationController extends Controller
 
         /*
         |--------------------------------------------------------------------
-        | The four-step tracker across the top of the page
-        |--------------------------------------------------------------------
-        | Every step reflects real data for the selected disaster (or, with
-        | "All Disasters" selected, across every disaster) - nothing here is
-        | a fixed decoration.
-        */
-        $steps = [
-            'verified_reports' => $disasterId
-                ? DamageReport::whereIn('status', self::QUALIFYING_REPORT_STATUSES)
-                    ->whereHas('disasters', fn ($d) => $d->where('disasters.id', $disasterId))->exists()
-                : DamageReport::whereIn('status', self::QUALIFYING_REPORT_STATUSES)->exists(),
-            'mao_review'  => $stats['qualified_beneficiaries'] > 0,
-            'distribution' => AssistanceDistribution::whereHas('allocation', fn ($q) => $q
-                    ->when($disasterId, fn ($a) => $a->where('disaster_id', $disasterId))
-                    ->when($assistanceId, fn ($a) => $a->where('assistance_id', $assistanceId)))
-                ->exists(),
-        ];
-
-        /*
-        |--------------------------------------------------------------------
         | Association Allocation Overview (paginated, filterable by status)
         |--------------------------------------------------------------------
         */
@@ -194,7 +174,6 @@ class AssistanceAllocationController extends Controller
 
         return [
             'stats'              => $stats,
-            'steps'              => $steps,
             'overviewRows'       => $overviewRows,
             // The same rows, unpaginated - exportOverview() downloads all of
             // them, not just the page currently on screen.

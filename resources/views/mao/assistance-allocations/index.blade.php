@@ -6,13 +6,6 @@
 
 @php
     $newValue = \App\Http\Controllers\MAO\AssistanceAllocationController::NEW_ASSISTANCE;
-
-    $stepDefs = [
-        ['key' => 'verified_reports', 'label' => 'Verified Reports', 'detail' => 'Technician validation completed'],
-        ['key' => 'mao_review',       'label' => 'MAO Review',       'detail' => 'Select qualified beneficiaries'],
-        ['key' => 'allocation',       'label' => 'Allocation',       'detail' => 'Assign to association'],
-        ['key' => 'distribution',     'label' => 'Distribution',     'detail' => "Association distributes assistance"],
-    ];
 @endphp
 
 @section('content')
@@ -25,42 +18,6 @@
             </ul>
         </x-ui.alert>
     @endif
-
-    {{-- ===================== STEP TRACKER ===================== --}}
-    <div class="mb-5 flex items-center overflow-x-auto rounded-xl border border-border bg-card p-5 shadow-sm">
-        @foreach ($stepDefs as $index => $step)
-            @php
-                $isCurrent = $step['key'] === 'allocation';
-                $isDone    = ! $isCurrent && ($steps[$step['key']] ?? false);
-            @endphp
-
-            <div class="flex flex-1 items-center">
-                <div class="flex items-center gap-3">
-                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold
-                        {{ $isDone ? 'bg-green-600 text-white' : ($isCurrent ? 'bg-primary text-white' : 'bg-muted text-muted-foreground') }}">
-                        @if ($isDone)
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.5"
-                                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                                <path d="M5 13l4 4L19 7"/>
-                            </svg>
-                        @else
-                            {{ $index + 1 }}
-                        @endif
-                    </span>
-                    <div class="min-w-0">
-                        <p class="whitespace-nowrap text-sm font-semibold {{ $isCurrent ? 'text-primary' : 'text-foreground' }}">
-                            {{ $step['label'] }}
-                        </p>
-                        <p class="whitespace-nowrap text-xs text-muted-foreground">{{ $step['detail'] }}</p>
-                    </div>
-                </div>
-
-                @if (! $loop->last)
-                    <div class="mx-4 h-px min-w-6 flex-1 {{ $isDone ? 'bg-green-300' : 'bg-border' }}"></div>
-                @endif
-            </div>
-        @endforeach
-    </div>
 
     {{-- ===================== STAT CARDS ===================== --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

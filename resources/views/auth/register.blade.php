@@ -46,30 +46,42 @@
     {{-- =====================================================================
          LEFT PANEL - branding and illustration
     ====================================================================== --}}
-    <div class="flex shrink-0 flex-col border-b border-border bg-card px-6 py-7 lg:w-[30%] lg:max-w-[420px] lg:border-b-0 lg:border-r lg:px-10 lg:py-10">
+    {{-- Dark green on every screen size, the same identity the login screen
+         uses: a banner across the top on a phone, the full left column from
+         lg up. Horizontal padding matches the wizard panel on the right at
+         every breakpoint so the seal lines up with the form below it. --}}
+    <div class="flex shrink-0 flex-col bg-[#0d3d1b] px-5 py-6 sm:px-8
+                lg:w-[30%] lg:max-w-[420px] lg:px-10 lg:py-10">
 
         <div class="flex items-center gap-4">
             <img src="{{ asset('images/tanza-seal.png') }}" alt="Seal of the Municipality of Tanza, Cavite"
                  class="h-16 w-16 shrink-0 lg:h-20 lg:w-20">
             <div>
-                <p class="text-base font-bold leading-tight text-foreground lg:text-lg">
+                <p class="text-base font-bold leading-tight text-white lg:text-lg">
                     Farmers Information<br class="hidden lg:block">
                     and Technology<br class="hidden lg:block">
                     Services Center
                 </p>
-                <p class="mt-1.5 text-sm font-bold text-primary">Municipality of Tanza</p>
+                <p class="mt-1.5 text-sm font-bold text-[#7ddc8f]">Municipality of Tanza</p>
             </div>
         </div>
 
         <div class="mt-10 hidden lg:block">
-            <h2 class="text-3xl font-bold leading-tight text-foreground">
+            <h2 class="text-3xl font-bold leading-tight text-white">
                 Create your account
-                <span class="text-[#15803d]">and help build a stronger farming community.</span>
+                <span class="text-[#7ddc8f]">and help build a stronger farming community.</span>
             </h2>
         </div>
 
-        <img src="{{ asset('images/farm-illustration.jpg') }}" alt=""
-             class="mt-auto hidden w-full pt-10 lg:block">
+        {{-- The illustration has a white background, so it is rounded to read
+             as a deliberate card on the green rather than a pasted rectangle.
+             The gap above it sits on this wrapper, not on the image itself:
+             padding on the img would inset it and leave its top corners
+             square while rounding an empty box around it. --}}
+        <div class="mt-auto hidden pt-10 lg:block">
+            <img src="{{ asset('images/farm-illustration.jpg') }}" alt=""
+                 class="w-full rounded-xl">
+        </div>
     </div>
 
     {{-- =====================================================================
