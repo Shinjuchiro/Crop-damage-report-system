@@ -11,6 +11,15 @@
      | Settings is not in this list. The layout renders it on its own at the
      | very bottom of the sidebar, below a divider, for every role.
      */
+
+    // Reports MAO just handed this technician (status = assigned) that they
+    // have not even opened/started yet (Start Inspection moves a report to
+    // under_verification). This is the technician's equivalent of MAO's own
+    // "new report" badge - a fresh assignment nobody has acted on.
+    $newAssignments = \App\Models\DamageReport::where('assigned_technician_id', auth()->id())
+        ->where('status', 'assigned')
+        ->count();
+
     $items = [
         [
             'label'    => 'Technical Dashboard',
@@ -25,6 +34,7 @@
             'route'    => 'technician.reports.index',
             'pattern'  => 'technician.reports.*',
             'icon'     => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+            'badge'    => $newAssignments,
         ],
         [
             'label'    => 'Planting Reports',
@@ -99,5 +109,13 @@
             <span class="block truncate">{{ $item['label'] }}</span>
             <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
         </span>
+
+        @if (! empty($item['badge']))
+            <span class="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full
+                         bg-destructive px-1.5 text-[11px] font-bold leading-none text-destructive-foreground"
+                  title="{{ $item['badge'] }} new assignment{{ $item['badge'] === 1 ? '' : 's' }} not started yet">
+                {{ $item['badge'] > 99 ? '99+' : $item['badge'] }}
+            </span>
+        @endif
     </{{ $item['route'] ? 'a' : 'span' }}>
 @endforeach

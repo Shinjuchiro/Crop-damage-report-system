@@ -127,9 +127,14 @@
 
                 {{-- Notifications --}}
                 @php
-                    // The bell is the only way into a role's inbox, because
-                    // Notifications is deliberately not a sidebar item for any
-                    // role.
+                    // The bell opens each role's own inbox/alert page (MAO's
+                    // is the alert-composer, since MAO has no personal inbox
+                    // of incoming events). Every role also has this same page
+                    // in its sidebar (see layouts/partials/nav-*.blade.php) -
+                    // the bell is just the quick shortcut to it. A farmer's
+                    // new damage report is a separate signal and does not go
+                    // through here: see the badge on MAO's "Crop Damage
+                    // Monitoring" sidebar item instead.
                     $bellRoute = match (auth()->user()->role) {
                         'farmer'      => route('farmer.notifications.index'),
                         'association' => route('association.notifications.index'),

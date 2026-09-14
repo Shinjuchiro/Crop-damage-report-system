@@ -1,4 +1,20 @@
 @php
+    // Freshly-submitted reports the office has not even assigned to a
+    // technician yet - the clearest signal that "a farmer reported
+    // something and nobody has looked at it." Shown as a badge on Crop
+    // Damage Monitoring below instead of the bell, since MAO has no personal
+    // notification inbox (its bell/"Notification and Alerts" page is the
+    // alert-composer, not an inbox of incoming events) and a farmer's
+    // submission is not something the office "sends" anyone.
+    $pendingDamageReports = \App\Models\DamageReport::where('status', 'pending')->count();
+
+    // Same idea, one stage further: a technician has already submitted an
+    // inspection (status = verified) and it is sitting there waiting for
+    // MAO's approve/flag/reject decision (DamageReportMonitorController::
+    // decide()). Shown on Validation Monitoring, the screen that already
+    // lists these.
+    $verifiedAwaitingDecision = \App\Models\DamageReport::where('status', 'verified')->count();
+
     // route => null renders a disabled item, so the sidebar always shows the full
     // MAO menu even while a module is still being built.
     $items = [
@@ -37,12 +53,16 @@
             'route'   => 'mao.damage-reports.index',
             'pattern' => 'mao.damage-reports.*',
             'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
+            'badge'       => $pendingDamageReports,
+            'badge_label' => 'awaiting assignment',
         ],
         [
             'label'   => 'Validation Monitoring',
             'route'   => 'mao.validations.index',
             'pattern' => 'mao.validations.*',
             'icon'    => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+            'badge'       => $verifiedAwaitingDecision,
+            'badge_label' => 'awaiting your decision',
         ],
         [
             'label'    => 'Assistance Allocation & Tracking',
@@ -141,12 +161,21 @@
         </div>
     @elseif ($item['route'])
         <a href="{{ route($item['route']) }}"
-           class="{{ request()->routeIs($item['pattern']) ? $current : $idle }}">
-            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
-                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                <path d="{{ $item['icon'] }}"/>
-            </svg>
-            <span class="truncate">{{ $item['label'] }}</span>
+           class="{{ request()->routeIs($item['pattern']) ? $current : $idle }} min-w-0 justify-between">
+            <span class="flex min-w-0 items-center gap-3">
+                <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
+                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <path d="{{ $item['icon'] }}"/>
+                </svg>
+                <span class="truncate">{{ $item['label'] }}</span>
+            </span>
+            @if (! empty($item['badge']))
+                <span class="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full
+                             bg-destructive px-1.5 text-[11px] font-bold leading-none text-destructive-foreground"
+                      title="{{ $item['badge'] }} report{{ $item['badge'] === 1 ? '' : 's' }} {{ $item['badge_label'] ?? 'needs attention' }}">
+                    {{ $item['badge'] > 99 ? '99+' : $item['badge'] }}
+                </span>
+            @endif
         </a>
     @else
         <span class="{{ $disabled }}" title="Coming in a later build step">
