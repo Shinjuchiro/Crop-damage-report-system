@@ -76,7 +76,31 @@ class DashboardController extends Controller
             'unread' => Notification::where('user_id', Auth::id())
                 ->where('is_read', false)
                 ->count(),
+
+            // Section 91's "never surprise the person" review/confirm rule is
+            // about important transactions, but the same spirit applies here
+            // in miniature: the congratulatory dialog only ever appears once,
+            // on the very first dashboard load after MAO approves this
+            // farmer's registration. See dismissApprovalWelcome() below.
+            'showApprovalWelcome' => $farmer->approval_welcome_shown_at === null,
         ]);
+    }
+
+    /**
+     * Marks the one-time "Registration Approved" welcome dialog as seen, so
+     * it never shows again for this farmer. Called when they press
+     * "Continue to Dashboard" on it (see resources/views/farmer/dashboard.blade.php).
+     *
+     * Deliberately only stamped on that explicit click, not the moment the
+     * dashboard renders - if the farmer closes the tab without pressing it,
+     * they will simply see it again next time they log in, which is a
+     * gentler failure than losing the welcome message to a network hiccup.
+     */
+    public function dismissApprovalWelcome()
+    {
+        $this->farmer()->update(['approval_welcome_shown_at' => now()]);
+
+        return redirect()->route('farmer.dashboard');
     }
 
     /**

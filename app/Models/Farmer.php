@@ -31,7 +31,7 @@ class Farmer extends Model
         'first_name', 'middle_name', 'last_name', 'date_of_birth', 'sex',
         'ownership_type', 'landowner_name', 'landowner_contact', 'landowner_location',
         'barangay_certificate_path', 'address', 'farm_size_hectares',
-        'activity_status', 'last_activity_date',
+        'activity_status', 'last_activity_date', 'approval_welcome_shown_at',
     ];
 
     // Turns these columns into Carbon date objects automatically, so we can
@@ -42,6 +42,7 @@ class Farmer extends Model
             'date_of_birth' => 'date',
             'last_activity_date' => 'date',
             'deleted_at' => 'datetime',
+            'approval_welcome_shown_at' => 'datetime',
         ];
     }
 

@@ -121,6 +121,48 @@ class MembershipApplicationController extends Controller
         } catch (\Throwable $e) {
             Log::warning('Could not send approval email for farmer ' . $farmer->id . ': ' . $e->getMessage());
         }
+
+        $this->notifyAssociationOfNewMember($farmer);
+    }
+
+    /**
+     * Let the farmer's association know a new member just joined them - the
+     * association only monitors its members (proposal Role 3), it does not
+     * approve them, so this is purely informational and in-app only. It is
+     * skipped entirely for a farmer who registered without an association,
+     * since there is nobody to tell.
+     *
+     * 'normal' priority is deliberate: section 68 reserves SMS for Urgent
+     * and Critical matters, and a routine membership update is neither.
+     * Reuses the same NotificationBroadcast pipeline as notifyApproved()
+     * above - 'specific_association' already resolves to every member
+     * farmer and officer of that association (see
+     * NotificationBroadcast::recipientIds()), so both the association's
+     * officers and its existing members see this in their notification bell.
+     */
+    private function notifyAssociationOfNewMember(Farmer $farmer): void
+    {
+        if (! $farmer->association_id) {
+            return;
+        }
+
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'New Member Approved',
+                'message'     => $farmer->full_name . ' has been approved by the Municipal Agriculture Office '
+                    . 'and is now an active member of your association.',
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'specific_association',
+                'target_id'   => $farmer->association_id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify association ' . $farmer->association_id . ' of new member ' . $farmer->id . ': ' . $e->getMessage());
+        }
     }
 
     public function reject(Request $request, Farmer $farmer)

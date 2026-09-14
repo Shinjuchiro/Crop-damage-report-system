@@ -108,6 +108,8 @@ Route::middleware(['auth', 'active', 'role:farmer'])
     ->prefix('farmer')->name('farmer.')->group(function () {
 
         Route::get('/dashboard', [FarmerDashboardController::class, 'index'])->name('dashboard');
+        Route::put('/dashboard/welcome-dismiss', [FarmerDashboardController::class, 'dismissApprovalWelcome'])
+            ->name('dashboard.welcome-dismiss');
 
         Route::get('/profile', [FarmerProfileController::class, 'show'])->name('profile');
         Route::put('/profile/photo', [FarmerProfileController::class, 'updatePhoto'])

@@ -15,6 +15,55 @@
 @section('content')
 
     {{-- ----------------------------------------------------------------
+         One-time "Registration Approved" welcome. Opens itself on page
+         load (see the script at the bottom of this file) only when
+         $showApprovalWelcome is true - the very first dashboard load
+         after MAO approves this farmer. "Continue to Dashboard" posts to
+         dashboard.welcome-dismiss, which stamps approval_welcome_shown_at
+         so this never shows again. See Farmer\DashboardController.
+    ----------------------------------------------------------------- --}}
+    @if ($showApprovalWelcome)
+        <x-ui.dialog name="approval-welcome" size="sm">
+            <div class="flex flex-col items-center gap-3 py-2 text-center">
+                <span class="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-primary">
+                    <svg class="h-9 w-9" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                </span>
+
+                <h2 class="text-lg font-bold tracking-tight text-card-foreground">
+                    Congratulations, {{ $farmer->first_name }}!
+                </h2>
+
+                <p class="text-sm text-muted-foreground">
+                    Your farmer registration has been approved by the Municipal Agriculture Office.
+                    Your account is now active - you can record crop planting activities and report
+                    crop damage whenever you need to.
+                </p>
+                <p class="text-sm text-muted-foreground">
+                    Naaprubahan na po ang inyong rehistrasyon. Aktibo na ang inyong account.
+                </p>
+            </div>
+
+            <x-slot:footer>
+                <form method="POST" action="{{ route('farmer.dashboard.welcome-dismiss') }}" class="w-full sm:w-auto">
+                    @csrf @method('PUT')
+                    <x-ui.button type="submit" size="lg" class="w-full">Continue to Dashboard</x-ui.button>
+                </form>
+            </x-slot:footer>
+        </x-ui.dialog>
+
+        @push('scripts')
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    window.dispatchEvent(new CustomEvent('open-dialog', { detail: 'approval-welcome' }));
+                });
+            </script>
+        @endpush
+    @endif
+
+    {{-- ----------------------------------------------------------------
          Account standing. This sits at the top because it is the thing a
          farmer is most likely to be worried about, and because Inactive
          has a cause and a cure that should be stated plainly rather than
