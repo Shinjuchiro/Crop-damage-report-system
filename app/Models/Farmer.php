@@ -147,4 +147,45 @@ class Farmer extends Model
 
         return true;
     }
+
+    /**
+     * The office-wide version of refreshActivityStatus(): flips EVERY Active
+     * farmer who has gone 3+ months with no qualifying activity to Inactive,
+     * in one query.
+     *
+     * refreshActivityStatus() only ever fixes the one farmer calling it, and
+     * for a long time the only two places that called it were the farmer's
+     * own Dashboard and Profile page - so a farmer who genuinely stopped
+     * being active (the exact case this feature exists for) kept showing
+     * Active everywhere else, forever, because nothing ever checked them
+     * again unless they themselves logged in and looked. There is also no
+     * scheduled job in this project that could have done it in the
+     * background (see routes/console.php - only the SMS alert dispatcher is
+     * scheduled), so the only fix that does not require a server cron job is
+     * to sweep before any screen that displays, filters, or counts by
+     * activity_status: MAO's Farmer Directory and Crop Planting Monitor,
+     * the Association Dashboard and Member list, and the Monthly Report
+     * (both MAO's and every association's).
+     *
+     * TIMESTAMPDIFF(MONTH, ...) mirrors getMonthsInactiveAttribute()'s own
+     * Carbon::diffInMonths() exactly, so a farmer's status here can never
+     * disagree with what their own profile page would compute for them.
+     * Only the active -> inactive direction needs sweeping: the reverse
+     * (inactive -> active) already happens immediately, the moment
+     * recordQualifyingActivity() runs.
+     *
+     * Returns how many farmers were actually flipped.
+     */
+    public static function sweepInactive(): int
+    {
+        return static::query()
+            ->notDeleted()
+            ->where('activity_status', 'active')
+            ->whereNotNull('last_activity_date')
+            ->whereRaw(
+                'TIMESTAMPDIFF(MONTH, last_activity_date, ?) >= ?',
+                [now()->toDateString(), self::INACTIVITY_MONTHS]
+            )
+            ->update(['activity_status' => 'inactive']);
+    }
 }

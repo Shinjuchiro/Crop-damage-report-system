@@ -19,6 +19,11 @@ class FarmerDirectoryController extends Controller
 {
     public function index(Request $request)
     {
+        // Section 22's 3-month rule: keep every farmer's Active/Inactive
+        // status current before it is displayed, filtered, or counted below
+        // - see Farmer::sweepInactive() for why this has to run here.
+        Farmer::sweepInactive();
+
         $farmers = Farmer::query()
             ->notDeleted()
             ->with(['user', 'barangay', 'association'])

@@ -25,6 +25,15 @@ class MemberController extends Controller
     {
         $association = $this->association();
 
+        // Section 22's 3-month rule, made current BEFORE the query below
+        // runs - not after, the way this page used to do it. Refreshing the
+        // already-fetched page afterwards (the old $members->each->... line)
+        // could leave a farmer showing an "Inactive" badge while still
+        // being the reason a "status=active" filter matched them, since the
+        // filter itself ran against the stale column. Sweeping first means
+        // the ?status= filter and the badge always agree.
+        Farmer::sweepInactive();
+
         $members = Farmer::where('association_id', $association->id)
             ->with(['barangay', 'user'])
             ->withCount(['damageReports', 'plantingRecords'])
@@ -41,11 +50,6 @@ class MemberController extends Controller
             ->orderBy('first_name')
             ->paginate(15)
             ->withQueryString();
-
-        // The status shown has to be true today, not true on the day it was
-        // last written. Section 22 computes it from last_activity_date, so we
-        // let each row settle itself as it is read.
-        $members->getCollection()->each->refreshActivityStatus();
 
         return view('association.members.index', [
             'association' => $association,

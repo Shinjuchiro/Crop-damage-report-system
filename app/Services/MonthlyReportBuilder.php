@@ -26,18 +26,17 @@ use Illuminate\Support\Facades\DB;
  * point-in-time snapshots instead (Total Farmers, Active/Inactive, farm
  * area) because a report generated today should show where things stand
  * today, not just what changed in the chosen month — they are noted below.
- *
- * $associationId (optional, added when the Association module got its own
- * Reports page): when given, every figure is additionally scoped to that
- * one association's own members, so the MAO's office-wide report and an
- * association's own report are built from exactly the same code and can
- * never disagree about a shared figure. Passing null (the MAO's own call
- * site) reproduces the original office-wide behaviour unchanged.
  */
 class MonthlyReportBuilder
 {
-    public static function forPeriod(int $year, int $month, ?int $associationId = null): array
+    public static function forPeriod(int $year, int $month): array
     {
+        // Section 22's 3-month rule: Active/Inactive Farmers below is a
+        // point-in-time snapshot, so it has to be current as of the moment
+        // the report is generated, not whenever a farmer last happened to
+        // open their own dashboard - see Farmer::sweepInactive().
+        Farmer::sweepInactive();
+
         $start = Carbon::create($year, $month, 1)->startOfMonth();
         $end   = Carbon::create($year, $month, 1)->endOfMonth();
 
@@ -46,78 +45,64 @@ class MonthlyReportBuilder
             'month'        => $month,
             'period_label' => $start->format('F Y'),
             'generated_at' => now(),
-            'farmer'       => self::farmerSummary($start, $end, $associationId),
-            'farm'         => self::farmSummary($associationId),
-            'planting'     => self::plantingSummary($start, $end, $associationId),
-            'damage'       => self::damageSummary($start, $end, $associationId),
-            'verification' => self::verificationSummary($start, $end, $associationId),
-            'assistance'   => self::assistanceSummary($start, $end, $associationId),
+            'farmer'       => self::farmerSummary($start, $end),
+            'farm'         => self::farmSummary(),
+            'planting'     => self::plantingSummary($start, $end),
+            'damage'       => self::damageSummary($start, $end),
+            'verification' => self::verificationSummary($start, $end),
+            'assistance'   => self::assistanceSummary($start, $end),
         ];
     }
 
     /* ================= Farmer summary ================= */
-    private static function farmerSummary(Carbon $start, Carbon $end, ?int $associationId): array
+    private static function farmerSummary(Carbon $start, Carbon $end): array
     {
-        $scope = fn ($query) => $query->when($associationId, fn ($q, $id) => $q->where('association_id', $id));
-
         return [
             // Point-in-time snapshots, evaluated as of now.
-            'total_farmers'    => $scope(Farmer::query())->count(),
-            'verified_farmers' => $scope(Farmer::query())->whereHas('user', fn ($q) => $q->where('status', 'active'))->count(),
-            'pending_farmers'  => $scope(Farmer::query())->whereHas('user', fn ($q) => $q->where('status', 'pending'))->count(),
-            'rejected_farmers' => $scope(Farmer::query())->whereHas('user', fn ($q) => $q->where('status', 'rejected'))->count(),
-            'active_farmers'   => $scope(Farmer::query())->where('activity_status', 'active')->count(),
-            'inactive_farmers' => $scope(Farmer::query())->where('activity_status', 'inactive')->count(),
-            'land_owners'      => $scope(Farmer::query())->where('ownership_type', 'land_owner')->count(),
-            'tenants'          => $scope(Farmer::query())->where('ownership_type', 'tenant')->count(),
+            'total_farmers'    => Farmer::count(),
+            'verified_farmers' => Farmer::whereHas('user', fn ($q) => $q->where('status', 'active'))->count(),
+            'pending_farmers'  => Farmer::whereHas('user', fn ($q) => $q->where('status', 'pending'))->count(),
+            'rejected_farmers' => Farmer::whereHas('user', fn ($q) => $q->where('status', 'rejected'))->count(),
+            'active_farmers'   => Farmer::where('activity_status', 'active')->count(),
+            'inactive_farmers' => Farmer::where('activity_status', 'inactive')->count(),
+            'land_owners'      => Farmer::where('ownership_type', 'land_owner')->count(),
+            'tenants'          => Farmer::where('ownership_type', 'tenant')->count(),
             // These two are scoped to the selected month.
-            'new_registrations' => $scope(Farmer::query())->whereBetween('created_at', [$start, $end])->count(),
-            // DamageReport has no association_id column of its own, so this
-            // one filters through farmer_id instead of using $scope() above.
+            'new_registrations' => Farmer::whereBetween('created_at', [$start, $end])->count(),
             'affected_farmers'  => DamageReport::whereBetween('created_at', [$start, $end])
-                ->when($associationId, fn ($q, $id) => $q->whereIn('farmer_id', Farmer::where('association_id', $id)->select('id')))
                 ->distinct('farmer_id')->count('farmer_id'),
         ];
     }
 
     /* ================= Farm summary ================= */
-    private static function farmSummary(?int $associationId): array
+    private static function farmSummary(): array
     {
         // The system records one farm profile per farmer (proposal section
         // 16); there is no separate multi-farm table, so "Total Farms" is
         // the count of farmer records that carry farm information.
         $mainCrops = DB::table('farmer_main_crops')
             ->join('crops', 'crops.id', '=', 'farmer_main_crops.crop_id')
-            ->join('farmers', 'farmers.id', '=', 'farmer_main_crops.farmer_id')
-            ->when($associationId, fn ($q, $id) => $q->where('farmers.association_id', $id))
             ->select('crops.name', DB::raw('COUNT(*) as total'))
             ->groupBy('crops.name')
             ->orderByDesc('total')
             ->get();
 
-        $byBarangay = Barangay::withCount(['farmers' => function ($query) use ($associationId) {
-                $query->when($associationId, fn ($q, $id) => $q->where('association_id', $id));
-            }])
+        $byBarangay = Barangay::withCount('farmers')
             ->orderByDesc('farmers_count')
             ->get(['id', 'name']);
 
         return [
-            'total_farms'     => Farmer::whereNotNull('farm_size_hectares')
-                ->when($associationId, fn ($q, $id) => $q->where('association_id', $id))
-                ->count(),
-            'total_farm_area' => (float) Farmer::when($associationId, fn ($q, $id) => $q->where('association_id', $id))
-                ->sum('farm_size_hectares'),
+            'total_farms'     => Farmer::whereNotNull('farm_size_hectares')->count(),
+            'total_farm_area' => (float) Farmer::sum('farm_size_hectares'),
             'main_crops'      => $mainCrops,
             'by_barangay'     => $byBarangay,
         ];
     }
 
     /* ================= Planting summary ================= */
-    private static function plantingSummary(Carbon $start, Carbon $end, ?int $associationId): array
+    private static function plantingSummary(Carbon $start, Carbon $end): array
     {
-        $recordIds = CropPlantingRecord::whereBetween('date_submitted', [$start, $end])
-            ->when($associationId, fn ($q, $id) => $q->whereIn('farmer_id', Farmer::where('association_id', $id)->select('id')))
-            ->pluck('id');
+        $recordIds = CropPlantingRecord::whereBetween('date_submitted', [$start, $end])->pluck('id');
 
         $byCrop = DB::table('crop_planting_record_crops')
             ->join('crops', 'crops.id', '=', 'crop_planting_record_crops.crop_id')
@@ -136,11 +121,9 @@ class MonthlyReportBuilder
     }
 
     /* ================= Damage summary ================= */
-    private static function damageSummary(Carbon $start, Carbon $end, ?int $associationId): array
+    private static function damageSummary(Carbon $start, Carbon $end): array
     {
-        $reportIds = DamageReport::whereBetween('created_at', [$start, $end])
-            ->when($associationId, fn ($q, $id) => $q->whereIn('farmer_id', Farmer::where('association_id', $id)->select('id')))
-            ->pluck('id');
+        $reportIds = DamageReport::whereBetween('created_at', [$start, $end])->pluck('id');
 
         $byBarangay = DamageReport::whereIn('damage_reports.id', $reportIds)
             ->join('barangays', 'barangays.id', '=', 'damage_reports.reported_barangay_id')
@@ -219,17 +202,9 @@ class MonthlyReportBuilder
     }
 
     /* ================= Verification summary ================= */
-    private static function verificationSummary(Carbon $start, Carbon $end, ?int $associationId): array
+    private static function verificationSummary(Carbon $start, Carbon $end): array
     {
-        // Pre-computed once, then reused by every query below - the same
-        // "which reports belong to this scope" set that damageSummary()
-        // builds independently for its own (differently dated) window.
-        $associationReportIds = $associationId
-            ? DamageReport::whereIn('farmer_id', Farmer::where('association_id', $associationId)->select('id'))->select('id')
-            : null;
-
         $byTechnician = Validation::whereBetween('validated_at', [$start, $end])
-            ->when($associationReportIds, fn ($q) => $q->whereIn('damage_report_id', $associationReportIds))
             ->join('users', 'users.id', '=', 'validations.technician_id')
             ->select('users.full_name', DB::raw('COUNT(*) as total'))
             ->groupBy('users.full_name')
@@ -237,24 +212,18 @@ class MonthlyReportBuilder
             ->get();
 
         return [
-            'reports_assigned'      => DamageReport::whereBetween('assigned_at', [$start, $end])
-                ->when($associationId, fn ($q, $id) => $q->whereIn('farmer_id', Farmer::where('association_id', $id)->select('id')))
-                ->count(),
-            'inspections_completed' => Validation::whereBetween('validated_at', [$start, $end])
-                ->when($associationReportIds, fn ($q) => $q->whereIn('damage_report_id', $associationReportIds))
-                ->count(),
+            'reports_assigned'      => DamageReport::whereBetween('assigned_at', [$start, $end])->count(),
+            'inspections_completed' => Validation::whereBetween('validated_at', [$start, $end])->count(),
             'verified_locations'    => Validation::whereBetween('validated_at', [$start, $end])
-                ->when($associationReportIds, fn ($q) => $q->whereIn('damage_report_id', $associationReportIds))
                 ->whereNotNull('latitude')->whereNotNull('longitude')->count(),
             'by_technician' => $byTechnician,
         ];
     }
 
     /* ================= Assistance summary ================= */
-    private static function assistanceSummary(Carbon $start, Carbon $end, ?int $associationId): array
+    private static function assistanceSummary(Carbon $start, Carbon $end): array
     {
-        $baseAllocations = AssistanceAllocation::whereBetween('allocated_at', [$start, $end])
-            ->when($associationId, fn ($q, $id) => $q->where('association_id', $id));
+        $baseAllocations = AssistanceAllocation::whereBetween('allocated_at', [$start, $end]);
 
         $cashAllocated = (clone $baseAllocations)
             ->whereHas('assistance', fn ($q) => $q->where('type', 'cash'))
@@ -264,11 +233,7 @@ class MonthlyReportBuilder
             ->whereHas('assistance', fn ($q) => $q->where('type', 'in_kind'))
             ->sum('allocated_quantity');
 
-        $distributions = AssistanceDistribution::whereBetween('distributed_at', [$start, $end])
-            ->when($associationId, fn ($q, $id) => $q->whereIn(
-                'assistance_allocation_id',
-                AssistanceAllocation::where('association_id', $id)->select('id')
-            ));
+        $distributions = AssistanceDistribution::whereBetween('distributed_at', [$start, $end]);
 
         return [
             'cash_allocated'    => (float) $cashAllocated,

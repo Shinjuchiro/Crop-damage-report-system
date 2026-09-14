@@ -34,6 +34,11 @@ class DashboardController extends Controller
 
         /* ---------- Members ---------- */
 
+        // Section 22's 3-month rule: keep every member's Active/Inactive
+        // status current before counting them below - see
+        // Farmer::sweepInactive().
+        Farmer::sweepInactive();
+
         $membersByStatus = DB::table('farmers')
             ->where('association_id', $association->id)
             ->select('activity_status', DB::raw('COUNT(*) as total'))

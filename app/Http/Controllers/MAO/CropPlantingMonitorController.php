@@ -8,6 +8,7 @@ use App\Models\Barangay;
 use App\Models\Crop;
 use App\Models\CropPlantingRecord;
 use App\Models\CropPlantingRecordCrop;
+use App\Models\Farmer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,10 @@ class CropPlantingMonitorController extends Controller
 {
     public function index(Request $request)
     {
+        // Section 22's 3-month rule: keep it current before the
+        // ?activity_status= filter below runs against it.
+        Farmer::sweepInactive();
+
         $plantings = CropPlantingRecordCrop::query()
             ->with([
                 'crop',
