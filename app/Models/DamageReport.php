@@ -163,6 +163,18 @@ class DamageReport extends Model
         return $this->hasMany(AssistanceDistribution::class);
     }
 
+    /**
+     * Rows recording that THIS specific report already made a farmer a
+     * beneficiary of some MAO allocation. Used by
+     * AssistanceAllocationController::qualifiedReports() to stop counting a
+     * report as "still needing an allocation" once it has actually been
+     * used to grant one - see section 31.
+     */
+    public function allocationBeneficiaries()
+    {
+        return $this->hasMany(AssistanceAllocationBeneficiary::class);
+    }
+
     // Adds up the damage cost of every crop on this report.
     // Each crop's total_damage_cost was computed when the report was saved.
     public function getTotalDamageCostAttribute(): float

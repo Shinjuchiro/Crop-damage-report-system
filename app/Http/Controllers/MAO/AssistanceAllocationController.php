@@ -51,12 +51,24 @@ class AssistanceAllocationController extends Controller
     public const STATUSES = ['pending', 'allocated', 'distributed', 'completed', 'cancelled'];
 
     /**
-     * A damage report counts toward assistance eligibility once a
-     * technician has verified it (or MAO has gone further and approved it).
-     * Kept as one constant so the allocation modal, the stat cards and the
-     * export all agree on exactly the same rule.
+     * A report sitting here has been inspected by a technician but MAO has
+     * not decided anything about it yet. This is the "Total Verified
+     * Farmers" stat - farmers waiting on an MAO decision, not (yet) farmers
+     * who qualify for assistance. See section 31.
      */
-    private const QUALIFYING_REPORT_STATUSES = ['verified', 'approved'];
+    private const PENDING_REVIEW_STATUS = 'verified';
+
+    /**
+     * A damage report only counts toward assistance eligibility once MAO
+     * has actually approved it. "Verified" on its own just means a
+     * technician inspected the report - it does not mean MAO agreed the
+     * farmer should receive help, so it used to also appear here, which
+     * made "Total Verified Farmers" and "Qualified Beneficiaries" count the
+     * exact same reports (section 31). Kept as one constant so the
+     * allocation modal, the stat cards and the export all agree on exactly
+     * the same rule.
+     */
+    private const QUALIFYING_REPORT_STATUSES = ['approved'];
 
     /* =====================================================================
      | Assistance Allocation (the working screen)
@@ -85,13 +97,15 @@ class AssistanceAllocationController extends Controller
     {
         $disasters = Disaster::active()->orderByDesc('date_start')->get();
 
-        // First visit defaults to the most recent disaster so the page opens
-        // with something meaningful on it. Once the person has explicitly
-        // chosen "All Disasters" (an empty value that is still present in
-        // the query string), that choice is respected instead.
-        $disasterId = $request->has('disaster_id')
-            ? ($request->filled('disaster_id') ? (int) $request->input('disaster_id') : null)
-            : optional($disasters->first())->id;
+        // Defaults to "All Disasters": a verified/approved report qualifies
+        // on its own (decision 11/25 - a disaster event is optional
+        // everywhere, including here), so most reports have no disaster
+        // link at all and scoping to one by default would hide almost
+        // everyone. Picking a specific disaster from the filter narrows the
+        // view to only the reports that DO cite that event; it is a way to
+        // look at one disaster's affected farmers on request, never a
+        // requirement for a farmer or association to show up at all.
+        $disasterId = $request->filled('disaster_id') ? (int) $request->input('disaster_id') : null;
 
         $associationId = $request->filled('association_id') ? (int) $request->input('association_id') : null;
         $assistanceId  = $request->filled('assistance_id') ? (int) $request->input('assistance_id') : null;
@@ -101,15 +115,23 @@ class AssistanceAllocationController extends Controller
 
         /*
         |--------------------------------------------------------------------
-        | Who actually qualifies right now
+        | Two disjoint pipeline stages (section 31)
         |--------------------------------------------------------------------
-        | "Verified" here means a technician has inspected the report (or
-        | MAO has gone further and approved it) - see
-        | self::QUALIFYING_REPORT_STATUSES. One row per farmer: their most
-        | recent qualifying report for the selected disaster.
+        | "Total Verified Farmers" = a technician has inspected the report
+        | but MAO has not decided anything yet (status "verified" only - see
+        | self::PENDING_REVIEW_STATUS). "Qualified Beneficiaries" = MAO has
+        | approved the report AND it is not already spoken for by another,
+        | still-active allocation (see self::QUALIFYING_REPORT_STATUSES and
+        | the whereDoesntHave() clause inside qualifiedReports()). A report
+        | only ever counts toward one of these two stats, never both, and a
+        | farmer drops out of "Qualified Beneficiaries" the moment MAO
+        | includes them in a new allocation - they do not need to wait for
+        | the association to actually distribute anything.
         */
-        $verifiedReports = $this->qualifiedReports($disasterId);
-        $qualifiedReports = $verifiedReports->filter(fn ($report) => $report->farmer->association_id !== null)->values();
+        $pendingReviewReports = $this->pendingReviewReports($disasterId);
+        $qualifiedReports = $this->qualifiedReports($disasterId)
+            ->filter(fn ($report) => $report->farmer->association_id !== null)
+            ->values();
         $qualifiedByAssociation = $qualifiedReports->groupBy(fn ($report) => $report->farmer->association_id);
 
         $allocationsInScope = AssistanceAllocation::query()
@@ -122,8 +144,8 @@ class AssistanceAllocationController extends Controller
             ->groupBy('association_id');
 
         $stats = [
-            'total_verified_farmers'  => $verifiedReports->count(),
-            'verified_from_associations' => $verifiedReports->pluck('farmer.association_id')->filter()->unique()->count(),
+            'total_verified_farmers'  => $pendingReviewReports->count(),
+            'verified_from_associations' => $pendingReviewReports->pluck('farmer.association_id')->filter()->unique()->count(),
             'qualified_beneficiaries' => $qualifiedReports->count(),
             'pending_allocation'      => $qualifiedByAssociation->keys()->diff($allocationsInScope->keys())->count(),
             'total_associations'      => $allocationsInScope->keys()->filter()->count(),
@@ -228,12 +250,18 @@ class AssistanceAllocationController extends Controller
     {
         $data = $request->validate([
             'association_id' => ['required', 'exists:associations,id'],
-            'disaster_id'    => ['required', 'exists:disasters,id'],
+            // Optional (see qualifiedReports()): the modal can build the
+            // whole-association checklist without a disaster being picked
+            // at all.
+            'disaster_id'    => ['nullable', 'exists:disasters,id'],
         ]);
 
         $association = Association::findOrFail($data['association_id']);
 
-        $beneficiaries = $this->qualifiedReports((int) $data['disaster_id'], (int) $data['association_id'])
+        $beneficiaries = $this->qualifiedReports(
+                isset($data['disaster_id']) ? (int) $data['disaster_id'] : null,
+                (int) $data['association_id']
+            )
             ->map(fn ($report) => [
                 'farmer_id'        => $report->farmer_id,
                 'damage_report_id' => $report->id,
@@ -252,21 +280,37 @@ class AssistanceAllocationController extends Controller
     }
 
     /**
-     * One row per farmer: their most recent report that both (a) a
-     * technician has verified (or MAO has approved) and (b) is tied to the
-     * given disaster. Restricting to one association is optional, so the
-     * same method drives both the office-wide stat cards and the modal's
-     * per-association checklist.
+     * One row per farmer: their most recent report matching $statuses.
+     * Restricting to a disaster and/or one association is optional, so the
+     * same method backs both the office-wide stat cards and the modal's
+     * per-association checklist. Shared by qualifiedReports() and
+     * pendingReviewReports() so the two stages never quietly drift apart -
+     * see section 31.
+     *
+     * A disaster link was never required on the farmer's own report
+     * (decision 11, section 8) and an allocation is no longer required to
+     * name one either (decision 25, section 28) - so this must not require
+     * one to decide eligibility. Passing a $disasterId narrows the result to
+     * reports that cite that specific event (MAO targeting aid at one
+     * disaster on purpose); passing null returns every matching report
+     * regardless of whether it names a disaster at all, which is the normal
+     * case now. The disaster alert/notification system is a separate,
+     * informational channel (section 27) and must never gate this.
+     *
+     * $excludeAlreadyAllocated additionally drops any report that has
+     * already made its farmer a beneficiary of a still-active (not
+     * cancelled) allocation - once MAO includes a farmer in an allocation,
+     * they stop showing up as "still needing one" (section 31).
      */
-    private function qualifiedReports(?int $disasterId, ?int $associationId = null): Collection
+    private function reportsByStatus(array $statuses, ?int $disasterId, ?int $associationId = null, bool $excludeAlreadyAllocated = false): Collection
     {
-        if (! $disasterId) {
-            return collect();
-        }
-
         return DamageReport::query()
-            ->whereIn('status', self::QUALIFYING_REPORT_STATUSES)
-            ->whereHas('disasters', fn ($d) => $d->where('disasters.id', $disasterId))
+            ->whereIn('status', $statuses)
+            ->when($disasterId, fn ($q) => $q
+                ->whereHas('disasters', fn ($d) => $d->where('disasters.id', $disasterId)))
+            ->when($excludeAlreadyAllocated, fn ($q) => $q
+                ->whereDoesntHave('allocationBeneficiaries', fn ($b) => $b
+                    ->whereHas('allocation', fn ($a) => $a->where('status', '!=', 'cancelled'))))
             ->whereHas('farmer', function ($f) use ($associationId) {
                 if ($associationId) {
                     $f->where('association_id', $associationId);
@@ -277,6 +321,27 @@ class AssistanceAllocationController extends Controller
             ->get()
             ->unique('farmer_id')
             ->values();
+    }
+
+    /**
+     * Farmers waiting on an MAO decision: a technician has verified the
+     * report, but MAO has not approved, rejected or flagged it yet. Feeds
+     * the "Total Verified Farmers" stat only - see section 31.
+     */
+    private function pendingReviewReports(?int $disasterId, ?int $associationId = null): Collection
+    {
+        return $this->reportsByStatus([self::PENDING_REVIEW_STATUS], $disasterId, $associationId);
+    }
+
+    /**
+     * Farmers who actually qualify for assistance right now: MAO has
+     * approved their report and it is not already covered by another
+     * active allocation. Feeds "Qualified Beneficiaries", the
+     * per-association overview and the Allocate Assistance modal.
+     */
+    private function qualifiedReports(?int $disasterId, ?int $associationId = null): Collection
+    {
+        return $this->reportsByStatus(self::QUALIFYING_REPORT_STATUSES, $disasterId, $associationId, excludeAlreadyAllocated: true);
     }
 
     /* =====================================================================
@@ -409,10 +474,11 @@ class AssistanceAllocationController extends Controller
         // rule for the farmer's own damage report applies here too: not
         // every assistance item is tied to one specific declared event - a
         // general seed subsidy or a routine input give-away has nowhere
-        // sensible to attach a disaster_id). When one IS picked, it still
-        // drives the qualified-beneficiary checklist below; when it is left
-        // blank, the allocation simply is not restricted to a beneficiary
-        // list, since qualifiedReports() requires a disaster to run at all.
+        // sensible to attach a disaster_id). Picking one narrows the
+        // qualified-beneficiary checklist below to reports citing that
+        // event; leaving it blank still builds a real checklist, of every
+        // verified/approved farmer in the association regardless of
+        // disaster - see qualifiedReports() and section 29.
 
         $data = $request->validate([
             'assistance_id'  => ['required', $creatingNew ? 'string' : 'exists:assistances,id'],
@@ -489,11 +555,17 @@ class AssistanceAllocationController extends Controller
             // The MAO-reviewed beneficiary list. Re-checked against the same
             // eligibility rule the modal used to build the checklist -
             // never trust ids a form posted back without verifying them
-            // server-side.
+            // server-side. A disaster is not required for this check any
+            // more than it is in qualifiedReports() itself - an allocation
+            // with no disaster_id can still have a real, MAO-reviewed
+            // beneficiary list.
             $beneficiaryIds = $data['beneficiary_ids'] ?? [];
 
-            if (! empty($beneficiaryIds) && ! empty($data['disaster_id'])) {
-                $eligible = $this->qualifiedReports((int) $data['disaster_id'], (int) $data['association_id']);
+            if (! empty($beneficiaryIds)) {
+                $eligible = $this->qualifiedReports(
+                    ! empty($data['disaster_id']) ? (int) $data['disaster_id'] : null,
+                    (int) $data['association_id']
+                );
 
                 foreach ($eligible->whereIn('farmer_id', $beneficiaryIds) as $report) {
                     AssistanceAllocationBeneficiary::create([

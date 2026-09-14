@@ -22,12 +22,12 @@
     {{-- ===================== STAT CARDS ===================== --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-ui.stat label="Total Verified Farmers" :value="number_format($stats['total_verified_farmers'])"
-                   :hint="'From ' . number_format($stats['verified_from_associations']) . ' association' . ($stats['verified_from_associations'] === 1 ? '' : 's')"
+                   :hint="'Awaiting MAO decision · from ' . number_format($stats['verified_from_associations']) . ' association' . ($stats['verified_from_associations'] === 1 ? '' : 's')"
                    tone="primary"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6" />
 
         <x-ui.stat label="Qualified Beneficiaries" :value="number_format($stats['qualified_beneficiaries'])"
-                   hint="Approved by MAO (verified + belongs to an association)" tone="primary"
+                   hint="Approved by MAO, belongs to an association, and not already in an allocation" tone="primary"
                    icon="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 
         <x-ui.stat label="Pending Allocation" :value="number_format($stats['pending_allocation'])"
@@ -268,15 +268,25 @@
                       this.beneficiaries = [];
                       this.beneficiaryError = '';
 
-                      if (! this.associationId || ! this.disasterId) {
+                      // Disaster is optional here too (section 29): the
+                      // association alone is enough to pull up every
+                      // MAO-approved, not-yet-allocated farmer in it (section
+                      // 31). Picking a disaster just narrows that same list
+                      // to reports citing it.
+                      if (! this.associationId) {
                           return;
                       }
 
                       this.loadingBeneficiaries = true;
 
-                      fetch(@js(route('mao.assistance-allocations.eligible-beneficiaries'))
-                              + '?association_id=' + this.associationId + '&disaster_id=' + this.disasterId,
-                          { headers: { Accept: 'application/json' } })
+                      let url = @js(route('mao.assistance-allocations.eligible-beneficiaries'))
+                              + '?association_id=' + this.associationId;
+
+                      if (this.disasterId) {
+                          url += '&disaster_id=' + this.disasterId;
+                      }
+
+                      fetch(url, { headers: { Accept: 'application/json' } })
                           .then((response) => {
                               if (! response.ok) { throw new Error('request failed'); }
                               return response.json();
@@ -330,7 +340,7 @@
                 </x-ui.field>
 
                 <x-ui.field label="Disaster Event" name="disaster_id"
-                            hint="Optional. Needed only to pull up the qualified-beneficiary checklist below; an allocation not tied to one specific event (e.g. a general seed subsidy) can skip it.">
+                            hint="Optional. The checklist below already includes every MAO-approved farmer in the association who isn't already covered by another allocation; picking an event here just narrows it to reports citing that event specifically.">
                     <x-ui.select name="disaster_id" placeholder="Select disaster event (optional)"
                                  x-model="disasterId" @change="fetchBeneficiaries()"
                                  :options="$disasters->pluck('name', 'id')" />
@@ -364,13 +374,10 @@
                            class="px-4 py-6 text-center text-sm text-muted-foreground">
                             Select an association to see who qualifies.
                         </p>
-                        <p x-show="! loadingBeneficiaries && ! beneficiaryError && associationId && ! disasterId"
+                        <p x-show="! loadingBeneficiaries && ! beneficiaryError && associationId && beneficiaries.length === 0"
                            class="px-4 py-6 text-center text-sm text-muted-foreground">
-                            Select a disaster event to see who qualifies.
-                        </p>
-                        <p x-show="! loadingBeneficiaries && ! beneficiaryError && associationId && disasterId && beneficiaries.length === 0"
-                           class="px-4 py-6 text-center text-sm text-muted-foreground">
-                            No verified farmers in this association qualify for this disaster event yet.
+                            <span x-show="disasterId">No MAO-approved farmers in this association qualify for this disaster event yet - they may still be awaiting a decision, or already covered by another allocation.</span>
+                            <span x-show="! disasterId">No MAO-approved farmers in this association qualify yet - they may still be awaiting a decision, or already covered by another allocation.</span>
                         </p>
 
                         <table class="w-full text-left text-sm" x-show="! loadingBeneficiaries && beneficiaries.length > 0">
