@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Association;
 use App\Http\Controllers\Association\Concerns\ResolvesAssociation;
 use App\Http\Controllers\Controller;
 use App\Models\AssistanceAllocation;
+use App\Models\AssistanceAllocationBeneficiary;
 use App\Models\AssistanceDistribution;
 use App\Models\AuditLog;
 use App\Models\DamageReport;
@@ -31,9 +32,15 @@ use Illuminate\Validation\ValidationException;
  * Three rules are enforced here rather than trusted to the form:
  *
  *  1. An officer only ever touches their own association's allocations.
- *  2. A member is only eligible if a technician has actually VERIFIED one of
- *     their damage reports. Aid is tied to inspected damage, not to who asked
- *     first, and the distributions table requires the report id to prove it.
+ *  2. A member is only eligible if MAO specifically named them as a
+ *     beneficiary of THIS allocation (AssistanceAllocationBeneficiary) when
+ *     they allocated it. This used to just be "any member with a verified
+ *     or approved damage report" - which let an association distribute real
+ *     assistance to a member MAO never selected, off a report MAO had not
+ *     even approved yet, and (worse) off a report a technician had only
+ *     verified but MAO could still go on to reject. The beneficiary list
+ *     used to be informational only (see BUILD-STATUS decision 18); this
+ *     build reverses that and makes it the actual gate.
  *  3. You cannot hand out more than was allocated. The remaining balance is
  *     computed from the distributions already recorded, never stored.
  */
@@ -45,8 +52,16 @@ class AssistanceController extends Controller
     private const PHOTO_DIR  = 'distributions';
     private const MAX_PHOTOS = 6;
 
-    /** Only these report statuses make a member eligible. */
-    private const ELIGIBLE_STATUSES = ['verified', 'approved'];
+    /**
+     * A report must be at one of these statuses before it can back a
+     * distribution. Narrowed to 'approved' only (was ['verified',
+     * 'approved']) because the real gate is now the beneficiary check in
+     * assertEligible() below - a report can only reach the beneficiary list
+     * in the first place once MAO approves it (see
+     * AssistanceAllocationController::QUALIFYING_REPORT_STATUSES), so this
+     * is kept as a defense-in-depth check, not the primary rule anymore.
+     */
+    private const ELIGIBLE_STATUSES = ['approved'];
 
     /**
      * Everything the office has allocated to this association.
@@ -111,7 +126,7 @@ class AssistanceController extends Controller
             'association'  => $this->association(),
             'allocation'   => $allocation->load(['assistance', 'disaster', 'crop']),
             'remaining'    => $this->remainingOn($allocation),
-            'eligible'     => $this->eligibleMembers(),
+            'eligible'     => $this->eligibleMembers($allocation),
         ]);
     }
 
@@ -158,7 +173,7 @@ class AssistanceController extends Controller
         $farmer = Farmer::findOrFail($data['farmer_id']);
         $report = DamageReport::findOrFail($data['damage_report_id']);
 
-        $this->assertEligible($farmer, $report);
+        $this->assertEligible($farmer, $report, $allocation);
         $this->assertQuantityFits($allocation, (float) $data['quantity']);
 
         $distribution = DB::transaction(function () use ($request, $allocation, $farmer, $report, $data) {
@@ -241,13 +256,16 @@ class AssistanceController extends Controller
     }
 
     /**
-     * Is this member allowed to receive from this allocation?
+     * Is this member allowed to receive from THIS allocation?
      *
-     * Two things have to hold, and both are checked here rather than trusted
+     * Four things have to hold, and all are checked here rather than trusted
      * to the dropdown, because a dropdown is only a suggestion once the form
-     * has been posted.
+     * has been posted. The last check is the important one: it is not
+     * enough that the member has some approved report somewhere - MAO has
+     * to have actually named them as a beneficiary of this specific
+     * allocation when they allocated it (see the class docblock, rule 2).
      */
-    private function assertEligible(Farmer $farmer, DamageReport $report): void
+    private function assertEligible(Farmer $farmer, DamageReport $report, AssistanceAllocation $allocation): void
     {
         if ($farmer->association_id !== $this->association()->id) {
             throw ValidationException::withMessages([
@@ -263,8 +281,20 @@ class AssistanceController extends Controller
 
         if (! in_array($report->status, self::ELIGIBLE_STATUSES, true)) {
             throw ValidationException::withMessages([
-                'damage_report_id' => 'Report ' . $report->reference . ' has not been verified by a technician yet, '
+                'damage_report_id' => 'Report ' . $report->reference . ' has not been approved by MAO yet, '
                     . 'so assistance cannot be recorded against it.',
+            ]);
+        }
+
+        $isNamedBeneficiary = AssistanceAllocationBeneficiary::where('assistance_allocation_id', $allocation->id)
+            ->where('farmer_id', $farmer->id)
+            ->where('damage_report_id', $report->id)
+            ->exists();
+
+        if (! $isNamedBeneficiary) {
+            throw ValidationException::withMessages([
+                'farmer_id' => 'MAO did not include ' . $farmer->full_name . ' as a beneficiary of this '
+                    . 'allocation, so assistance cannot be recorded against them from it.',
             ]);
         }
     }
@@ -355,17 +385,26 @@ class AssistanceController extends Controller
     }
 
     /**
-     * Members who can legitimately receive something right now: this
-     * association's farmers who have at least one verified damage report,
-     * with those reports loaded so the form can offer them.
+     * Members who can legitimately receive something from THIS allocation
+     * right now: this association's farmers MAO specifically named as
+     * beneficiaries when they allocated it, with the reports that made them
+     * a beneficiary loaded so the form can offer them.
+     *
+     * This used to be "any member with a verified or approved report",
+     * completely independent of which allocation the officer opened the
+     * form from - meaning MAO's own beneficiary selection was never
+     * actually enforced. Scoping to $allocation's own beneficiary rows is
+     * the fix (see the class docblock, rule 2).
      */
-    private function eligibleMembers()
+    private function eligibleMembers(AssistanceAllocation $allocation)
     {
+        $beneficiaryReportIds = $allocation->beneficiaries()->pluck('damage_report_id');
+
         return Farmer::where('association_id', $this->association()->id)
-            ->whereHas('damageReports', fn ($q) => $q->whereIn('status', self::ELIGIBLE_STATUSES))
+            ->whereHas('damageReports', fn ($q) => $q->whereIn('id', $beneficiaryReportIds))
             ->with([
                 'barangay',
-                'damageReports' => fn ($q) => $q->whereIn('status', self::ELIGIBLE_STATUSES)
+                'damageReports' => fn ($q) => $q->whereIn('id', $beneficiaryReportIds)
                     ->with(['crops.crop', 'validation'])
                     ->latest(),
             ])

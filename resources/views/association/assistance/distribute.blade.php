@@ -17,8 +17,9 @@
     Two rules shape this form, and both are enforced again in the controller
     because a dropdown is only a suggestion once the form has been posted:
 
-      1. Only members with a damage report a technician has VERIFIED appear
-         in the list. Aid is tied to inspected damage, not to who asked first.
+      1. Only members MAO specifically named as beneficiaries of THIS
+         allocation appear in the list - not just anyone with an approved
+         report. Aid goes to whoever MAO selected when they allocated it.
       2. You cannot give out more than the office allocated. The remaining
          balance is worked out from what has already been recorded.
 
@@ -87,7 +88,7 @@
         <x-ui.card>
             <x-ui.empty title="No member is eligible yet"
                         icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 7.5v5M12 16.5h.01"
-                        message="Assistance can only be recorded against a damage report that a technician has already inspected and verified. None of your members has one yet.">
+                        message="MAO has not named any of your members as a beneficiary of this specific allocation yet. Contact the office if you believe this allocation was meant for particular members.">
                 <x-ui.button variant="outline" :href="route('association.reports.index')">
                     See your members' reports
                 </x-ui.button>
@@ -122,8 +123,8 @@
                         </select>
 
                         <p class="text-xs text-muted-foreground">
-                            Only members with a verified damage report appear here. If somebody is missing, their
-                            report has not been inspected yet.
+                            Only members MAO named as beneficiaries of this allocation appear here. If somebody is
+                            missing, MAO did not select them for this particular allocation.
                         </p>
                     </div>
                 </x-ui.card>
@@ -134,7 +135,7 @@
 
                     <div x-show="! farmerId" x-cloak
                          class="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-                        Choose a member first and their verified reports will appear here.
+                        Choose a member first and the report(s) that made them a beneficiary will appear here.
                     </div>
 
                     <div x-show="farmerId" x-cloak class="space-y-1.5">
@@ -345,9 +346,10 @@
      * The distribution form's state.
      *
      * The only clever bit is reportsForMember(): choosing a member narrows the
-     * report dropdown to that member's own verified reports, so it is not
-     * possible to pick a member and then a report belonging to somebody else.
-     * The controller checks that pairing again anyway.
+     * report dropdown to just the report(s) that made THEM a beneficiary of
+     * THIS allocation, so it is not possible to pick a member and then a
+     * report belonging to somebody else. The controller checks that pairing
+     * (and the beneficiary requirement itself) again anyway.
      */
     function distributionForm(members, remaining) {
         return {
