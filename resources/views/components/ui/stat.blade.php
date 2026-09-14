@@ -27,17 +27,21 @@
     $tones = [
         'default' => 'text-foreground',
         'primary' => 'text-primary',
-        'warning' => 'text-amber-600 dark:text-amber-400',
+        'warning' => 'text-amber-800',
         'danger'  => 'text-destructive',
     ];
 
     // The icon square borrows the same tone as the number so the tile reads
     // as one thing rather than a number with an unrelated picture beside it.
+    // 'warning' is deliberately muted (pale amber-50 behind a dark amber-800
+    // icon) rather than a saturated amber - a bright amber-on-white tile
+    // next to the other three quiet stat cards was too vivid to sit with
+    // comfortably on a dashboard someone looks at all day.
     $iconTones = [
         'default' => 'bg-muted text-muted-foreground',
         'primary' => 'bg-accent text-primary',
-        'warning' => 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-        'danger'  => 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+        'warning' => 'bg-amber-50 text-amber-800',
+        'danger'  => 'bg-rose-100 text-rose-700',
     ];
 
     $tag = $href ? 'a' : 'div';

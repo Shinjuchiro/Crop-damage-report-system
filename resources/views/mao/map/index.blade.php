@@ -19,7 +19,7 @@
     </div>
 
     @if ($coverage['unplaced'] > 0)
-        <div class="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/60 px-4 py-3 text-sm text-amber-800">
+        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {{ $coverage['unplaced'] }}
             {{ \Illuminate\Support\Str::plural('association', $coverage['unplaced']) }}
             {{ $coverage['unplaced'] === 1 ? 'has' : 'have' }} no location barangay set, so
@@ -152,15 +152,6 @@
                     </a>
                 </div>
 
-                <button type="button" id="basemapToggle"
-                        class="inline-flex items-center gap-2 rounded-lg border border-input px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/60">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8"
-                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
-                    </svg>
-                    <span id="basemapLabel">Dark map</span>
-                </button>
-
                 <div class="inline-flex items-center gap-4 rounded-lg border border-input px-4 py-2 text-xs text-muted-foreground"
                      x-data="{ pins: false, heat: false }">
                     <label class="flex cursor-pointer items-center gap-2">
@@ -270,28 +261,9 @@
 
         .brgy-label { background: none; border: 0; box-shadow: none; white-space: nowrap; }
 
-        /* Barangay names and association acronyms, readable on either basemap */
-        .map-light .brgy-label { color: #475569; text-shadow: 0 1px 2px #fff, 0 0 3px #fff; }
-        .map-dark  .brgy-label { color: #e2e8f0; text-shadow: 0 1px 3px #000, 0 0 4px #000; }
-        .map-light .assoc-code { color: #0f172a; text-shadow: 0 1px 2px #fff, 0 0 3px #fff; }
-        .map-dark  .assoc-code { color: #ffffff; text-shadow: 0 1px 3px #000, 0 0 4px #000; }
-
-        /* Dark mode without a tile provider: invert the basemap, spin the hue
-           back so water still reads as blue, and take the edge off the glare.
-           Scoped to .leaflet-tile-pane so only the map tiles are affected. */
-        .map-dark { background: #0b1120; }
-        .map-dark .leaflet-tile-pane {
-            filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.7);
-        }
-        .map-dark .leaflet-control-attribution {
-            background: rgba(15, 23, 42, .75);
-            color: #cbd5e1;
-        }
-        .map-dark .leaflet-control-attribution a { color: #93c5fd; }
-        .map-dark .leaflet-bar a {
-            background: #1e293b; color: #e2e8f0; border-bottom-color: #334155;
-        }
-        .map-dark .leaflet-bar a:hover { background: #334155; }
+        /* Barangay names and association acronyms, readable on the basemap */
+        .brgy-label  { color: #475569; text-shadow: 0 1px 2px #fff, 0 0 3px #fff; }
+        .assoc-code  { color: #0f172a; text-shadow: 0 1px 2px #fff, 0 0 3px #fff; }
     </style>
 @endpush
 
@@ -313,47 +285,16 @@
             );
 
             /* ---------------- Basemap ----------------
-               One tile source, plain OpenStreetMap, no account and no API key.
-               Dark mode is a CSS filter applied to the tile pane only, so the
-               barangay polygons, circles and labels above it keep their colours. */
+               One tile source, plain OpenStreetMap, no account and no API key. */
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap contributors | ' +
                              'Boundaries: PSA via faeldon/philippines-json-maps',
             }).addTo(map);
 
-            let theme = 'dark';
-            try { theme = localStorage.getItem('mapTheme') || 'dark'; } catch (e) { /* private mode */ }
-            if (theme !== 'light') theme = 'dark';
-
             let boundaries = null;
 
-            function boundaryStyle() {
-                return theme === 'dark'
-                    ? { color: '#64748b', weight: 1, fillColor: '#22c55e', fillOpacity: 0.12 }
-                    : { color: '#94a3b8', weight: 1, fillColor: '#dcfce7', fillOpacity: 0.45 };
-            }
-
-            function applyTheme() {
-                el.classList.toggle('map-dark', theme === 'dark');
-                el.classList.toggle('map-light', theme === 'light');
-
-                if (boundaries) boundaries.setStyle(boundaryStyle());
-
-                const label = document.getElementById('basemapLabel');
-                if (label) label.textContent = theme === 'dark' ? 'Light map' : 'Dark map';
-            }
-
-            applyTheme();
-
-            const toggle = document.getElementById('basemapToggle');
-            if (toggle) {
-                toggle.addEventListener('click', function () {
-                    theme = theme === 'dark' ? 'light' : 'dark';
-                    try { localStorage.setItem('mapTheme', theme); } catch (e) { /* private mode */ }
-                    applyTheme();
-                });
-            }
+            const boundaryStyle = { color: '#94a3b8', weight: 1, fillColor: '#dcfce7', fillOpacity: 0.45 };
 
             /* Circle area grows with the report count, so ten reports look ten
                times bigger in area rather than ten times wider. */
@@ -399,7 +340,7 @@
 
                     /* ---------- Barangay outlines, context only ---------- */
                     boundaries = L.geoJSON(geojson, {
-                        style: boundaryStyle(),
+                        style: boundaryStyle,
                         onEachFeature: function (feature, layer) {
                             layer.bindTooltip(feature.properties.name, {
                                 sticky: true,

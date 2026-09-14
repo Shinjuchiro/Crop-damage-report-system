@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Barangay;
 use App\Models\Farmer;
+use App\Models\NotificationBroadcast;
+use App\Notifications\FarmerRegistrationApprovedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * MAO reviews farmer registrations and approves or rejects them.
@@ -67,8 +70,57 @@ class MembershipApplicationController extends Controller
             $this->log('Approved farmer registration: ' . $farmer->full_name, $farmer->id);
         });
 
+        $this->notifyApproved($farmer);
+
         return redirect()->route('mao.membership-applications.index')
             ->with('status', 'Farmer registration approved successfully.');
+    }
+
+    /**
+     * Tell the newly-approved farmer on every channel: in-app, SMS, and
+     * email. Runs after the approval transaction above has already
+     * committed, since none of this is something a failed send should be
+     * allowed to roll back - the farmer is approved either way.
+     *
+     * In-app + SMS reuse the existing NotificationBroadcast pipeline
+     * (App\Models\NotificationBroadcast::dispatchToRecipients()) instead of
+     * writing to the notifications table directly, because
+     * notification_broadcast_id is a required column there - this is the
+     * one supported way to create a notifications row. 'urgent' priority is
+     * what makes that pipeline also queue the SMS (see
+     * NotificationBroadcast::PRIORITIES); it silently no-ops the SMS half
+     * if SEMAPHORE_API_KEY is not configured yet, so approval itself is
+     * never blocked by SMS being unset up.
+     *
+     * A failure in either channel is logged, not thrown - the farmer is
+     * already approved and this page has already redirected with a success
+     * message by the time this runs from approve() above.
+     */
+    private function notifyApproved(Farmer $farmer): void
+    {
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'Registration Approved',
+                'message'     => 'Your farmer registration has been reviewed and approved. '
+                    . 'Your account is now active - you can log in and start recording your crop planting activities.',
+                'category'    => 'system',
+                'priority'    => 'urgent',
+                'target_type' => 'specific_farmer',
+                'target_id'   => $farmer->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not send approval in-app/SMS notification for farmer ' . $farmer->id . ': ' . $e->getMessage());
+        }
+
+        try {
+            $farmer->user->notify(new FarmerRegistrationApprovedNotification($farmer));
+        } catch (\Throwable $e) {
+            Log::warning('Could not send approval email for farmer ' . $farmer->id . ': ' . $e->getMessage());
+        }
     }
 
     public function reject(Request $request, Farmer $farmer)

@@ -6,9 +6,6 @@
     <title>@yield('title', 'Dashboard')</title>
     <link rel="icon" type="image/png" href="{{ asset('images/tanza-seal.png') }}">
 
-    {{-- Must come before the stylesheet so dark mode never flashes white --}}
-    @include('layouts.partials.theme-head')
-
     @include('layouts.partials.pwa-head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
@@ -122,8 +119,6 @@
                     </svg>
                     Need help?
                 </a>
-
-                @include('layouts.partials.theme-toggle')
 
                 {{-- Notifications --}}
                 @php

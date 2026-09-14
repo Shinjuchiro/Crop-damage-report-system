@@ -18,6 +18,29 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google (Socialite)
+    |--------------------------------------------------------------------------
+    |
+    | Farmer-only "Sign in with Google" (App\Http\Controllers\Auth\
+    | GoogleController). Create these in Google Cloud Console -> APIs &
+    | Services -> Credentials -> Create Credentials -> OAuth client ID
+    | (Application type: Web application), then add GOOGLE_CLIENT_ID,
+    | GOOGLE_CLIENT_SECRET and GOOGLE_REDIRECT_URI to .env - this file never
+    | holds the actual values. The redirect URI must be added to the OAuth
+    | client's "Authorized redirect URIs" in Google Cloud Console exactly as
+    | it is set here, e.g. http://localhost:8000/auth/google/callback for
+    | local dev, or https://yourdomain/auth/google/callback in production.
+    |
+    */
+
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect'      => env('GOOGLE_REDIRECT_URI'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

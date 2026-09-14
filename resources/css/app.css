@@ -3,17 +3,13 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-/* Dark mode is driven by a class on <html>, not by the operating system alone,
-   so the toggle in the top bar can override the system setting. */
-@custom-variant dark (&:is(.dark *));
-
 /* =====================================================================
    DESIGN TOKENS
    ---------------------------------------------------------------------
    Every colour in the system is named by its ROLE, not by its shade.
    A card is bg-card, never bg-white. Body text is text-foreground, never
-   text-slate-900. Because of that, dark mode is just a second set of
-   values for the same names, and nothing in a page has to change.
+   text-slate-900. That keeps one page from drifting from another, even
+   though there is only one theme.
 
    The role names follow shadcn/ui so the vocabulary is familiar, but the
    values are ours: the dark agricultural green of the Municipality of
@@ -72,47 +68,6 @@
 
     /* One radius drives the whole system */
     --radius: 0.625rem;
-}
-
-.dark {
-    color-scheme: dark;
-
-    --background:            #0b120e;
-    --foreground:            #e8efea;
-    --card:                  #121a15;
-    --card-foreground:       #e8efea;
-    --popover:               #151e18;
-    --popover-foreground:    #e8efea;
-
-    --primary:               #2f9e41;
-    --primary-foreground:    #05170c;
-    --secondary:             #1b241e;
-    --secondary-foreground:  #e8efea;
-    --destructive:           #ef4444;
-    --destructive-foreground:#ffffff;
-
-    --muted:                 #1a231d;
-    --muted-foreground:      #9aa89f;
-    --accent:                #17301f;
-    --accent-foreground:     #cfe9d6;
-
-    --border:                #26312b;
-    --input:                 #354238;
-    --ring:                  #45c25b;
-
-    --sidebar:                    #081c0f;
-    --sidebar-foreground:         #e8efea;
-    --sidebar-primary:            #2f9e41;
-    --sidebar-primary-foreground: #05170c;
-    --sidebar-accent:             #123320;
-    --sidebar-border:             #17402380;
-
-    /* Lifted slightly so the series stay readable on a dark ground */
-    --chart-1: #4ade80;
-    --chart-2: #38bdf8;
-    --chart-3: #fbbf24;
-    --chart-4: #fb7185;
-    --chart-5: #c084fc;
 }
 
 /* Hand the variables to Tailwind so bg-card, text-muted-foreground,
@@ -343,34 +298,3 @@ tbody tr { transition: background-color 0.15s ease; }
         transition-duration: 0.001ms !important;
     }
 }
-
-/* =====================================================================
-   TEMPORARY DARK MODE BRIDGE
-   ---------------------------------------------------------------------
-   The pages written before the token layer existed use fixed colours such
-   as bg-white and text-slate-800. Those would stay blinding white in dark
-   mode. Until every page has been moved onto the tokens, this remaps the
-   handful of shades actually in use.
-
-   This block is scaffolding, not design. Delete each rule as the pages
-   using that utility are converted, and delete the whole block when the
-   last page is done. Nothing new should be written against it.
-   ===================================================================== */
-
-.dark .bg-white              { background-color: var(--card); }
-.dark .bg-slate-50           { background-color: var(--muted); }
-.dark .bg-slate-100          { background-color: var(--secondary); }
-
-.dark .text-slate-900,
-.dark .text-slate-800        { color: var(--foreground); }
-.dark .text-slate-700        { color: color-mix(in oklab, var(--foreground) 85%, transparent); }
-.dark .text-slate-600,
-.dark .text-slate-500        { color: var(--muted-foreground); }
-
-.dark .border-slate-200,
-.dark .border-slate-300      { border-color: var(--border); }
-
-.dark .hover\:bg-slate-50:hover  { background-color: var(--muted); }
-.dark .hover\:bg-slate-100:hover { background-color: var(--secondary); }
-
-.dark .divide-slate-200 > * + * { border-color: var(--border); }

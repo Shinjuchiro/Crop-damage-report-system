@@ -33,3 +33,12 @@ Thumbs.db
 public/_phpcheck.php
 diag.txt
 /Claude outputs/
+
+# AI-tooling config and defense-prep notes: these were already committed and
+# pushed once (confirmed via `git ls-files`) - this line only stops them from
+# being re-added after they're untracked with `git rm -r --cached`. See the
+# git commands the developer was given alongside this change.
+/.claude/
+/AGENTS.md
+/CLAUDE.md
+/defense-prep/
