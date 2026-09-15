@@ -29,6 +29,20 @@ class DashboardController extends Controller
         // is always up to date.
         $farmer->refreshActivityStatus();
 
+        // The one-time "Registration Approved" welcome. Stamped the moment
+        // we decide to show it, not on the explicit "Continue to Dashboard"
+        // click (dismissApprovalWelcome() below, kept for backward
+        // compatibility) - stamping only on that click meant any other way
+        // of leaving the dialog (tapping outside it, the phone's back
+        // button, closing the tab/app, a fresh login before ever clicking
+        // it) left approval_welcome_shown_at null, so it kept reappearing
+        // on every login instead of showing exactly once.
+        $showApprovalWelcome = $farmer->approval_welcome_shown_at === null;
+
+        if ($showApprovalWelcome) {
+            $farmer->forceFill(['approval_welcome_shown_at' => now()])->save();
+        }
+
         // Count the reports grouped by status in one query instead of
         // running a separate count for every status.
         $reportCounts = DB::table('damage_reports')
@@ -81,20 +95,18 @@ class DashboardController extends Controller
             // about important transactions, but the same spirit applies here
             // in miniature: the congratulatory dialog only ever appears once,
             // on the very first dashboard load after MAO approves this
-            // farmer's registration. See dismissApprovalWelcome() below.
-            'showApprovalWelcome' => $farmer->approval_welcome_shown_at === null,
+            // farmer's registration. Already stamped above the moment this
+            // was decided to be true.
+            'showApprovalWelcome' => $showApprovalWelcome,
         ]);
     }
 
     /**
-     * Marks the one-time "Registration Approved" welcome dialog as seen, so
-     * it never shows again for this farmer. Called when they press
-     * "Continue to Dashboard" on it (see resources/views/farmer/dashboard.blade.php).
-     *
-     * Deliberately only stamped on that explicit click, not the moment the
-     * dashboard renders - if the farmer closes the tab without pressing it,
-     * they will simply see it again next time they log in, which is a
-     * gentler failure than losing the welcome message to a network hiccup.
+     * Marks the one-time "Registration Approved" welcome dialog as seen.
+     * The dashboard itself already stamps this the moment it decides to show
+     * the dialog (see index() above), so by the time this runs it is
+     * normally already set - this just keeps the "Continue to Dashboard"
+     * button's PUT request working the same as before, harmlessly.
      */
     public function dismissApprovalWelcome()
     {

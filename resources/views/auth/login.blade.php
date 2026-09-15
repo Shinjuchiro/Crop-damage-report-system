@@ -212,44 +212,31 @@
 
 {{-- ===================================================================
      DESKTOP
-     The original split panel. Nothing from the phone layout above
-     appears here.
+     A full-bleed photo of the FITSC office, tinted green, with the form
+     floating in a single centered card - the seal sits half over its top
+     edge instead of living in its own panel. Nothing from the phone
+     layout above appears here.
 =================================================================== --}}
-<div class="hidden min-h-screen lg:grid lg:grid-cols-2">
+<div class="relative hidden min-h-screen overflow-hidden lg:flex lg:items-center lg:justify-center lg:px-10 lg:py-14">
 
-    {{-- Green panel with the seal in concentric rings --}}
-    <div class="relative overflow-hidden bg-[#0d3d1b] text-white">
-        <img src="{{ asset('images/farm-aerial.jpg') }}" alt=""
-             class="absolute inset-0 h-full w-full object-cover opacity-25" aria-hidden="true">
-        <div class="absolute inset-0 bg-[#0d3d1b]/80" aria-hidden="true"></div>
+    <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
+         class="absolute inset-0 h-full w-full object-cover" aria-hidden="true">
+    <div class="absolute inset-0 bg-[#0d3d1b]/70" aria-hidden="true"></div>
 
-        <div class="relative flex h-full flex-col items-center justify-center px-12 py-16 text-center">
-            <div class="relative mb-8 flex h-64 w-64 items-center justify-center">
-                <span class="absolute inset-0 rounded-full border border-white/15"></span>
-                <span class="absolute inset-6 rounded-full border border-white/20"></span>
-                <span class="absolute inset-12 rounded-full border border-white/25"></span>
+    {{-- Form card --}}
+    <div class="relative w-full max-w-lg">
+
+        <div class="absolute -top-9 left-1/2 -translate-x-1/2">
+            <span class="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-white p-2 shadow-lg ring-4 ring-white/30">
                 <img src="{{ asset('images/tanza-seal.png') }}"
-                     alt="Seal of the Municipality of Tanza, Cavite" class="relative h-36 w-36">
-            </div>
-
-            <h1 class="text-3xl font-bold leading-tight">
-                Farmers Information and<br>Technology Services Center
-            </h1>
-            <p class="mt-3 text-lg font-medium text-[#7ddc8f]">Municipality of Tanza</p>
-
-            <p class="mt-6 max-w-md text-sm leading-relaxed text-white/75">
-                Crop damage reporting and assistance allocation for disaster affected farmers
-                in Tanza, Cavite.
-            </p>
+                     alt="Seal of the Municipality of Tanza, Cavite" class="h-full w-full">
+            </span>
         </div>
-    </div>
 
-    {{-- Form --}}
-    <div class="flex items-center justify-center bg-card px-12 py-12">
-        <div class="w-full max-w-sm">
+        <div class="rounded-2xl bg-card px-12 pb-10 pt-14 shadow-2xl">
 
-            <h2 class="text-3xl font-bold text-[#0d3d1b] dark:text-foreground">Welcome Back!</h2>
-            <p class="mt-1 text-sm text-muted-foreground">
+            <h2 class="text-center text-3xl font-bold text-[#0d3d1b] dark:text-foreground">Welcome Back!</h2>
+            <p class="mt-1 text-center text-sm text-muted-foreground">
                 Please enter your credentials to access the system.
             </p>
 

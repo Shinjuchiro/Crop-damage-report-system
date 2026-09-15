@@ -315,27 +315,14 @@
                         <dd class="mt-0.5 leading-relaxed">{{ $report->farm_location_description }}</dd>
                     </div>
                     <div>
-                        <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Coordinates</dt>
-                        <dd class="mt-0.5 font-medium">
-                            @if ($report->has_reported_coordinates)
-                                {{ $report->reported_latitude }}, {{ $report->reported_longitude }}
-                                <span class="text-xs font-normal text-muted-foreground">
-                                    ({{ $report->location_source === 'gps' ? 'from GPS' : 'typed in' }})
-                                </span>
-
-                                {{-- Opens the phone's own map app with directions.
-                                     The technician has to actually get there. --}}
-                                <a href="https://www.google.com/maps/dir/?api=1&destination={{ $report->reported_latitude }},{{ $report->reported_longitude }}"
-                                   target="_blank" rel="noopener"
-                                   class="mt-1 block text-xs font-medium text-primary hover:underline">
-                                    Open directions
-                                </a>
-                            @else
-                                Not provided. Use the written description above.
-                            @endif
-                        </dd>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Barangay</dt>
+                        <dd class="mt-0.5 font-medium">{{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Not set' }}</dd>
                     </div>
                 </dl>
+                <p class="mt-3 text-xs text-muted-foreground">
+                    No GPS coordinates from the farmer for this report - use the description above to find the
+                    farm, then set your own verified pin below once you are there.
+                </p>
             </x-ui.card>
         </div>
 

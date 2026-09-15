@@ -49,30 +49,6 @@
             @include('layouts.partials.nav-' . auth()->user()->role)
         </nav>
 
-        {{-- Settings. MAO only: its "Settings" is the crop/disaster/
-             association reference-data hub, a real module. Farmer,
-             Technician and Association's version is just the small
-             email/phone/password page (ManagesAccountSettings), which now
-             lives in the account dropdown at the top right instead - a
-             sidebar slot was too much weight for it. --}}
-        @if (auth()->user()->role === 'mao')
-            <div class="mx-4 border-t border-sidebar-border lg:mx-5"></div>
-
-            <div class="px-3 py-3">
-                @php
-                    $settingsBase = 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors';
-                    $settingsIcon = '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-2.9-1.2l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 003.1 14H3a2 2 0 110-4h.1a1.7 1.7 0 001.2-2.9l-.1-.1a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 0010 3.1V3a2 2 0 114 0v.1a1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 001.2 2.9H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>';
-                    $settingsActive = request()->routeIs('mao.settings');
-                @endphp
-
-                <a href="{{ route('mao.settings') }}"
-                    class="{{ $settingsBase }} {{ $settingsActive ? 'bg-sidebar-primary font-medium text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent' }}">
-                    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
-                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $settingsIcon !!}</svg>
-                    Settings
-                </a>
-            </div>
-        @endif
     </aside>
 
     {{-- Backdrop for the drawer --}}
@@ -106,19 +82,6 @@
 
             <div class="flex shrink-0 items-center gap-1 sm:gap-2">
                 @include('layouts.partials.install-button')
-
-                {{-- Help. Matches the mockup and gives farmers somewhere to go
-                     when they are stuck, instead of giving up on the form. --}}
-                <a href="{{ route('help') }}"
-                   class="hidden items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs
-                          font-medium text-foreground transition-colors hover:bg-accent
-                          hover:text-accent-foreground sm:inline-flex">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10"/><path d="M9.5 9.5a2.5 2.5 0 113.2 2.4c-.5.2-.7.6-.7 1.1v.5m0 3h.01"/>
-                    </svg>
-                    Need help?
-                </a>
 
                 {{-- Notifications --}}
                 @php

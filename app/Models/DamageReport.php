@@ -64,21 +64,17 @@ class DamageReport extends Model
     protected $fillable = [
         'farmer_id', 'damage_cause', 'damage_cause_other',
         'assigned_technician_id', 'assigned_at', 'farm_location_description',
-        'reported_barangay_id', 'reported_latitude', 'reported_longitude', 'location_source',
+        'reported_barangay_id',
         'description', 'status', 'approved_by', 'approved_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'approved_at'        => 'datetime',
+            'approved_at' => 'datetime',
             // Set once, when the MAO hands the report to a technician.
             // The technician dashboard counts today's work off this.
-            'assigned_at'        => 'datetime',
-            // decimal:7 keeps the trailing zeros on coordinates so
-            // 14.3900000 does not display as 14.39
-            'reported_latitude'  => 'decimal:7',
-            'reported_longitude' => 'decimal:7',
+            'assigned_at' => 'datetime',
         ];
     }
 
@@ -180,18 +176,6 @@ class DamageReport extends Model
     public function getTotalDamageCostAttribute(): float
     {
         return (float) $this->crops()->sum('total_damage_cost');
-    }
-
-    /**
-     * Did the farmer give us coordinates?
-     *
-     * A report without them is still valid. Old phone, or no signal out in
-     * the field. In that case the written description is the location, which
-     * is why that field is required on the form.
-     */
-    public function getHasReportedCoordinatesAttribute(): bool
-    {
-        return $this->reported_latitude !== null && $this->reported_longitude !== null;
     }
 
     /**

@@ -20,60 +20,49 @@
         </x-ui.alert>
     @endif
 
-    <x-ui.card :padded="false">
-        @if ($records->isEmpty())
-            <x-ui.empty title="No planting recorded yet"
-                        message="Record what you planted, when you planted it, and how much land it took. This is also what keeps your account active." />
-        @else
-            <x-ui.table>
-                <x-slot:head>
-                    <tr>
-                        <th>Record</th>
-                        <th>Crops</th>
-                        <th>Planted</th>
-                        <th>Total Area</th>
-                        <th>Submitted</th>
-                        <th class="text-right">Action</th>
-                    </tr>
-                </x-slot:head>
+    {{-- Cards rather than a table, same as My Reports: a farmer on a phone
+         reads one planting record at a time, and a wide table just forces
+         horizontal scrolling to see anything past the first two columns. --}}
+    <div class="space-y-4">
 
-                @foreach ($records as $record)
-                    <tr>
-                        <td class="font-medium">
+        @forelse ($records as $record)
+            <x-ui.card class="card-hover">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+
+                    <div class="min-w-0 space-y-2">
+                        <span class="text-sm font-bold text-card-foreground">
                             CP-{{ str_pad($record->id, 4, '0', STR_PAD_LEFT) }}
-                        </td>
+                        </span>
 
-                        <td>
-                            <div class="flex flex-wrap gap-1">
-                                @foreach ($record->crops as $crop)
-                                    <x-ui.badge variant="primary">
-                                        {{ $crop->crop_specify ?: $crop->crop?->name }}
-                                    </x-ui.badge>
-                                @endforeach
-                            </div>
-                        </td>
+                        <div class="flex flex-wrap gap-1.5">
+                            @foreach ($record->crops as $crop)
+                                <x-ui.badge variant="primary">
+                                    {{ $crop->crop_specify ?: $crop->crop?->name }}
+                                    &middot; {{ number_format($crop->area_hectares, 2) }} ha
+                                </x-ui.badge>
+                            @endforeach
+                        </div>
 
-                        <td class="text-muted-foreground">
-                            {{ $record->crops->min('date_planted')?->format('M d, Y') ?? '-' }}
-                        </td>
+                        <p class="text-sm text-muted-foreground">
+                            Planted {{ $record->crops->min('date_planted')?->format('M d, Y') ?? 'date not set' }}
+                            &middot; {{ number_format($record->crops->sum('area_hectares'), 2) }} ha total
+                            &middot; submitted {{ $record->date_submitted?->format('M d, Y') }}
+                        </p>
+                    </div>
 
-                        <td>{{ number_format($record->crops->sum('area_hectares'), 2) }} ha</td>
-
-                        <td class="text-muted-foreground">
-                            {{ $record->date_submitted?->format('M d, Y') }}
-                        </td>
-
-                        <td class="text-right">
-                            <x-ui.button size="sm" variant="outline"
-                                         :href="route('farmer.planting.show', $record)">View</x-ui.button>
-                        </td>
-                    </tr>
-                @endforeach
-            </x-ui.table>
-        @endif
+                    <x-ui.button variant="outline" class="shrink-0"
+                                 :href="route('farmer.planting.show', $record)">View</x-ui.button>
+                </div>
+            </x-ui.card>
+        @empty
+            <x-ui.card :padded="false">
+                <x-ui.empty title="No planting recorded yet"
+                            message="Record what you planted, when you planted it, and how much land it took. This is also what keeps your account active." />
+            </x-ui.card>
+        @endforelse
 
         @if ($records->hasPages())
-            <x-slot:footer>{{ $records->links() }}</x-slot:footer>
+            <div class="pt-2">{{ $records->links() }}</div>
         @endif
-    </x-ui.card>
+    </div>
 @endsection

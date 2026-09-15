@@ -85,6 +85,13 @@
             'pattern'  => 'technician.archive.*',
             'icon'     => 'M3 7h18v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l1.2-2.4A1 1 0 015.1 4h13.8a1 1 0 01.9.6L21 7M10 12h4',
         ],
+        [
+            'label'    => 'Need Help?',
+            'filipino' => 'Kailangan ng Tulong?',
+            'route'    => 'help',
+            'pattern'  => 'help',
+            'icon'     => 'M12 22a10 10 0 100-20 10 10 0 000 20zM9.5 9.5a2.5 2.5 0 113.2 2.4c-.5.2-.7.6-.7 1.1v.5m0 3h.01',
+        ],
     ];
 
     $base     = 'flex items-center gap-3 rounded-lg px-3 py-2.5 transition';

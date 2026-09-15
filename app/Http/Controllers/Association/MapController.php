@@ -20,7 +20,14 @@ use Illuminate\Http\Request;
  * only its own members' reports, plotted as individual pins, the same way
  * the Technician's personal map only ever shows that technician's own
  * assignments. Proposal section 2 keeps the map simple - no heatmap here
- * either, just the two pin layers section 49 calls for.
+ * either.
+ *
+ * One pin layer: the Technician-Verified Location. Farmer damage reports no
+ * longer collect GPS coordinates of their own (barangay + a written
+ * description only), so a report only gets an exact pin once a technician
+ * has actually visited and verified it - there is nothing to plot before
+ * that. Barangay/association-level information is unaffected by this: it
+ * never depended on farmer GPS in the first place.
  *
  * An association can span more than one barangay (its members are not all
  * from a single one), so - unlike the Technician's map - this adds a
@@ -45,10 +52,7 @@ class MapController extends Controller
         $memberIds = Farmer::where('association_id', $association->id)->select('id');
 
         $reports = DamageReport::whereIn('farmer_id', $memberIds)
-            ->where(function ($query) {
-                $query->whereNotNull('reported_latitude')
-                      ->orWhereHas('validation', fn ($v) => $v->whereNotNull('latitude'));
-            })
+            ->whereHas('validation', fn ($v) => $v->whereNotNull('latitude'))
             ->with(['farmer.barangay', 'reportedBarangay', 'crops.crop', 'validation'])
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
             ->when($request->query('barangay_id'), function ($q, $barangayId) {
@@ -58,20 +62,6 @@ class MapController extends Controller
                 });
             })
             ->get();
-
-        $farmerPins = $reports
-            ->filter(fn ($report) => $report->has_reported_coordinates)
-            ->map(fn ($report) => [
-                'lat'      => (float) $report->reported_latitude,
-                'lng'      => (float) $report->reported_longitude,
-                'report'   => $report->reference,
-                'farmer'   => $report->farmer?->full_name ?? 'Unknown',
-                'barangay' => $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Unknown barangay',
-                'crops'    => $report->crops->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)->filter()->join(', ') ?: 'Not specified',
-                'status'   => DamageReport::STATUSES[$report->status] ?? $report->status,
-                'url'      => route('association.reports.index', ['q' => $report->farmer?->last_name]),
-            ])
-            ->values();
 
         $verifiedPins = $reports
             ->filter(fn ($report) => $report->validation?->latitude !== null)
@@ -102,16 +92,13 @@ class MapController extends Controller
 
         return view('association.map.index', [
             'association'  => $association,
-            'farmerPins'   => $farmerPins,
             'verifiedPins' => $verifiedPins,
             'center'       => self::CENTER,
             'statuses'     => DamageReport::STATUSES,
             'barangays'    => Barangay::whereIn('id', $barangayIds)->orderBy('name')->get(),
             'filters'      => $request->only(['status', 'barangay_id']),
             'coverage'     => [
-                'total'    => $reports->count(),
-                'farmer'   => $farmerPins->count(),
-                'verified' => $verifiedPins->count(),
+                'total' => $verifiedPins->count(),
             ],
         ]);
     }

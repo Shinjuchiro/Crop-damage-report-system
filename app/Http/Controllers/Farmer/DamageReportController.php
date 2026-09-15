@@ -110,15 +110,11 @@ class DamageReportController extends Controller
                 'farm_location_description' => $data['farm_location_description'],
 
                 // If the farmer did not pick a barangay we fall back to the
-                // one on their profile.
+                // one on their profile. No GPS/coordinate capture here - the
+                // technician's verified location (validations table) is the
+                // system's one source of an exact pin, set during their
+                // field inspection.
                 'reported_barangay_id' => $data['reported_barangay_id'] ?? $farmer->barangay_id,
-
-                // Section 37: this is the FARMER-reported location.
-                // The technician's verified location is saved separately
-                // in the validations table and never replaces this one.
-                'reported_latitude'  => $data['reported_latitude'] ?? null,
-                'reported_longitude' => $data['reported_longitude'] ?? null,
-                'location_source'    => $data['location_source'] ?? 'none',
 
                 'description' => $data['description'] ?? null,
 
@@ -246,14 +242,6 @@ class DamageReportController extends Controller
             'reported_barangay_id'      => ['nullable', Rule::exists('barangays', 'id')],
             'description'               => ['nullable', 'string', 'max:2000'],
 
-            // Coordinates are NOT required on purpose. A farmer with no
-            // signal in the field, or an old phone with no GPS, still has
-            // to be able to report. They describe the location in words
-            // instead. (Section 37 asks for GPS but also allows manual.)
-            'reported_latitude'  => ['nullable', 'numeric', 'between:-90,90'],
-            'reported_longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'location_source'    => ['nullable', Rule::in(['gps', 'manual', 'none'])],
-
             // Section 30: the fields the prompt says a damage report must have.
             'crops'                            => ['required', 'array', 'min:1', 'max:20'],
             'crops.*.crop_id'                  => ['required', Rule::exists('crops', 'id')->whereNull('archived_at')],
@@ -293,20 +281,6 @@ class DamageReportController extends Controller
         $this->assertHvccSpecified($validated['crops']);
         $this->assertDamagedAreaFits($validated['crops']);
         $this->assertDisasterLinkedWhenDeclared($validated);
-
-        // Latitude with no longitude (or the other way round) is useless,
-        // so we ask for both or neither.
-        if (filled($validated['reported_latitude'] ?? null) xor filled($validated['reported_longitude'] ?? null)) {
-            throw ValidationException::withMessages([
-                'reported_latitude' => 'Please give both the latitude and the longitude, or leave both blank.',
-            ]);
-        }
-
-        // If there are no coordinates then the source is "none",
-        // no matter what the hidden field says.
-        if (blank($validated['reported_latitude'] ?? null)) {
-            $validated['location_source'] = 'none';
-        }
 
         return $validated;
     }

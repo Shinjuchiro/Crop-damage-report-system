@@ -17,8 +17,10 @@
       becomes its own row in damage_report_crops, and the same for disasters.
     - Estimated damage is the FARMER'S figure. The technician records a
       separate assessed figure later and this one is never overwritten.
-    - Coordinates are optional. A phone with no signal, or no GPS at all,
-      must not stop somebody reporting a flooded field.
+    - No GPS/coordinate capture here - barangay + a written description is
+      the farmer's location, kept simple on purpose. The technician's own
+      pin, placed during their field inspection, is this system's one
+      source of an exact map coordinate for a report.
 --}}
 
 @php
@@ -501,49 +503,6 @@
                         </p>
                     </div>
 
-                    <x-ui.separator label="Coordinates (optional)" />
-
-                    <div class="space-y-3">
-                        <x-ui.button type="button" size="lg" variant="outline" class="w-full"
-                                     x-on:click="captureLocation()" x-bind:disabled="locating">
-                            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                 stroke-linejoin="round" viewBox="0 0 24 24">
-                                <path d="M12 21s7-5.7 7-11a7 7 0 10-14 0c0 5.3 7 11 7 11z"/>
-                                <circle cx="12" cy="10" r="2.5"/>
-                            </svg>
-                            <span x-show="! locating">Capture my current location</span>
-                            <span x-show="locating" x-cloak>Finding your location...</span>
-                        </x-ui.button>
-
-                        <p x-show="locationError" x-cloak
-                           class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900
-                                  dark:bg-amber-950/60 dark:text-amber-200"
-                           x-text="locationError"></p>
-
-                        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                            <div class="space-y-1.5">
-                                <label class="block text-sm font-medium">Latitude</label>
-                                <input type="number" name="reported_latitude" step="0.0000001"
-                                       x-model="latitude" @input="source = 'manual'"
-                                       placeholder="14.3900000" inputmode="decimal"
-                                       class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
-                            </div>
-                            <div class="space-y-1.5">
-                                <label class="block text-sm font-medium">Longitude</label>
-                                <input type="number" name="reported_longitude" step="0.0000001"
-                                       x-model="longitude" @input="source = 'manual'"
-                                       placeholder="120.8500000" inputmode="decimal"
-                                       class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
-                            </div>
-                        </div>
-
-                        <input type="hidden" name="location_source" :value="source">
-
-                        <p class="text-xs text-muted-foreground">
-                            You can submit without coordinates. The technician will pin the exact location
-                            during the field inspection, and your entry is kept separately from theirs.
-                        </p>
-                    </div>
                 </div>
             </x-ui.card>
 
@@ -623,11 +582,6 @@
             },
 
             previews: [],
-            latitude: '',
-            longitude: '',
-            source: 'none',
-            locating: false,
-            locationError: '',
 
             /* ---------- crops ---------- */
             addCrop() { this.crops.push(emptyCrop()); },
@@ -696,38 +650,6 @@
                 this.previews.splice(index, 1);
             },
 
-            /* ---------- location ---------- */
-            captureLocation() {
-                this.locationError = '';
-
-                if (! navigator.geolocation) {
-                    this.locationError = 'This phone or browser cannot give a location. '
-                        + 'Please describe the farm above instead.';
-
-                    return;
-                }
-
-                this.locating = true;
-
-                navigator.geolocation.getCurrentPosition(
-                    position => {
-                        this.latitude = position.coords.latitude.toFixed(7);
-                        this.longitude = position.coords.longitude.toFixed(7);
-                        this.source = 'gps';
-                        this.locating = false;
-                    },
-                    error => {
-                        this.locating = false;
-                        this.locationError = error.code === error.PERMISSION_DENIED
-                            ? 'Location permission was refused. You can type the coordinates, '
-                              + 'or just describe the farm above.'
-                            : 'Your location could not be found right now. You can still submit '
-                              + 'without coordinates.';
-                    },
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                );
-            },
-
             /* ---------- the review the farmer confirms ---------- */
             reviewJson() {
                 const rows = [];
@@ -776,13 +698,6 @@
 
                 rows.push({ label: 'Total damaged area', value: this.totalArea().toFixed(2) + ' ha' });
                 rows.push({ label: 'Photos attached', value: String(this.previews.length) });
-                rows.push({
-                    label: 'Location',
-                    value: this.latitude && this.longitude
-                        ? this.latitude + ', ' + this.longitude
-                          + (this.source === 'gps' ? ' (GPS)' : ' (typed in)')
-                        : 'Described in words only',
-                });
 
                 return JSON.stringify(rows);
             },

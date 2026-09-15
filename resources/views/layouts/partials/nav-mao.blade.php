@@ -113,6 +113,12 @@
             'pattern' => 'mao.archive.*',
             'icon'    => 'M3 6.5h18v3.5H3zM5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9M9.5 14h5',
         ],
+        [
+            'label'   => 'Need Help?',
+            'route'   => 'help',
+            'pattern' => 'help',
+            'icon'    => 'M12 22a10 10 0 100-20 10 10 0 000 20zM9.5 9.5a2.5 2.5 0 113.2 2.4c-.5.2-.7.6-.7 1.1v.5m0 3h.01',
+        ],
     ];
 
     $base       = 'flex items-center gap-3 rounded-lg px-3 py-2.5 transition';

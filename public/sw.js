@@ -24,7 +24,7 @@
  | caches are cleared on the next visit.
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE  = 'tanza-static-' + CACHE_VERSION;
 const OFFLINE_URL   = '/offline.html';
 
@@ -122,7 +122,18 @@ self.addEventListener('fetch', (event) => {
     // Pages: always fresh, or a clear offline message.
     if (request.mode === 'navigate') {
         event.respondWith(
-            fetch(request).catch(() => caches.match(OFFLINE_URL))
+            // redirect: 'manual' matters here. start_url ("/") is a 302 to
+            // /login, and the default fetch() would follow that redirect
+            // itself and hand back the already-redirected response. That
+            // works fine in a normal browser tab, but an installed app
+            // (Android WebAPK) launched from the home screen icon does not
+            // treat a service-worker-followed redirect as a completed
+            // navigation - the splash screen never gets dismissed and the
+            // app hangs on the logo forever. Returning the redirect
+            // untouched (an "opaqueredirect" response) instead makes the
+            // browser perform the redirect itself, which is what actually
+            // signals the navigation as done.
+            fetch(request, { redirect: 'manual' }).catch(() => caches.match(OFFLINE_URL))
         );
     }
 });

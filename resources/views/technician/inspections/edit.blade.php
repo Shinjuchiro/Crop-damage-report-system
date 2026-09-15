@@ -51,8 +51,12 @@
 @endphp
 
 <div x-data="inspectionForm({
-        reportedLat: {{ $report->reported_latitude ?? 'null' }},
-        reportedLng: {{ $report->reported_longitude ?? 'null' }},
+        {{-- Farmer damage reports no longer collect GPS coordinates (barangay
+             + a written description only), so there is never a farmer pin to
+             start from here - the technician's own pin, set below, is this
+             report's first and only coordinate. --}}
+        reportedLat: null,
+        reportedLng: null,
         farmerEstimate: {{ $farmerEstimate }},
         notesGap: {{ $notesGap }},
         initialDisasterIds: {!! json_encode($report->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!},
@@ -479,19 +483,15 @@
                         </div>
 
                         <div class="order-2 space-y-4 lg:order-1">
-                            @if ($report->has_reported_coordinates)
-                                <div class="rounded-lg bg-muted px-4 py-3 text-sm">
-                                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                        Farmer reported
-                                    </p>
-                                    <p class="mt-1 font-medium">
-                                        {{ $report->reported_latitude }}, {{ $report->reported_longitude }}
-                                    </p>
-                                    <p class="mt-1 text-xs text-muted-foreground">
-                                        Your pin is stored separately. The farmer's is never overwritten.
-                                    </p>
-                                </div>
-                            @endif
+                            <div class="rounded-lg bg-muted px-4 py-3 text-sm">
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Farmer's description
+                                </p>
+                                <p class="mt-1 leading-relaxed">{{ $report->farm_location_description }}</p>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    No GPS from the farmer for this report. Yours below is the first exact pin.
+                                </p>
+                            </div>
 
                             <x-ui.button type="button" size="lg" variant="outline" class="w-full"
                                          x-on:click="captureLocation()" x-bind:disabled="locating">

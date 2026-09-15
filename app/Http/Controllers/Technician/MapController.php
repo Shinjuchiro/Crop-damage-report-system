@@ -20,10 +20,11 @@ use Illuminate\Support\Facades\Auth;
  * should stay simple, and a personal tool that shows work belonging to
  * other technicians would stop being personal.
  *
- * Two pins per report where both exist (section 49): where the farmer said
- * the damage was, and where this technician actually verified it once they
- * stood on the ground. The farmer's pin is never overwritten, so the two
- * can legitimately sit apart.
+ * One pin layer: the Technician-Verified Location. Farmer damage reports no
+ * longer collect GPS coordinates of their own (barangay + a written
+ * description only), so a report only gets an exact pin once this
+ * technician has actually visited and verified it - there is nothing to
+ * plot before that.
  */
 class MapController extends Controller
 {
@@ -35,27 +36,10 @@ class MapController extends Controller
         $technicianId = Auth::id();
 
         $reports = DamageReport::where('assigned_technician_id', $technicianId)
-            ->where(function ($query) {
-                $query->whereNotNull('reported_latitude')
-                      ->orWhereHas('validation', fn ($v) => $v->whereNotNull('latitude'));
-            })
+            ->whereHas('validation', fn ($v) => $v->whereNotNull('latitude'))
             ->with(['farmer.barangay', 'reportedBarangay', 'crops.crop', 'validation'])
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
             ->get();
-
-        $farmerPins = $reports
-            ->filter(fn ($report) => $report->has_reported_coordinates)
-            ->map(fn ($report) => [
-                'lat'      => (float) $report->reported_latitude,
-                'lng'      => (float) $report->reported_longitude,
-                'report'   => $report->reference,
-                'farmer'   => $report->farmer?->full_name ?? 'Unknown',
-                'barangay' => $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Unknown barangay',
-                'crops'    => $report->crops->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)->filter()->join(', ') ?: 'Not specified',
-                'status'   => DamageReport::STATUSES[$report->status] ?? $report->status,
-                'url'      => route('technician.reports.show', $report),
-            ])
-            ->values();
 
         $verifiedPins = $reports
             ->filter(fn ($report) => $report->validation?->latitude !== null)
@@ -77,15 +61,12 @@ class MapController extends Controller
             ->values();
 
         return view('technician.map.index', [
-            'farmerPins'   => $farmerPins,
             'verifiedPins' => $verifiedPins,
             'center'       => self::CENTER,
             'statuses'     => DamageReport::STATUSES,
             'filters'      => $request->only(['status']),
             'coverage'     => [
-                'total'    => $reports->count(),
-                'farmer'   => $farmerPins->count(),
-                'verified' => $verifiedPins->count(),
+                'total' => $verifiedPins->count(),
             ],
         ]);
     }

@@ -10,8 +10,10 @@ use App\Models\Barangay;
 use App\Models\Crop;
 use App\Models\Farmer;
 use App\Models\FarmerMainCrop;
+use App\Models\NotificationBroadcast;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * ONLY farmers self-register. Technicians and Association officers are
@@ -42,7 +44,7 @@ class RegisterController extends Controller
                 ->store('barangay-certificates', 'public');
         }
 
-        DB::transaction(function () use ($data, $certificatePath) {
+        $farmer = DB::transaction(function () use ($data, $certificatePath) {
             $user = User::create([
                 'username'           => $data['username'],
                 'email'              => $data['email'],
@@ -88,10 +90,45 @@ class RegisterController extends Controller
                 'target_id'    => $farmer->id,
                 'created_at'   => now(),
             ]);
+
+            return $farmer;
         });
+
+        $this->notifyMaoOfNewRegistration($farmer);
 
         return redirect()->route('login')->with('status',
             'Registration submitted successfully. Your account is pending verification by the Municipal Agriculture Office.'
         );
+    }
+
+    /**
+     * Proposal section 66 lists "New registration" as one of the things MAO
+     * should be notified about. This was previously missing entirely - a
+     * farmer could submit a registration and it would just sit in the
+     * Membership Applications queue with nobody told it was there.
+     *
+     * In-app only ('normal' priority, see NotificationBroadcast::PRIORITIES):
+     * a new registration is routine, not urgent, and SMS is reserved for
+     * urgent/critical matters (section 68). Runs after the transaction above
+     * has already committed, and never throws - a notification failure must
+     * never be the reason a farmer's registration appears to fail.
+     */
+    private function notifyMaoOfNewRegistration(Farmer $farmer): void
+    {
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'New Farmer Registration',
+                'message'     => $farmer->full_name . ' has submitted a farmer registration and is waiting for review.',
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'all_mao',
+                'status'      => 'draft',
+                'created_by'  => $farmer->user_id,
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify MAO of new registration for farmer ' . $farmer->id . ': ' . $e->getMessage());
+        }
     }
 }

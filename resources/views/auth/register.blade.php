@@ -41,19 +41,28 @@
 @endphp
 
 @section('content')
-<div class="flex min-h-screen flex-col lg:flex-row">
+{{-- On a phone this is just a stacked column, unchanged. From lg up, the
+     whole screen gets a dark green frame (padding + gap) and the two panels
+     become separate rounded cards floating inside it, rather than sitting
+     edge to edge. --}}
+<div class="flex min-h-screen flex-col lg:flex-row lg:gap-4 lg:bg-[#0d3d1b] lg:p-4">
 
     {{-- =====================================================================
          LEFT PANEL - branding and illustration
     ====================================================================== --}}
-    {{-- Dark green on every screen size, the same identity the login screen
-         uses: a banner across the top on a phone, the full left column from
-         lg up. Horizontal padding matches the wizard panel on the right at
-         every breakpoint so the seal lines up with the form below it. --}}
-    <div class="flex shrink-0 flex-col bg-[#0d3d1b] px-5 py-6 sm:px-8
-                lg:w-[30%] lg:max-w-[420px] lg:px-10 lg:py-10">
+    {{-- Dark green solid on a phone (unchanged banner across the top). From
+         lg up, the same photo-plus-tint background as the desktop login
+         screen replaces the flat green, while keeping this exact two-panel
+         wizard layout - the img/overlay are lg-only so mobile never loads
+         or shows the photo. --}}
+    <div class="relative flex shrink-0 flex-col overflow-hidden bg-[#0d3d1b] px-5 py-6 sm:px-8
+                lg:w-[30%] lg:max-w-[420px] lg:rounded-2xl lg:px-10 lg:py-10">
 
-        <div class="flex items-center gap-4">
+        <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
+             class="absolute inset-0 hidden h-full w-full object-cover lg:block" aria-hidden="true">
+        <div class="absolute inset-0 hidden bg-[#0d3d1b]/70 lg:block" aria-hidden="true"></div>
+
+        <div class="relative flex items-center gap-4">
             <img src="{{ asset('images/tanza-seal.png') }}" alt="Seal of the Municipality of Tanza, Cavite"
                  class="h-16 w-16 shrink-0 lg:h-20 lg:w-20">
             <div>
@@ -66,28 +75,19 @@
             </div>
         </div>
 
-        <div class="mt-10 hidden lg:block">
+        <div class="relative mt-10 hidden lg:block">
             <h2 class="text-3xl font-bold leading-tight text-white">
                 Create your account
                 <span class="text-[#7ddc8f]">and help build a stronger farming community.</span>
             </h2>
         </div>
 
-        {{-- The illustration has a white background, so it is rounded to read
-             as a deliberate card on the green rather than a pasted rectangle.
-             The gap above it sits on this wrapper, not on the image itself:
-             padding on the img would inset it and leave its top corners
-             square while rounding an empty box around it. --}}
-        <div class="mt-auto hidden pt-10 lg:block">
-            <img src="{{ asset('images/farm-illustration.jpg') }}" alt=""
-                 class="w-full rounded-xl">
-        </div>
     </div>
 
     {{-- =====================================================================
          RIGHT PANEL - the registration wizard
     ====================================================================== --}}
-    <div class="flex-1 px-5 py-8 sm:px-8 lg:px-12 lg:py-10">
+    <div class="flex-1 px-5 py-8 sm:px-8 lg:overflow-y-auto lg:rounded-2xl lg:bg-card lg:px-12 lg:py-10 lg:shadow-xl">
         <div class="mx-auto max-w-4xl" x-data="farmerRegistration()">
 
             <h1 class="text-2xl font-bold text-foreground sm:text-3xl">Create an Account</h1>

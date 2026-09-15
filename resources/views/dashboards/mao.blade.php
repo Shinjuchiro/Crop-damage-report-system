@@ -66,51 +66,43 @@
                      hint="Farmers who confirmed they received assistance" />
     </div>
 
-    {{-- ===================== ALERTS ===================== --}}
-    <div class="mb-5 rounded-xl border border-border bg-card shadow-sm">
-        <div class="flex items-center justify-between border-b border-border px-6 py-4">
-            <h2 class="text-base font-semibold text-foreground">Alerts &amp; Notifications</h2>
-            <span class="text-sm font-medium text-muted-foreground">View all</span>
-        </div>
-
-        @if ($alerts->isNotEmpty())
-            <ul class="divide-y divide-border">
-                @foreach ($alerts as $alert)
-                    @php
-                        $tone = match ($alert->priority) {
-                            'critical' => ['bg-red-100', 'text-red-700', 'text-red-700'],
-                            'urgent'   => ['bg-orange-100', 'text-orange-700', 'text-orange-700'],
-                            'important'=> ['bg-amber-100', 'text-amber-700', 'text-amber-700'],
-                            default    => ['bg-sky-100', 'text-sky-700', 'text-sky-800'],
-                        };
-                    @endphp
-                    <li class="flex items-start gap-4 px-6 py-4">
-                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full {{ $tone[0] }}">
-                            <svg class="h-6 w-6 {{ $tone[1] }}" fill="none" stroke="currentColor" stroke-width="1.8"
-                                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                                <path d="M12 9v4M12 17h.01M10.3 3.9L2.4 17.5A2 2 0 004.1 20.5h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/>
-                            </svg>
-                        </span>
-
-                        <div class="min-w-0 flex-1">
-                            <p class="text-sm font-bold uppercase tracking-wide {{ $tone[2] }}">{{ $alert->title }}</p>
-                            <p class="mt-0.5 text-sm text-muted-foreground">{{ $alert->message }}</p>
-                        </div>
-
-                        <p class="hidden shrink-0 text-sm text-muted-foreground sm:block">
-                            {{ $alert->created_at?->diffForHumans() }}
-                        </p>
-                    </li>
-                @endforeach
-            </ul>
-        @else
-            <div class="px-6 py-10 text-center">
-                <p class="text-sm font-medium text-muted-foreground">No alerts yet</p>
-                <p class="mt-1 text-xs text-muted-foreground">
-                    Advisories and announcements you send will be listed here.
+    {{-- ===================== DAMAGE MAP ===================== --}}
+    {{-- A preview of the full Maps and Visualization page (mao.map.index):
+         the same association bubbles, shaded by report count, with no stat
+         cards and no filters here - just the map and its legend. --}}
+    <div class="mb-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div class="flex flex-col gap-1 border-b border-border px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-base font-semibold text-foreground">Crop Damage by Association</h2>
+                <p class="text-xs text-muted-foreground">
+                    Each circle is one association. Bigger and darker means more reports from its members.
                 </p>
             </div>
-        @endif
+            <a href="{{ route('mao.map.index') }}" class="text-sm font-medium text-primary hover:underline">
+                Open full map &amp; filters
+            </a>
+        </div>
+
+        <div id="dashboardMap" class="h-[15rem] w-full"
+             data-geojson="{{ asset('geo/tanza-barangays.json') }}"
+             data-associations="{{ $mapAssociations->toJson() }}"
+             data-center-lat="{{ $mapCenter['lat'] }}"
+             data-center-lng="{{ $mapCenter['lng'] }}"
+             data-zoom="{{ $mapCenter['zoom'] }}"></div>
+
+        <div class="border-t border-border px-6 py-2.5">
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Damage reports filed</span>
+                @foreach ($mapCountLegend as $band)
+                    <span class="flex items-center gap-1.5 text-xs text-foreground">
+                        <span class="h-3 w-3 rounded-full ring-2 ring-white"
+                              style="background-color: {{ $band['color'] }}"></span>
+                        {{ $band['label'] }}
+                        <span class="text-muted-foreground">({{ $band['total'] }})</span>
+                    </span>
+                @endforeach
+            </div>
+        </div>
     </div>
 
     {{-- ===================== CHARTS ===================== --}}
@@ -197,7 +189,89 @@
     </div>
 @endsection
 
+@push('head')
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+@endpush
+
 @push('scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const el = document.getElementById('dashboardMap');
+            if (! el || typeof L === 'undefined') return;
+
+            const associations = JSON.parse(el.dataset.associations);
+
+            const map = L.map(el, { scrollWheelZoom: false }).setView(
+                [parseFloat(el.dataset.centerLat), parseFloat(el.dataset.centerLng)],
+                parseInt(el.dataset.zoom)
+            );
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors',
+            }).addTo(map);
+
+            // Circle area grows with the report count, matching the full Map page.
+            function radiusFor(reports) {
+                return 11 + Math.sqrt(reports) * 7;
+            }
+
+            fetch(el.dataset.geojson)
+                .then(response => response.json())
+                .then(function (geojson) {
+                    const boundaries = L.geoJSON(geojson, {
+                        style: { color: '#94a3b8', weight: 1, fillColor: '#dcfce7', fillOpacity: 0.35 },
+                    }).addTo(map);
+
+                    boundaries.bringToBack();
+                    map.fitBounds(boundaries.getBounds(), { padding: [16, 16] });
+
+                    const centres = {};
+                    geojson.features.forEach(function (feature) {
+                        centres[feature.properties.psgc] = L.geoJSON(feature).getBounds().getCenter();
+                    });
+
+                    // Two associations can share a barangay, so nudge duplicates
+                    // apart instead of stacking one on top of the other.
+                    const seen = {};
+
+                    associations.forEach(function (row) {
+                        const centre = centres[row.psgc];
+                        if (! centre) return;
+
+                        const index = seen[row.psgc] = (seen[row.psgc] || 0);
+                        seen[row.psgc]++;
+
+                        let lat = centre.lat, lng = centre.lng;
+                        if (index > 0) {
+                            const angle = (index - 1) * (Math.PI * 2 / 3);
+                            lat += Math.cos(angle) * 0.008;
+                            lng += Math.sin(angle) * 0.008;
+                        }
+
+                        L.circleMarker([lat, lng], {
+                            radius: radiusFor(row.reports),
+                            color: '#ffffff',
+                            weight: 2,
+                            fillColor: row.color,
+                            fillOpacity: 0.9,
+                        }).bindTooltip(
+                            '<b>' + row.name + '</b><br>' +
+                            row.reports + (row.reports === 1 ? ' report' : ' reports'),
+                            { direction: 'top', offset: [0, -8] }
+                        ).addTo(map);
+                    });
+                })
+                .catch(function () {
+                    el.insertAdjacentHTML('beforeend',
+                        '<div style="position:absolute;inset:0;z-index:500;display:flex;align-items:center;' +
+                        'justify-content:center;background:#f8fafc;color:#64748b;font-size:13px;text-align:center;' +
+                        'padding:24px">Map could not be loaded. Check that public/geo/tanza-barangays.json exists.</div>');
+                });
+        });
+    </script>
+
     @if ($monthly->sum('submitted') + $monthly->sum('validated') > 0 || $severityTotal > 0)
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
         <script>

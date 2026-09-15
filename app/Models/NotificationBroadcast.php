@@ -45,6 +45,7 @@ class NotificationBroadcast extends Model
         'specific_farmer'      => 'Specific Farmer',
         'all_technicians'      => 'All Technicians',
         'specific_technician'  => 'Specific Technician',
+        'all_mao'              => 'MAO Staff',
     ];
 
     protected $table = 'notification_broadcasts';
@@ -130,6 +131,12 @@ class NotificationBroadcast extends Model
             'all_farmers'      => $activeUsers('farmer')->all(),
             'all_technicians'  => $activeUsers('technician')->all(),
             'all_associations' => $activeUsers('association')->all(),
+
+            // The office itself. Every MAO/Super Admin account, so whoever is
+            // on duty sees it - there is no "specific MAO staff member" case
+            // because, unlike a technician or association, a new registration
+            // or damage report is not routed to one particular person.
+            'all_mao' => $activeUsers('mao')->all(),
 
             'affected_farmers' => DB::table('farmers')
                 ->join('users', 'users.id', '=', 'farmers.user_id')

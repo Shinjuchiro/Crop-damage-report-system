@@ -154,19 +154,6 @@
                     <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</dt>
                     <dd class="mt-0.5 leading-relaxed">{{ $report->farm_location_description }}</dd>
                 </div>
-                <div>
-                    <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Coordinates</dt>
-                    <dd class="mt-0.5 font-medium">
-                        @if ($report->has_reported_coordinates)
-                            {{ $report->reported_latitude }}, {{ $report->reported_longitude }}
-                            <span class="text-xs font-normal text-muted-foreground">
-                                ({{ $report->location_source === 'gps' ? 'from GPS' : 'typed in' }})
-                            </span>
-                        @else
-                            Not provided
-                        @endif
-                    </dd>
-                </div>
             </dl>
         </x-ui.card>
     </div>

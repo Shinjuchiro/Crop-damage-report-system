@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\MAO;
 
 use App\Http\Controllers\Controller;
+use App\Models\Association;
 use App\Models\DamageReport;
-use App\Models\NotificationBroadcast;
 use App\Models\Validation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -135,22 +135,83 @@ class DashboardController extends Controller
 
         /*
         |------------------------------------------------------------------
-        | Alerts and notifications
+        | Map widget: the same association bubbles as the full Map page
+        | (MAO\MapController / mao.map.index), unfiltered and shaded by
+        | report count only. This is a preview, not a second map - no
+        | filters, no severity toggle, no verified-pin or heatmap layers.
+        | See MAO\MapController::COUNT_SCALE, the scale both places share.
         |------------------------------------------------------------------
         */
-        $alerts = NotificationBroadcast::query()
-            ->latest()
-            ->take(3)
-            ->get();
+        $mapAssociations = $this->mapAssociationBubbles();
+
+        $mapCountLegend = collect(MapController::COUNT_SCALE)->map(function ($band, $index) use ($mapAssociations) {
+            $next = MapController::COUNT_SCALE[$index + 1]['min'] ?? null;
+
+            $band['total'] = $mapAssociations->filter(fn ($row) => $row['reports'] >= $band['min']
+                && ($next === null || $row['reports'] < $next))->count();
+
+            return $band;
+        });
 
         return view('dashboards.mao', compact(
             'headline',
             'monthly',
             'severity',
             'severityTotal',
-            'alerts',
             'period',
-            'disputeCount'
-        ) + ['periods' => self::PERIODS]);
+            'disputeCount',
+            'mapAssociations',
+            'mapCountLegend'
+        ) + ['periods' => self::PERIODS, 'mapCenter' => MapController::CENTER]);
+    }
+
+    /**
+     * One row per association, with its total damage-report count and the
+     * count-scale colour it falls into. Unfiltered - always the whole
+     * municipality, regardless of the dashboard's period selector, since the
+     * map widget is a spatial snapshot rather than a period figure.
+     *
+     * A trimmed-down duplicate of the aggregation in MAO\MapController -
+     * deliberately not calling into that controller, so the already-working
+     * full Map page (filters, severity shading, verified pins, heatmap)
+     * stays untouched by this dashboard widget.
+     */
+    private function mapAssociationBubbles()
+    {
+        $totals = DB::table('damage_reports as dr')
+            ->join('farmers as f', 'f.id', '=', 'dr.farmer_id')
+            ->select('f.association_id', DB::raw('COUNT(DISTINCT dr.id) as reports'))
+            ->groupBy('f.association_id')
+            ->pluck('reports', 'association_id');
+
+        return Association::with('barangay')
+            ->orderBy('name')
+            ->get()
+            ->map(function (Association $association) use ($totals) {
+                $reports = (int) ($totals[$association->id] ?? 0);
+
+                return [
+                    'id'      => $association->id,
+                    'name'    => $association->name,
+                    'short'   => $association->short_name,
+                    'psgc'    => $association->barangay?->psgc_code,
+                    'reports' => $reports,
+                    'color'   => $this->countColor($reports),
+                ];
+            })
+            ->values();
+    }
+
+    private function countColor(int $reports): string
+    {
+        $color = MapController::COUNT_SCALE[0]['color'];
+
+        foreach (MapController::COUNT_SCALE as $band) {
+            if ($reports >= $band['min']) {
+                $color = $band['color'];
+            }
+        }
+
+        return $color;
     }
 }
