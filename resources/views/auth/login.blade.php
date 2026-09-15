@@ -38,20 +38,29 @@
              class="absolute inset-0 h-full w-full object-cover opacity-40" aria-hidden="true">
         <div class="absolute inset-0 bg-gradient-to-b from-[#0d3d1b]/80 to-[#0d3d1b]/95" aria-hidden="true"></div>
 
-        <div class="relative flex items-center gap-4 px-5 pb-16 pt-8">
-            <img src="{{ asset('images/tanza-seal.png') }}"
-                 alt="Seal of the Municipality of Tanza, Cavite" class="h-16 w-16 shrink-0">
-            <div class="min-w-0">
-                <p class="text-lg font-bold leading-tight">
-                    Farmers Information and<br>Technology Services Center
-                </p>
-                <p class="mt-1 text-sm font-medium text-[#7ddc8f]">Municipality of Tanza</p>
-            </div>
+        {{-- Extra bottom padding here (not just pt) is what keeps this text
+             clear of the seal overlapping the seam below - the seal's
+             position is pinned to the card's edge, so giving the banner
+             itself more room is what pushes the text up away from it. --}}
+        <div class="relative px-5 pb-24 pt-8 text-center">
+            <p class="text-lg font-bold leading-tight">
+                Farmers Information and<br>Technology Services Center
+            </p>
+            <p class="mt-1 text-sm font-medium text-[#7ddc8f]">Municipality of Tanza</p>
         </div>
     </div>
 
-    {{-- White card pulled up over the banner --}}
-    <div class="relative -mt-10 min-h-[60vh] rounded-t-3xl bg-card px-5 pb-10 pt-7">
+    {{-- White card pulled up over the banner. The seal now overlaps the
+         seam between the two, same treatment as the desktop card, instead
+         of sitting inline in the banner text. --}}
+    <div class="relative -mt-10 min-h-[60vh] rounded-t-3xl bg-card px-5 pb-10 pt-12">
+
+        <div class="absolute -top-9 left-1/2 -translate-x-1/2">
+            <span class="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-white p-2 shadow-lg ring-4 ring-white/30">
+                <img src="{{ asset('images/tanza-seal.png') }}"
+                     alt="Seal of the Municipality of Tanza, Cavite" class="h-full w-full">
+            </span>
+        </div>
 
         <div class="mb-6 flex items-center gap-4">
             <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent

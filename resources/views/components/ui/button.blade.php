@@ -29,8 +29,10 @@
         'sm'      => 'h-8 gap-1.5 px-3 text-xs',
         'default' => 'h-10 gap-2 px-4 text-sm',
         // Farmers and technicians work on phones, outdoors, sometimes with
-        // gloves. Anything they tap should use size="lg".
-        'lg'      => 'h-12 gap-2 px-6 text-base',
+        // gloves, so this stays a bigger tap target than "default" - just a
+        // slimmer one than before (was h-12/px-6/text-base, which read as
+        // oversized and heavy next to the rest of the interface).
+        'lg'      => 'h-11 gap-2 px-5 text-sm',
         'icon'    => 'h-10 w-10',
     ];
 

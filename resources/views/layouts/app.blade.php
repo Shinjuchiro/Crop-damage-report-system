@@ -153,9 +153,12 @@
                     <div class="shrink-0">@yield('header-actions')</div>
                 </div>
 
-                {{-- On phones the page actions still need somewhere to live --}}
+                {{-- On phones the page actions still need somewhere to live -
+                     right-aligned to match where they sit on the desktop
+                     heading row above (justify-between puts them on the
+                     right there too). --}}
                 @hasSection('header-actions')
-                    <div class="mb-4 sm:hidden">@yield('header-actions')</div>
+                    <div class="mb-4 flex justify-end sm:hidden">@yield('header-actions')</div>
                 @endif
 
                 @if (session('status'))
