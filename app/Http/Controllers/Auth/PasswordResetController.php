@@ -49,7 +49,22 @@ class PasswordResetController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        $status = Password::sendResetLink($request->only('email'));
+        // Password::sendResetLink() first saves the token to
+        // password_reset_tokens (that part is durable and rarely fails),
+        // then tries to actually mail it - a broken or misconfigured mail
+        // provider (wrong SMTP host, a scheme it doesn't support, a
+        // provider-side block, etc.) throws from deep inside that second
+        // step. A farmer must never see a raw 500 page here just because
+        // outbound mail is misbehaving - see docs/BUILD-STATUS.md's mail
+        // caveat and the Sept 2026 SMTP troubleshooting. Log it for MAO/dev
+        // to notice and fix, but always fall through to the same neutral
+        // "check your email" message either way.
+        try {
+            $status = Password::sendResetLink($request->only('email'));
+        } catch (\Throwable $e) {
+            Log::error('Password reset link could not be emailed: ' . $e->getMessage());
+            $status = null;
+        }
 
         if ($status === Password::RESET_LINK_SENT) {
             if ($user = User::where('email', $request->email)->first()) {
