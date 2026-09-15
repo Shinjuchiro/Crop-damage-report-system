@@ -3,7 +3,7 @@
     "short_name": "Tanza FITS",
     "description": "Report crop damage, track field validation and monitor assistance for disaster affected farmers in Tanza, Cavite.",
     "id": "/",
-    "start_url": "/",
+    "start_url": "/login",
     "scope": "/",
     "display": "standalone",
     "orientation": "portrait-primary",

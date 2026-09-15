@@ -27,8 +27,12 @@
         </div>
     @endif
 
-    {{-- Title + Add User --}}
-    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    {{-- Title + Add User. items-end keeps the button on the right on
+         phones too - flex-col makes the cross axis horizontal, and with
+         no alignment class it defaults to stretch (button reads as
+         left-aligned within the full-width row). sm:items-center takes
+         back over once sm:flex-row makes justify-between do the job. --}}
+    <div class="mb-6 flex flex-col items-end gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="relative">
             <button type="button" @click="addOpen = ! addOpen"
                     class="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">

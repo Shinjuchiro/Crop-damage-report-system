@@ -36,7 +36,9 @@
 
     <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6 space-y-5">
 
-        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {{-- items-end keeps the button on the right on phones too - see the
+             same fix on mao/users/index.blade.php. --}}
+        <div class="mb-6 flex flex-col items-end gap-4 sm:flex-row sm:items-center sm:justify-between">
             {{-- This only filters the list below. Assignment itself is always a
                  row action, so the label says what the button actually does
                  rather than promising something it cannot deliver. --}}

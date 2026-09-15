@@ -68,6 +68,24 @@
             font-size: 13px;
             color: #64748b;
         }
+        .reset-link {
+            display: inline-block;
+            margin-top: 16px;
+            background: none;
+            border: 0;
+            padding: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #166534;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .reset-status {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #475569;
+            min-height: 1em;
+        }
     </style>
 </head>
 <body>
@@ -87,6 +105,37 @@
         <button type="button" onclick="location.reload()">Try again</button>
 
         <p class="note">Nothing you already submitted was lost.</p>
+
+        <!-- Not a fix for a redirect loop - the browser intercepts that
+             before this page ever loads. This is for the separate case of a
+             stuck or outdated cached copy of the app: it clears the service
+             worker and its caches, then reloads, without the person having
+             to find "clear cookies" in their browser's own settings. -->
+        <button type="button" class="reset-link" onclick="resetApp()">Still not working? Reset the app</button>
+        <p class="reset-status" id="reset-status" role="status"></p>
     </main>
+
+    <script>
+        async function resetApp() {
+            var status = document.getElementById('reset-status');
+            status.textContent = 'Resetting...';
+
+            try {
+                if ('serviceWorker' in navigator) {
+                    var registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(function (r) { return r.unregister(); }));
+                }
+
+                if ('caches' in window) {
+                    var keys = await caches.keys();
+                    await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                }
+
+                location.reload();
+            } catch (e) {
+                status.textContent = 'Could not reset automatically - please try reloading the page instead.';
+            }
+        }
+    </script>
 </body>
 </html>

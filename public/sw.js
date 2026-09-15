@@ -24,7 +24,7 @@
  | caches are cleared on the next visit.
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE  = 'tanza-static-' + CACHE_VERSION;
 const OFFLINE_URL   = '/offline.html';
 
@@ -120,20 +120,20 @@ self.addEventListener('fetch', (event) => {
     }
 
     // Pages: always fresh, or a clear offline message.
+    //
+    // This used to fetch with { redirect: 'manual' } to work around an
+    // installed-app splash-screen hang, on the theory that start_url's
+    // redirect (see manifest.webmanifest) wasn't completing for a WebAPK.
+    // That turned out to cause a worse problem - ERR_TOO_MANY_REDIRECTS in
+    // ordinary browser tabs, not just the installed app - so it's reverted
+    // back to plain fetch(), which is what every browser has always handled
+    // correctly for a normal top-level navigation. The splash-hang case is
+    // now handled the safer way instead: manifest.webmanifest's start_url
+    // points straight at /login, so the common case (a guest opening the
+    // installed app) never redirects through the service worker at all.
     if (request.mode === 'navigate') {
         event.respondWith(
-            // redirect: 'manual' matters here. start_url ("/") is a 302 to
-            // /login, and the default fetch() would follow that redirect
-            // itself and hand back the already-redirected response. That
-            // works fine in a normal browser tab, but an installed app
-            // (Android WebAPK) launched from the home screen icon does not
-            // treat a service-worker-followed redirect as a completed
-            // navigation - the splash screen never gets dismissed and the
-            // app hangs on the logo forever. Returning the redirect
-            // untouched (an "opaqueredirect" response) instead makes the
-            // browser perform the redirect itself, which is what actually
-            // signals the navigation as done.
-            fetch(request, { redirect: 'manual' }).catch(() => caches.match(OFFLINE_URL))
+            fetch(request).catch(() => caches.match(OFFLINE_URL))
         );
     }
 });
