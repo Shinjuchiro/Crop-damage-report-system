@@ -48,46 +48,102 @@
             </span>
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-[#0d3d1b] dark:text-foreground">Forgot Password?</h2>
-                <p class="text-sm text-muted-foreground">We'll email you a reset link</p>
+                <p class="text-sm text-muted-foreground">Choose how you'd like to reset it</p>
             </div>
         </div>
 
-        <h3 class="text-xl font-bold">Reset Your Password</h3>
-        <p class="mb-5 mt-0.5 text-sm text-muted-foreground">
-            Enter the email address on your account and we'll send you a link to reset your password.
-        </p>
+        {{-- Two ways in, picked with a tab switch rather than two separate
+             pages - a farmer who doesn't have easy access to their email can
+             still get back into their account with their phone. --}}
+        <div x-data="{ method: 'email' }">
 
-        @if ($errors->any())
-            <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
-        @endif
-        @if (session('status'))
-            <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
-        @endif
-
-        <form method="POST" action="{{ route('password.email') }}" class="space-y-4">
-            @csrf
-
-            <div class="relative">
-                <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
-                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>
-                    </svg>
-                </span>
-                <input type="email" name="email" value="{{ old('email') }}" required autocomplete="email"
-                       placeholder="Email address"
-                       class="h-14 w-full rounded-xl border-2 border-[#166534]/70 bg-card pl-12 pr-4 text-base
-                              placeholder:text-muted-foreground focus:border-[#166534]
-                              dark:border-input dark:focus:border-primary">
+            <div class="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-accent/60 p-1 dark:bg-muted">
+                <button type="button" @click="method = 'email'"
+                        :class="method === 'email' ? 'bg-card text-[#166534] shadow dark:text-primary' : 'text-muted-foreground'"
+                        class="rounded-lg py-2.5 text-sm font-semibold transition">
+                    Email
+                </button>
+                <button type="button" @click="method = 'sms'"
+                        :class="method === 'sms' ? 'bg-card text-[#166534] shadow dark:text-primary' : 'text-muted-foreground'"
+                        class="rounded-lg py-2.5 text-sm font-semibold transition">
+                    Text Message
+                </button>
             </div>
 
-            <button type="submit"
-                    class="flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-[#166534]
-                           text-base font-bold text-white transition active:scale-[0.99]
-                           dark:bg-primary dark:text-primary-foreground">
-                SEND RESET LINK
-            </button>
-        </form>
+            @if ($errors->any())
+                <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
+            @endif
+            @if (session('status'))
+                <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
+            @endif
+
+            <div x-show="method === 'email'" x-cloak>
+                <h3 class="text-xl font-bold">Reset Your Password</h3>
+                <p class="mb-5 mt-0.5 text-sm text-muted-foreground">
+                    Enter the email address on your account and we'll send you a link to reset your password.
+                </p>
+
+                <form method="POST" action="{{ route('password.email') }}" class="space-y-4">
+                    @csrf
+
+                    <div class="relative">
+                        <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
+                                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>
+                            </svg>
+                        </span>
+                        <input type="email" name="email" value="{{ old('email') }}" required autocomplete="email"
+                               placeholder="Email address"
+                               class="h-14 w-full rounded-xl border-2 border-[#166534]/70 bg-card pl-12 pr-4 text-base
+                                      placeholder:text-muted-foreground focus:border-[#166534]
+                                      dark:border-input dark:focus:border-primary">
+                    </div>
+
+                    <button type="submit"
+                            class="flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-[#166534]
+                                   text-base font-bold text-white transition active:scale-[0.99]
+                                   dark:bg-primary dark:text-primary-foreground">
+                        SEND RESET LINK
+                    </button>
+                </form>
+            </div>
+
+            <div x-show="method === 'sms'" x-cloak>
+                <h3 class="text-xl font-bold">Text Me a Code</h3>
+                <p class="mb-5 mt-0.5 text-sm text-muted-foreground">
+                    Enter the phone number on your account and we'll text you a 6-digit code to reset your password.
+                </p>
+
+                <form method="POST" action="{{ route('password.otp.send') }}" class="space-y-4">
+                    @csrf
+
+                    <div class="relative">
+                        <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
+                                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6
+                                         19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362
+                                         1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0
+                                         012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                            </svg>
+                        </span>
+                        <input type="tel" name="phone_number" value="{{ old('phone_number') }}" required
+                               inputmode="numeric" autocomplete="tel" placeholder="09XXXXXXXXX"
+                               class="h-14 w-full rounded-xl border-2 border-[#166534]/70 bg-card pl-12 pr-4 text-base
+                                      placeholder:text-muted-foreground focus:border-[#166534]
+                                      dark:border-input dark:focus:border-primary">
+                    </div>
+
+                    <button type="submit"
+                            class="flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-[#166534]
+                                   text-base font-bold text-white transition active:scale-[0.99]
+                                   dark:bg-primary dark:text-primary-foreground">
+                        SEND CODE
+                    </button>
+                </form>
+            </div>
+        </div>
 
         <p class="mt-6 text-center text-sm">
             <a href="{{ route('login') }}" class="font-semibold text-[#166534] dark:text-primary">
@@ -103,67 +159,101 @@
 
 {{-- ===================================================================
      DESKTOP
+     Same full-bleed photo + centered floating card as auth.login's desktop
+     block - see that file's comment for why the two designs are kept apart
+     rather than shared.
 =================================================================== --}}
-<div class="hidden min-h-screen lg:grid lg:grid-cols-2">
+<div class="relative hidden min-h-screen overflow-hidden lg:flex lg:items-center lg:justify-center lg:px-10 lg:py-14">
 
-    <div class="relative overflow-hidden bg-[#0d3d1b] text-white">
-        <img src="{{ asset('images/farm-aerial.jpg') }}" alt=""
-             class="absolute inset-0 h-full w-full object-cover opacity-25" aria-hidden="true">
-        <div class="absolute inset-0 bg-[#0d3d1b]/80" aria-hidden="true"></div>
+    <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
+         class="absolute inset-0 h-full w-full object-cover" aria-hidden="true">
+    <div class="absolute inset-0 bg-[#0d3d1b]/70" aria-hidden="true"></div>
 
-        <div class="relative flex h-full flex-col items-center justify-center px-12 py-16 text-center">
-            <div class="relative mb-8 flex h-64 w-64 items-center justify-center">
-                <span class="absolute inset-0 rounded-full border border-white/15"></span>
-                <span class="absolute inset-6 rounded-full border border-white/20"></span>
-                <span class="absolute inset-12 rounded-full border border-white/25"></span>
+    {{-- Form card --}}
+    <div class="relative w-full max-w-lg">
+
+        <div class="absolute -top-9 left-1/2 -translate-x-1/2">
+            <span class="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-white p-2 shadow-lg ring-4 ring-white/30">
                 <img src="{{ asset('images/tanza-seal.png') }}"
-                     alt="Seal of the Municipality of Tanza, Cavite" class="relative h-36 w-36">
-            </div>
-
-            <h1 class="text-3xl font-bold leading-tight">
-                Farmers Information and<br>Technology Services Center
-            </h1>
-            <p class="mt-3 text-lg font-medium text-[#7ddc8f]">Municipality of Tanza</p>
-
-            <p class="mt-6 max-w-md text-sm leading-relaxed text-white/75">
-                Crop damage reporting and assistance allocation for disaster affected farmers
-                in Tanza, Cavite.
-            </p>
+                     alt="Seal of the Municipality of Tanza, Cavite" class="h-full w-full">
+            </span>
         </div>
-    </div>
 
-    <div class="flex items-center justify-center bg-card px-12 py-12">
-        <div class="w-full max-w-sm">
+        <div class="rounded-2xl bg-card px-12 pb-10 pt-14 shadow-2xl">
 
-            <h2 class="text-3xl font-bold text-[#0d3d1b] dark:text-foreground">Forgot Password?</h2>
-            <p class="mt-1 text-sm text-muted-foreground">
-                Enter the email address on your account and we'll send you a link to reset your password.
-            </p>
+            <h2 class="text-center text-3xl font-bold text-[#0d3d1b] dark:text-foreground">Forgot Password?</h2>
+            <p class="mt-1 text-center text-sm text-muted-foreground">Choose how you'd like to reset it.</p>
 
-            @if ($errors->any())
-                <x-ui.alert variant="destructive" class="mt-5">{{ $errors->first() }}</x-ui.alert>
-            @endif
-            @if (session('status'))
-                <x-ui.alert variant="success" class="mt-5">{{ session('status') }}</x-ui.alert>
-            @endif
+            <div x-data="{ method: 'email' }" class="mt-6">
 
-            <form method="POST" action="{{ route('password.email') }}" class="mt-5 space-y-4">
-                @csrf
-
-                <div class="space-y-1.5">
-                    <label for="email-desktop" class="block text-sm font-medium">Email address</label>
-                    <input id="email-desktop" type="email" name="email" value="{{ old('email') }}" required
-                           autocomplete="email"
-                           class="h-11 w-full rounded-lg border border-input bg-card px-3.5 text-sm
-                                  focus:border-primary">
+                <div class="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-accent/60 p-1 dark:bg-muted">
+                    <button type="button" @click="method = 'email'"
+                            :class="method === 'email' ? 'bg-card text-[#166534] shadow-sm dark:text-primary' : 'text-muted-foreground'"
+                            class="rounded-lg py-2 text-sm font-semibold transition">
+                        Email
+                    </button>
+                    <button type="button" @click="method = 'sms'"
+                            :class="method === 'sms' ? 'bg-card text-[#166534] shadow-sm dark:text-primary' : 'text-muted-foreground'"
+                            class="rounded-lg py-2 text-sm font-semibold transition">
+                        Text Message
+                    </button>
                 </div>
 
-                <button type="submit"
-                        class="h-11 w-full rounded-lg bg-[#166534] text-sm font-semibold text-white
-                               transition hover:brightness-110 dark:bg-primary dark:text-primary-foreground">
-                    Send Reset Link
-                </button>
-            </form>
+                @if ($errors->any())
+                    <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
+                @endif
+                @if (session('status'))
+                    <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
+                @endif
+
+                <div x-show="method === 'email'" x-cloak>
+                    <p class="mb-4 text-sm text-muted-foreground">
+                        Enter the email address on your account and we'll send you a link to reset your password.
+                    </p>
+
+                    <form method="POST" action="{{ route('password.email') }}" class="space-y-4">
+                        @csrf
+
+                        <div class="space-y-1.5">
+                            <label for="email-desktop" class="block text-sm font-medium">Email address</label>
+                            <input id="email-desktop" type="email" name="email" value="{{ old('email') }}" required
+                                   autocomplete="email"
+                                   class="h-11 w-full rounded-lg border border-input bg-card px-3.5 text-sm
+                                          focus:border-primary">
+                        </div>
+
+                        <button type="submit"
+                                class="h-11 w-full rounded-lg bg-[#166534] text-sm font-semibold text-white
+                                       transition hover:brightness-110 dark:bg-primary dark:text-primary-foreground">
+                            Send Reset Link
+                        </button>
+                    </form>
+                </div>
+
+                <div x-show="method === 'sms'" x-cloak>
+                    <p class="mb-4 text-sm text-muted-foreground">
+                        Enter the phone number on your account and we'll text you a 6-digit code to reset your password.
+                    </p>
+
+                    <form method="POST" action="{{ route('password.otp.send') }}" class="space-y-4">
+                        @csrf
+
+                        <div class="space-y-1.5">
+                            <label for="phone-desktop" class="block text-sm font-medium">Phone number</label>
+                            <input id="phone-desktop" type="tel" name="phone_number" value="{{ old('phone_number') }}"
+                                   required inputmode="numeric" autocomplete="tel" placeholder="09XXXXXXXXX"
+                                   class="h-11 w-full rounded-lg border border-input bg-card px-3.5 text-sm
+                                          focus:border-primary">
+                        </div>
+
+                        <button type="submit"
+                                class="h-11 w-full rounded-lg bg-[#166534] text-sm font-semibold text-white
+                                       transition hover:brightness-110 dark:bg-primary dark:text-primary-foreground">
+                            Send Code
+                        </button>
+                    </form>
+                </div>
+            </div>
 
             <p class="mt-6 text-center text-sm">
                 <a href="{{ route('login') }}" class="font-semibold text-[#166534] dark:text-primary">

@@ -30,11 +30,13 @@
 =================================================================== --}}
 <div class="lg:hidden">
 
-    {{-- Green banner --}}
+    {{-- Green banner - same office photo as the desktop background, just
+         dimmed further behind the gradient since this is a small header
+         strip, not a full-bleed background. --}}
     <div class="relative overflow-hidden bg-[#0d3d1b] text-white">
-        <img src="{{ asset('images/farm-aerial.jpg') }}" alt=""
-             class="absolute inset-0 h-full w-full object-cover opacity-25" aria-hidden="true">
-        <div class="absolute inset-0 bg-gradient-to-b from-[#0d3d1b]/85 to-[#0d3d1b]/95" aria-hidden="true"></div>
+        <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
+             class="absolute inset-0 h-full w-full object-cover opacity-40" aria-hidden="true">
+        <div class="absolute inset-0 bg-gradient-to-b from-[#0d3d1b]/80 to-[#0d3d1b]/95" aria-hidden="true"></div>
 
         <div class="relative flex items-center gap-4 px-5 pb-16 pt-8">
             <img src="{{ asset('images/tanza-seal.png') }}"
@@ -157,45 +159,13 @@
             Continue with Google
         </a>
 
-        <div class="mt-6 flex items-start gap-4 rounded-xl bg-accent/60 p-4 dark:bg-muted">
-            <svg class="mt-0.5 h-10 w-10 shrink-0 text-[#166534] dark:text-primary" fill="none"
-                 stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-                 viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 9.5h16M6 9.5c0-3.3 2.7-6 6-6s6 2.7 6 6M9 13v7.5h6V13M7 20.5h10"/>
-            </svg>
-            <div class="min-w-0 flex-1">
-                <p class="text-sm font-bold">New Farmer?</p>
-                <p class="mt-0.5 text-sm leading-relaxed text-muted-foreground">
-                    Create a farmer account to report crop damage and access our services.
-                </p>
-            </div>
-            <div class="shrink-0 text-center">
-                <a href="{{ route('register') }}"
-                   class="inline-flex items-center rounded-lg border border-[#166534] px-4 py-2 text-sm
-                          font-semibold text-[#166534] dark:border-primary dark:text-primary">
-                    REGISTER
-                </a>
-                <p class="mt-1 text-xs text-muted-foreground">For farmers only</p>
-            </div>
-        </div>
-
-        <div class="mt-3 flex items-center gap-4 rounded-xl bg-accent/60 p-4 dark:bg-muted">
-            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0d3d1b] text-white">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.7"
-                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                    <path d="M4 13v-1a8 8 0 1116 0v1M4 13h2.5v5H5a1 1 0 01-1-1v-4zm16 0h-2.5v5H19a1 1 0 001-1v-4z"/>
-                </svg>
-            </span>
-            <div class="min-w-0 flex-1">
-                <p class="text-sm font-bold">Need help?</p>
-                <p class="mt-0.5 text-sm text-muted-foreground">Contact our support team anytime you need us.</p>
-            </div>
-            <a href="mailto:mao@tanza.gov.ph"
-               class="shrink-0 rounded-lg border border-[#166534] px-3 py-2 text-xs font-semibold
-                      text-[#166534] dark:border-primary dark:text-primary">
-                CONTACT ADMIN
+        {{-- Same simple one-line treatment as the desktop view - no cards. --}}
+        <p class="mt-6 text-center text-sm text-muted-foreground">
+            New farmer?
+            <a href="{{ route('register') }}" class="font-semibold text-primary hover:underline">
+                Create an account
             </a>
-        </div>
+        </p>
 
         <p class="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <svg class="h-4 w-4 text-[#166534] dark:text-primary" fill="none" stroke="currentColor"

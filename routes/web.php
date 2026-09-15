@@ -70,12 +70,22 @@ Route::middleware('guest')->group(function () {
     Route::get('/auth/google/redirect', [GoogleController::class, 'redirect'])->name('google.redirect');
     Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
 
-    // Forgot password - every role uses this same flow (email + password
-    // both live on `users`, common to all four roles).
+    // Forgot password - every role uses this same flow (email, phone number
+    // and password all live on `users`, common to all four roles). Email is
+    // Laravel's own password-broker link; OTP is the SMS alternative for a
+    // farmer without easy email access (App\Models\PasswordResetOtp).
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
+
+    // Throttled (not just for abuse - each send costs the office an actual
+    // SMS credit through Semaphore).
+    Route::post('/forgot-password/otp', [PasswordResetController::class, 'sendOtp'])
+        ->middleware('throttle:5,1')->name('password.otp.send');
+    Route::get('/forgot-password/verify', [PasswordResetController::class, 'showVerifyOtpForm'])->name('password.otp.verify');
+    Route::post('/forgot-password/verify', [PasswordResetController::class, 'verifyOtpAndReset'])
+        ->middleware('throttle:10,1')->name('password.otp.update');
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])
