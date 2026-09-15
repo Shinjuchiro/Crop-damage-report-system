@@ -8,6 +8,16 @@
     // submission is not something the office "sends" anyone.
     $pendingDamageReports = \App\Models\DamageReport::where('status', 'pending')->count();
 
+    // A farmer registration MAO hasn't approved or rejected yet - the same
+    // "pending" the Membership Applications page itself filters to by
+    // default (MembershipApplicationController::index()). Shown here for
+    // the same reason as the two badges below: a new registration already
+    // notifies MAO in the bell (RegisterController::notifyMaoOfNewRegistration()),
+    // but this is the queue itself, visible at a glance without opening it.
+    $pendingRegistrations = \App\Models\Farmer::notDeleted()
+        ->whereHas('user', fn ($user) => $user->where('status', 'pending'))
+        ->count();
+
     // Same idea, one stage further: a technician has already submitted an
     // inspection (status = verified) and it is sitting there waiting for
     // MAO's approve/flag/reject decision (DamageReportMonitorController::
@@ -31,10 +41,13 @@
             'icon'    => 'M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6',
         ],
         [
-            'label'   => 'Membership Applications',
-            'route'   => 'mao.membership-applications.index',
-            'pattern' => 'mao.membership-applications.*',
-            'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM8.5 14l2 2 4-4',
+            'label'       => 'Membership Applications',
+            'route'       => 'mao.membership-applications.index',
+            'pattern'     => 'mao.membership-applications.*',
+            'icon'        => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM8.5 14l2 2 4-4',
+            'badge'       => $pendingRegistrations,
+            'badge_noun'  => 'application',
+            'badge_label' => 'awaiting review',
         ],
         [
             'label'   => "Farmer's Association",
@@ -178,7 +191,7 @@
             @if (! empty($item['badge']))
                 <span class="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full
                              bg-destructive px-1.5 text-[11px] font-bold leading-none text-destructive-foreground"
-                      title="{{ $item['badge'] }} report{{ $item['badge'] === 1 ? '' : 's' }} {{ $item['badge_label'] ?? 'needs attention' }}">
+                      title="{{ $item['badge'] }} {{ $item['badge_noun'] ?? 'report' }}{{ $item['badge'] === 1 ? '' : 's' }} {{ $item['badge_label'] ?? 'needs attention' }}">
                     {{ $item['badge'] > 99 ? '99+' : $item['badge'] }}
                 </span>
             @endif
