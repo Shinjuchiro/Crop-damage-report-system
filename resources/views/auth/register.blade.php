@@ -50,16 +50,18 @@
     {{-- =====================================================================
          LEFT PANEL - branding and illustration
     ====================================================================== --}}
-    {{-- Dark green solid on a phone (unchanged banner across the top). From
-         lg up, the same photo-plus-tint background as the desktop login
-         screen replaces the flat green, while keeping this exact two-panel
-         wizard layout - the img/overlay are lg-only so mobile never loads
-         or shows the photo. --}}
+    {{-- Same office photo as Login/Forgot Password's mobile banner, dimmed
+         further behind a gradient since this is a small header strip on a
+         phone, not a full-bleed background. From lg up, the photo goes to
+         full opacity behind the desktop login screen's flat tint instead -
+         same two-panel wizard layout either way, just the treatment of the
+         background photo changes at the breakpoint. --}}
     <div class="relative flex shrink-0 flex-col overflow-hidden bg-[#0d3d1b] px-5 py-6 sm:px-8
                 lg:w-[30%] lg:max-w-[420px] lg:rounded-2xl lg:px-10 lg:py-10">
 
         <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
-             class="absolute inset-0 hidden h-full w-full object-cover lg:block" aria-hidden="true">
+             class="absolute inset-0 h-full w-full object-cover opacity-40 lg:opacity-100" aria-hidden="true">
+        <div class="absolute inset-0 bg-gradient-to-b from-[#0d3d1b]/80 to-[#0d3d1b]/95 lg:hidden" aria-hidden="true"></div>
         <div class="absolute inset-0 hidden bg-[#0d3d1b]/70 lg:block" aria-hidden="true"></div>
 
         <div class="relative flex items-center gap-4">
