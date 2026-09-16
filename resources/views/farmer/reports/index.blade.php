@@ -82,7 +82,7 @@
                     </p>
                 </div>
 
-                <x-ui.button variant="outline" class="shrink-0"
+                <x-ui.button variant="view" class="shrink-0"
                              :href="route('farmer.reports.show', $report)">View</x-ui.button>
             </div>
         </x-ui.card>

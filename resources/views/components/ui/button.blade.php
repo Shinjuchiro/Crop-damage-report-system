@@ -3,6 +3,13 @@
     <x-ui.button variant="outline" size="sm">Cancel</x-ui.button>
     <x-ui.button variant="destructive" type="submit">Archive</x-ui.button>
     <x-ui.button href="{{ route('mao.dashboard') }}" variant="ghost">Back</x-ui.button>
+    <x-ui.button href="{{ $viewUrl }}" variant="view" size="sm">View</x-ui.button>
+
+    "view" is the standalone "flashcard" style used for every View / View
+    Details action across the app (Sept 2026): a soft blue tinted
+    background at ~50% opacity rather than a plain outline button, so the
+    view action reads consistently everywhere a list links to a record's
+    details.
 
     Giving it an href renders a link that looks identical to the button.
     Everything else you pass through (type, name, value, @click, x-show,
@@ -23,6 +30,11 @@
         'ghost'       => 'text-foreground hover:bg-accent hover:text-accent-foreground',
         'destructive' => 'bg-destructive text-destructive-foreground shadow-sm hover:brightness-110',
         'link'        => 'text-primary underline-offset-4 hover:underline',
+        // The "flashcard" View / View Details style: a translucent blue
+        // fill rather than a solid button, so it reads as a lighter-weight
+        // action than Edit/Archive/Delete next to it.
+        'view'        => 'bg-blue-500/50 text-blue-950 hover:bg-blue-500/60 '
+                        . 'dark:bg-blue-500/40 dark:text-blue-50 dark:hover:bg-blue-500/50',
     ];
 
     $sizes = [

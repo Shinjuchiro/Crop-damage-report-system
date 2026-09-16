@@ -62,8 +62,16 @@ class FarmerDirectoryController extends Controller
             'inactive' => Farmer::notDeleted()->where('activity_status', 'inactive')->count(),
         ];
 
+        // List + detail panel (Sept 2026): the row a MAO user clicks "View"
+        // on loads inline in the right-hand panel via ?selected=<id>,
+        // instead of navigating away to a separate page.
+        $selected = $request->filled('selected')
+            ? Farmer::query()->notDeleted()->with($this->detailRelations())->find($request->selected)
+            : null;
+
         return view('mao.farmers.index', [
             'farmers'      => $farmers,
+            'selected'     => $selected,
             'summary'      => $summary,
             'barangays'    => Barangay::orderBy('name')->get(),
             'associations' => Association::orderBy('name')->get(),
@@ -72,7 +80,14 @@ class FarmerDirectoryController extends Controller
 
     public function show(Farmer $farmer)
     {
-        $farmer->load([
+        $farmer->load($this->detailRelations());
+
+        return view('mao.farmers.show', compact('farmer'));
+    }
+
+    private function detailRelations(): array
+    {
+        return [
             'user',
             'barangay',
             'association',
@@ -82,8 +97,6 @@ class FarmerDirectoryController extends Controller
             'damageReports.disasters',
             'damageReports.validation.technician',
             'assistanceDistributions.allocation.assistance',
-        ]);
-
-        return view('mao.farmers.show', compact('farmer'));
+        ];
     }
 }

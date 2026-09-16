@@ -246,7 +246,7 @@
                             {{-- One button per row, and it says what happens next
                                  rather than a generic "View". --}}
                             @if ($report->status === 'assigned')
-                                <x-ui.button size="sm" :href="route('technician.reports.show', $report)">
+                                <x-ui.button size="sm" variant="view" :href="route('technician.reports.show', $report)">
                                     View Details
                                 </x-ui.button>
                             @elseif ($report->status === 'under_verification')

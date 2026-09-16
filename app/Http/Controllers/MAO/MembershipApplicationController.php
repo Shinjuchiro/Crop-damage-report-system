@@ -43,8 +43,16 @@ class MembershipApplicationController extends Controller
             ->paginate(12)
             ->withQueryString();
 
+        // List + detail panel (Sept 2026): "View" loads the application
+        // inline in the right-hand panel via ?selected=<id> instead of
+        // navigating to a separate review page.
+        $selected = $request->filled('selected')
+            ? Farmer::query()->notDeleted()->with(['user', 'association', 'barangay', 'mainCrops.crop'])->find($request->selected)
+            : null;
+
         return view('mao.membership-applications.index', [
             'applications' => $applications,
+            'selected'     => $selected,
             'status'       => $status,
             'barangays'    => Barangay::orderBy('name')->get(),
         ]);
@@ -181,8 +189,42 @@ class MembershipApplicationController extends Controller
             );
         });
 
+        $this->notifyRejected($farmer, $request->input('rejection_reason'));
+
         return redirect()->route('mao.membership-applications.index')
             ->with('status', 'Farmer registration rejected.');
+    }
+
+    /**
+     * The rejection counterpart to notifyApproved() above - proposal section
+     * 66 lists "Registration rejected" as one of the things a farmer should
+     * be told, and this was previously missing (only approval notified
+     * anyone). In-app only ('normal' priority, section 68 reserves SMS for
+     * urgent/critical matters): disappointing news, but not an emergency.
+     * Runs after the transaction above has already committed, and never
+     * throws - the rejection itself must never appear to fail just because a
+     * notification could not be sent.
+     */
+    private function notifyRejected(Farmer $farmer, ?string $reason): void
+    {
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'Registration Rejected',
+                'message'     => 'Your farmer registration has been reviewed and was not approved by the '
+                    . 'Municipal Agriculture Office.' . ($reason ? ' Reason: ' . $reason : '')
+                    . ' Please contact the office if you have questions.',
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'specific_farmer',
+                'target_id'   => $farmer->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not send rejection notification for farmer ' . $farmer->id . ': ' . $e->getMessage());
+        }
     }
 
     /**

@@ -177,7 +177,7 @@
                                         Continue
                                     </x-ui.button>
                                 @else
-                                    <x-ui.button size="sm" variant="outline"
+                                    <x-ui.button size="sm" variant="view"
                                                  :href="route('technician.reports.show', $report)">
                                         View Details
                                     </x-ui.button>

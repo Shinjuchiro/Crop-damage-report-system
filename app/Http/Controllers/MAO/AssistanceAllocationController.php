@@ -13,6 +13,7 @@ use App\Models\AuditLog;
 use App\Models\Crop;
 use App\Models\DamageReport;
 use App\Models\Disaster;
+use App\Models\NotificationBroadcast;
 use App\Models\Validation;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -369,8 +371,16 @@ class AssistanceAllocationController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
+        // List + detail panel (Sept 2026): "View Details" loads the
+        // allocation inline via ?selected=<id> using the same relations as
+        // show(), instead of navigating to a separate page.
+        $selected = $request->filled('selected')
+            ? AssistanceAllocation::query()->with(self::detailRelations())->find($request->selected)
+            : null;
+
         return view('mao.assistance-allocations.history', [
             'allocations'  => $allocations,
+            'selected'     => $selected,
             'statuses'     => self::STATUSES,
             'associations' => Association::orderBy('name')->get(),
             'assistances'  => Assistance::orderBy('name')->get(),
@@ -606,15 +616,68 @@ class AssistanceAllocationController extends Controller
             return $allocation;
         });
 
+        $this->notifyAssociationOfAllocation($allocation);
+
         return redirect()->route('mao.assistance-allocations.show', $allocation)
             ->with('status', $creatingNew
                 ? 'Assistance created and allocated successfully. The new item is now in your assistance list.'
                 : 'Assistance allocated successfully.');
     }
 
+    /**
+     * Proposal section 66: an association should be told about "assistance
+     * allocation/distribution updates" - this was previously missing (only
+     * the association's own later distribution step notified anyone, the
+     * farmer). Runs after the transaction above has already committed, and
+     * never throws - the allocation itself must never appear to fail just
+     * because a notification could not be sent.
+     *
+     * 'important' priority (in-app only, section 68 reserves SMS for urgent/
+     * critical matters): real work waiting for the association (deciding who
+     * to distribute it to), more than routine but not an emergency.
+     * link_type/link_id let the association's bell open this exact
+     * allocation (NotificationBroadcast::linkUrl()).
+     */
+    private function notifyAssociationOfAllocation(AssistanceAllocation $allocation): void
+    {
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'Assistance Allocated',
+                'message'     => 'The Municipal Agriculture Office has allocated '
+                    . ($allocation->assistance?->name ?? 'assistance') . ' to your association. '
+                    . 'Please review it and distribute it to your eligible members.',
+                'category'    => 'assistance',
+                'priority'    => 'important',
+                'target_type' => 'specific_association',
+                'target_id'   => $allocation->association_id,
+                'link_type'   => 'assistance_allocation',
+                'link_id'     => $allocation->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify association ' . $allocation->association_id
+                . ' of allocation ' . $allocation->id . ': ' . $e->getMessage());
+        }
+    }
+
     public function show(AssistanceAllocation $allocation)
     {
-        $allocation->load([
+        $allocation->load(self::detailRelations());
+
+        return view('mao.assistance-allocations.show', compact('allocation'));
+    }
+
+    /**
+     * List + detail panel (Sept 2026): the same eager-load set used by
+     * show() above, reused by history()'s inline "View Details" panel so
+     * the two never drift apart.
+     */
+    private static function detailRelations(): array
+    {
+        return [
             'assistance',
             'association',
             'disaster',
@@ -626,9 +689,7 @@ class AssistanceAllocationController extends Controller
             'distributions.distributedBy',
             'beneficiaries.farmer.barangay',
             'documents.uploadedBy',
-        ]);
-
-        return view('mao.assistance-allocations.show', compact('allocation'));
+        ];
     }
 
     /**

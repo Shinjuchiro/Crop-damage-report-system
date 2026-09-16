@@ -198,7 +198,7 @@
 
                             <td class="whitespace-nowrap text-right">
                                 @if ($mine)
-                                    <x-ui.button size="sm" variant="outline"
+                                    <x-ui.button size="sm" variant="view"
                                                  :href="route('technician.reports.show', $report)">
                                         View
                                     </x-ui.button>

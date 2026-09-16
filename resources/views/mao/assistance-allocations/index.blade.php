@@ -156,8 +156,8 @@
                                 </td>
                                 <td class="px-5 py-3 text-center">
                                     @if ($row->allocation)
-                                        <a href="{{ route('mao.assistance-allocations.show', $row->allocation) }}"
-                                           class="text-sm font-medium text-sky-700 underline hover:text-sky-900">View</a>
+                                        <x-ui.button :href="route('mao.assistance-allocations.show', $row->allocation)"
+                                                     variant="view" size="sm">View</x-ui.button>
                                     @elseif ($row->qualified_count > 0)
                                         <button type="button"
                                                 @click="$dispatch('preselect-association', {{ $row->association->id }}); $dispatch('open-dialog', 'allocate-assistance')"
@@ -212,10 +212,10 @@
                                     {{ ucfirst($allocation->status) }}
                                 </span>
                             </div>
-                            <a href="{{ route('mao.assistance-allocations.show', $allocation) }}"
-                               class="mt-2 inline-block text-xs font-medium text-sky-700 underline hover:text-sky-900">
+                            <x-ui.button :href="route('mao.assistance-allocations.show', $allocation)"
+                                         variant="view" size="sm" class="mt-2">
                                 View details
-                            </a>
+                            </x-ui.button>
                         </li>
                     @endforeach
                 </ul>

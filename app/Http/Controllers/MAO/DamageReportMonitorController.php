@@ -9,9 +9,11 @@ use App\Models\AuditLog;
 use App\Models\Barangay;
 use App\Models\DamageReport;
 use App\Models\Disaster;
+use App\Models\NotificationBroadcast;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -62,8 +64,18 @@ class DamageReportMonitorController extends Controller
             'affected_area'      => (float) DB::table('damage_report_crops')->sum('damaged_area_hectares'),
         ];
 
+        // List + detail panel (Sept 2026): "View" loads the report inline
+        // in the right-hand panel via ?selected=<id>, instead of navigating
+        // to the separate details page.
+        $selected = $request->filled('selected')
+            ? DamageReport::query()->with(self::detailRelations())->find($request->selected)
+            : null;
+
         return view('mao.damage-reports.index', [
             'reports'      => $reports,
+            'selected'     => $selected,
+            'availableDisasters' => $selected ? Disaster::active()->orderByDesc('date_start')->orderBy('name')->get() : collect(),
+            'canEditDisasters'   => $selected ? in_array($selected->status, self::DISASTER_EDITABLE_STATUSES, true) : false,
             'summary'      => $summary,
             'statuses'     => self::STATUSES,
             'associations' => Association::orderBy('name')->get(),
@@ -74,19 +86,7 @@ class DamageReportMonitorController extends Controller
 
     public function show(DamageReport $damageReport)
     {
-        $damageReport->load([
-            'farmer.user',
-            'farmer.association',
-            'farmer.barangay',
-            'farmer.mainCrops.crop',
-            'crops.crop',
-            'disasters',
-            'photos',
-            'assignedTechnician',
-            'approvedBy',
-            'validation.technician',
-            'validation.photos',
-        ]);
+        $damageReport->load(self::detailRelations());
 
         return view('mao.damage-reports.show', [
             'damageReport'      => $damageReport,
@@ -98,6 +98,28 @@ class DamageReportMonitorController extends Controller
             'availableDisasters' => Disaster::active()->orderByDesc('date_start')->orderBy('name')->get(),
             'canEditDisasters'   => in_array($damageReport->status, self::DISASTER_EDITABLE_STATUSES, true),
         ]);
+    }
+
+    /**
+     * Public + static so ValidationMonitorController (which already reuses
+     * baseQuery() above) can load the same eager-load set for its own
+     * inline "View Details" panel, instead of duplicating this list.
+     */
+    public static function detailRelations(): array
+    {
+        return [
+            'farmer.user',
+            'farmer.association',
+            'farmer.barangay',
+            'farmer.mainCrops.crop',
+            'crops.crop',
+            'disasters',
+            'photos',
+            'assignedTechnician',
+            'approvedBy',
+            'validation.technician',
+            'validation.photos',
+        ];
     }
 
     /**
@@ -137,7 +159,71 @@ class DamageReportMonitorController extends Controller
             ]);
         });
 
+        $this->notifyFarmerOfDecision($damageReport, $data['decision']);
+
         return back()->with('status', 'Report marked as ' . $data['decision'] . '.');
+    }
+
+    /**
+     * Proposal section 66: the farmer should be told about "validation
+     * results" once MAO decides. This also stands in for the "requests for
+     * additional information" notification the spec calls for: this system
+     * has no separate additional-info workflow, so per the Sept 2026
+     * notification-system rule a 'flagged' decision is worded as MAO asking
+     * for a second look, which is the closest existing status to that.
+     * Runs after the transaction above has already committed, and never
+     * throws - a notification failure must never make an otherwise-
+     * successful decision appear to fail.
+     *
+     * 'important' priority (in-app only): a decision on a farmer's own
+     * report is more than routine, but not an emergency (section 68 reserves
+     * SMS for urgent/critical matters). link_type/link_id let the farmer's
+     * bell open this exact report (NotificationBroadcast::linkUrl()).
+     */
+    private function notifyFarmerOfDecision(DamageReport $damageReport, string $decision): void
+    {
+        [$title, $message] = match ($decision) {
+            'approved' => [
+                'Report Approved',
+                'Your damage report ' . $damageReport->reference . ' has been approved by the Municipal '
+                    . 'Agriculture Office. It may now be considered for assistance allocation.',
+            ],
+            'flagged' => [
+                'Report Needs a Second Look',
+                'Your damage report ' . $damageReport->reference . ' has been flagged for a second look by the '
+                    . 'Municipal Agriculture Office. Additional information may be requested - please watch for '
+                    . 'a follow-up, or check with your association or the office.',
+            ],
+            'rejected' => [
+                'Report Rejected',
+                'Your damage report ' . $damageReport->reference . ' has been reviewed and was not approved by '
+                    . 'the Municipal Agriculture Office. Please contact the office if you have questions.',
+            ],
+            default => [null, null],
+        };
+
+        if (! $title) {
+            return;
+        }
+
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => $title,
+                'message'     => $message,
+                'category'    => 'system',
+                'priority'    => 'important',
+                'target_type' => 'specific_farmer',
+                'target_id'   => $damageReport->farmer_id,
+                'link_type'   => 'damage_report',
+                'link_id'     => $damageReport->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify farmer of decision on report ' . $damageReport->id . ': ' . $e->getMessage());
+        }
     }
 
     /**
@@ -170,11 +256,69 @@ class DamageReportMonitorController extends Controller
     }
 
     /**
+     * Sept 2026: Archive joined this page, independent of the STATUSES
+     * pipeline above - the developer asked for it to be available on any
+     * report regardless of status, unlike Edit, which does not exist here
+     * at all (a farmer's report is corrected via the farmer's own report, or
+     * via updateDisasters() above for the one field MAO itself can fix).
+     */
+    public function archive(DamageReport $damageReport)
+    {
+        $damageReport->archive(Auth::id());
+
+        AuditLog::create([
+            'user_id'      => Auth::id(),
+            'action'       => 'Archived damage report ' . $damageReport->reference,
+            'target_table' => 'damage_reports',
+            'target_id'    => $damageReport->id,
+            'created_at'   => now(),
+        ]);
+
+        return back()->with('status', 'Damage report archived.');
+    }
+
+    public function restore(DamageReport $damageReport)
+    {
+        if ($damageReport->is_deleted) {
+            return back()->withErrors(['damageReport' => 'This report was permanently deleted and can no longer be restored.']);
+        }
+
+        $damageReport->unarchive();
+
+        AuditLog::create([
+            'user_id'      => Auth::id(),
+            'action'       => 'Restored damage report ' . $damageReport->reference,
+            'target_table' => 'damage_reports',
+            'target_id'    => $damageReport->id,
+            'created_at'   => now(),
+        ]);
+
+        return back()->with('status', 'Damage report restored.');
+    }
+
+    public function destroy(DamageReport $damageReport)
+    {
+        $damageReport->markDeleted(Auth::id());
+
+        AuditLog::create([
+            'user_id'      => Auth::id(),
+            'action'       => 'Deleted damage report ' . $damageReport->reference,
+            'target_table' => 'damage_reports',
+            'target_id'    => $damageReport->id,
+            'created_at'   => now(),
+        ]);
+
+        return back()->with('status', 'Damage report deleted. Its data is kept for audit purposes.');
+    }
+
+    /**
      * Shared filtering, reused by the Validation Monitoring page.
      */
     public static function baseQuery(Request $request)
     {
         return DamageReport::query()
+            ->notDeleted()
+            ->whereNull('archived_at')
             ->with([
                 'farmer.user',
                 'farmer.association',

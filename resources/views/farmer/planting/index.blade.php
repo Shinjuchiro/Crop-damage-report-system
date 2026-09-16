@@ -50,8 +50,10 @@
                         </p>
                     </div>
 
-                    <x-ui.button variant="outline" class="shrink-0"
-                                 :href="route('farmer.planting.show', $record)">View</x-ui.button>
+                    <div class="flex shrink-0 gap-2">
+                        <x-ui.button variant="view" :href="route('farmer.planting.show', $record)">View</x-ui.button>
+                        <x-ui.button variant="outline" :href="route('farmer.planting.edit', $record)">Edit</x-ui.button>
+                    </div>
                 </div>
             </x-ui.card>
         @empty

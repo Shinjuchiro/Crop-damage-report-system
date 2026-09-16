@@ -151,7 +151,7 @@
                         </p>
                     </div>
 
-                    <x-ui.button size="sm" variant="ghost"
+                    <x-ui.button size="sm" variant="view"
                                  :href="route('farmer.planting.show', $record)">View</x-ui.button>
                 </div>
             @empty

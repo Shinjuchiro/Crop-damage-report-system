@@ -7,10 +7,12 @@ use App\Models\Association;
 use App\Models\AuditLog;
 use App\Models\Barangay;
 use App\Models\DamageReport;
+use App\Models\NotificationBroadcast;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -35,8 +37,16 @@ class ValidationMonitorController extends Controller
             'verified'           => DamageReport::whereIn('status', ['verified', 'approved'])->count(),
         ];
 
+        // List + detail panel (Sept 2026): "View Details" loads the report
+        // inline via ?selected=<id> using the same read-only relations as
+        // Damage Reports Monitoring, instead of navigating there.
+        $selected = $request->filled('selected')
+            ? DamageReport::query()->with(DamageReportMonitorController::detailRelations())->find($request->selected)
+            : null;
+
         return view('mao.validations.index', [
             'reports'      => $reports,
+            'selected'     => $selected,
             'summary'      => $summary,
             'technicians'  => User::where('role', 'technician')
                                   ->where('status', 'active')
@@ -93,6 +103,46 @@ class ValidationMonitorController extends Controller
             ]);
         });
 
+        $this->notifyTechnicianOfAssignment($damageReport, $technician);
+
         return back()->with('status', 'Technician assigned successfully.');
+    }
+
+    /**
+     * Proposal section 66: a technician should be told about a "newly
+     * assigned damage report" - this was previously a badge-only signal
+     * (nav-technician.blade.php's "Assigned Reports" count), with nothing in
+     * the bell itself. Runs after the transaction above has already
+     * committed, and never throws - a notification failure must never make
+     * an otherwise-successful assignment appear to fail (see the Sept 2026
+     * notification-system rule).
+     *
+     * 'important' priority (in-app only, no SMS - section 68 reserves that
+     * for urgent/critical matters): a new assignment is real work waiting,
+     * more than routine but not an emergency. link_type/link_id let the
+     * technician's bell open this exact report (NotificationBroadcast::
+     * linkUrl()).
+     */
+    private function notifyTechnicianOfAssignment(DamageReport $damageReport, User $technician): void
+    {
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'New Assignment',
+                'message'     => 'You have been assigned to inspect damage report ' . $damageReport->reference . '.',
+                'category'    => 'system',
+                'priority'    => 'important',
+                'target_type' => 'specific_technician',
+                'target_id'   => $technician->id,
+                'link_type'   => 'damage_report',
+                'link_id'     => $damageReport->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify technician ' . $technician->id . ' of assignment to report '
+                . $damageReport->id . ': ' . $e->getMessage());
+        }
     }
 }
