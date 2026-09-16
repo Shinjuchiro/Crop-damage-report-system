@@ -17,6 +17,20 @@
 
 <div class="space-y-4">
 
+    {{-- All / Unread. Reading a notification here never changes the
+         "Assigned Reports" sidebar badge - that counts reports not yet
+         inspected off the reports themselves. --}}
+    <div class="flex gap-2">
+        <x-ui.button size="sm" :variant="$filter === 'all' ? 'default' : 'outline'"
+                     :href="route('technician.notifications.index')">
+            All
+        </x-ui.button>
+        <x-ui.button size="sm" :variant="$filter === 'unread' ? 'default' : 'outline'"
+                     :href="route('technician.notifications.index', ['filter' => 'unread'])">
+            Unread{{ $unread > 0 ? " ({$unread})" : '' }}
+        </x-ui.button>
+    </div>
+
     @if ($unread > 0)
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border
                     bg-card px-4 py-3 shadow-sm">
@@ -69,9 +83,9 @@
         </a>
     @empty
         <x-ui.card :padded="false">
-            <x-ui.empty title="No notifications yet"
+            <x-ui.empty :title="$filter === 'unread' ? 'All caught up' : 'No notifications yet'"
                         icon="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1"
-                        message="Announcements from the Municipal Agriculture Office appear here." />
+                        :message="$filter === 'unread' ? 'You have no unread notifications.' : 'Announcements from the Municipal Agriculture Office appear here.'" />
         </x-ui.card>
     @endforelse
 

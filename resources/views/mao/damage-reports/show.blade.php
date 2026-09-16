@@ -21,10 +21,34 @@
 @endphp
 
 @section('header-actions')
-    <a href="{{ route('mao.damage-reports.index') }}"
-       class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
-        Back to Monitoring
-    </a>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('mao.damage-reports.index') }}"
+           class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
+            Back to Monitoring
+        </a>
+
+        @if ($damageReport->is_archived)
+            <form method="POST" action="{{ route('mao.damage-reports.restore', $damageReport) }}"
+                  data-confirm="Restore {{ $damageReport->reference }} to the active monitoring list?"
+                  data-confirm-title="Restore damage report"
+                  data-confirm-action="Confirm Restore">
+                @csrf @method('PUT')
+                <button type="submit" class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
+                    Restore
+                </button>
+            </form>
+        @else
+            <form method="POST" action="{{ route('mao.damage-reports.archive', $damageReport) }}"
+                  data-confirm="{{ $damageReport->reference }} will be removed from active monitoring. Its status, inspection and assistance history are unaffected, and it can be restored at any time from the Archive page."
+                  data-confirm-title="Archive this damage report?"
+                  data-confirm-action="Confirm Archive">
+                @csrf @method('PUT')
+                <button type="submit" class="inline-block rounded-lg border border-amber-200 bg-card px-5 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-50">
+                    Archive
+                </button>
+            </form>
+        @endif
+    </div>
 @endsection
 
 @section('content')

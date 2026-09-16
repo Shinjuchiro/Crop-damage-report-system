@@ -5,7 +5,10 @@
 @section('subheading', 'Submitted ' . $record->date_submitted?->format('F d, Y'))
 
 @section('header-actions')
-    <x-ui.button variant="outline" :href="route('farmer.planting.index')">Back to records</x-ui.button>
+    <div class="flex items-center gap-2">
+        <x-ui.button variant="outline" :href="route('farmer.planting.index')">Back to records</x-ui.button>
+        <x-ui.button :href="route('farmer.planting.edit', $record)">Edit</x-ui.button>
+    </div>
 @endsection
 
 @section('content')
@@ -68,11 +71,8 @@
     </x-ui.card>
 
     <p class="text-sm text-muted-foreground">
-        A submitted planting record cannot be edited here. If something is wrong, contact the
-        Municipal Agriculture Office so the correction is recorded properly.
-        <span class="mt-1 block">
-            Kung may mali po, makipag-ugnayan sa tanggapan upang maitama ito nang maayos.
-        </span>
+        Spotted a mistake? Use Edit above to correct the crop, date or area. Kung may mali,
+        gamitin ang Edit sa itaas upang ayusin.
     </p>
 </div>
 @endsection

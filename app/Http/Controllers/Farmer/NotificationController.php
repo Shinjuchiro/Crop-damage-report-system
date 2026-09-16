@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Farmer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -13,22 +14,35 @@ use Illuminate\Support\Str;
  * Proposal section 66. These rows are created by
  * NotificationBroadcast::dispatchToRecipients() on the MAO side, one row
  * per recipient. So a farmer only ever sees what was addressed to them.
+ *
+ * This is the bell: the full history of what was sent, action-required or
+ * not. It is deliberately separate from the sidebar badges on My Reports /
+ * Assistance, which count pending work off the actual records instead - see
+ * the Sept 2026 notification-system rule (nav-farmer.blade.php,
+ * Farmer\DamageReportController, Farmer\AssistanceController). Reading a
+ * notification here never changes a badge count.
  */
 class NotificationController extends Controller
 {
     /**
-     * The inbox list.
+     * The inbox list. ?filter=unread narrows it to what hasn't been opened
+     * yet; anything else (including no filter at all) shows everything.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $filter = $request->query('filter') === 'unread' ? 'unread' : 'all';
+
         $notifications = Notification::query()
             ->with('broadcast.createdBy')     // the actual title and message live on the broadcast
             ->where('user_id', Auth::id())    // never show other people's notifications
+            ->when($filter === 'unread', fn ($query) => $query->where('is_read', false))
             ->orderByDesc('created_at')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return view('farmer.notifications.index', [
             'notifications' => $notifications,
+            'filter'        => $filter,
             'unread'        => Notification::where('user_id', Auth::id())
                 ->where('is_read', false)
                 ->count(),
@@ -40,6 +54,14 @@ class NotificationController extends Controller
      *
      * Opening it marks it as read. We never delete notifications, because
      * the record of what the office announced has to survive (section 81).
+     *
+     * When this notification is about a specific record (a damage report,
+     * an allocation - see NotificationBroadcast::linkUrl()), opening it goes
+     * straight there instead of to our own message page, per the "clicking
+     * a notification should take the user directly to the relevant
+     * module/record" rule. A purely informational alert (a general
+     * announcement, a disaster advisory) has no such record, so it still
+     * falls back to the plain message page below.
      */
     public function show(Notification $notification)
     {
@@ -49,6 +71,10 @@ class NotificationController extends Controller
 
         if (! $notification->is_read) {
             $notification->update(['is_read' => true]);
+        }
+
+        if ($url = $notification->broadcast?->linkUrl('farmer')) {
+            return redirect($url);
         }
 
         return view('farmer.notifications.show', [

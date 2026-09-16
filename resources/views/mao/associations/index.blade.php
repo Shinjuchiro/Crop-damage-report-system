@@ -1,8 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Farmers\' Associations')
-@section('heading', 'Farmers\' Associations')
-@section('subheading', 'Every farmer belongs to an association, and all assistance is allocated through them.')
+@section('hideHeading', true)
 
 @section('content')
 <div>
@@ -13,34 +12,29 @@
         </div>
     @endif
 
-    {{-- Toolbar --}}
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <form method="GET" class="flex w-full max-w-sm gap-2">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search name or location"
-                   class="w-full rounded-lg border border-input px-3 py-2 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600">
-            <button class="rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                Search
-            </button>
+    <x-ui.card title="Farmers' Associations" description="Every farmer belongs to an association, and all assistance is allocated through them.">
+        <x-slot:actions>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('mao.archive.index', ['type' => 'associations']) }}"
+                   class="text-sm text-muted-foreground hover:text-foreground">
+                    View archived
+                </a>
+                <x-ui.button :href="route('mao.associations.create')">+ Add Association</x-ui.button>
+            </div>
+        </x-slot:actions>
+
+        {{-- Filter. No visible Search button - Enter in the field submits. --}}
+        <form method="GET" class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <x-ui.input type="text" name="search" value="{{ request('search') }}" placeholder="Search name or location"
+                        class="sm:max-w-sm" />
             @if (request('search'))
                 <a href="{{ route('mao.associations.index') }}"
-                   class="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground">Clear</a>
+                   class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
             @endif
         </form>
 
-        <div class="flex shrink-0 items-center gap-3">
-            <a href="{{ route('mao.archive.index', ['type' => 'associations']) }}"
-               class="text-sm text-muted-foreground hover:text-foreground">
-                View archived
-            </a>
-            <a href="{{ route('mao.associations.create') }}"
-               class="rounded-lg bg-green-800 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-green-900">
-                + Add Association
-            </a>
-        </div>
-    </div>
-
     {{-- Table --}}
-    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div class="overflow-hidden rounded-xl border border-border">
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
                 <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
@@ -128,6 +122,7 @@
         </div>
     </div>
 
-    <div class="mt-4">{{ $associations->links() }}</div>
+        <div class="mt-4">{{ $associations->links() }}</div>
+    </x-ui.card>
 </div>
 @endsection

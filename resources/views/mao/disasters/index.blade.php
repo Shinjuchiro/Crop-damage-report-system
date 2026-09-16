@@ -1,8 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Disaster Management')
-@section('heading', 'Disaster Management')
-@section('subheading', 'The disaster events farmers can cite when reporting crop damage.')
+@section('hideHeading', true)
 
 @section('content')
 <div>
@@ -13,45 +12,35 @@
         </div>
     @endif
 
-    {{-- Toolbar --}}
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <form method="GET" class="flex w-full flex-wrap gap-2 sm:max-w-xl">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search event name"
-                   class="min-w-0 flex-1 rounded-lg border border-input px-3 py-2 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600">
+    <x-ui.card title="Disaster Management" description="The disaster events farmers can cite when reporting crop damage.">
+        <x-slot:actions>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('mao.archive.index', ['type' => 'disasters']) }}"
+                   class="text-sm text-muted-foreground hover:text-foreground">
+                    View archived
+                </a>
+                <x-ui.button :href="route('mao.disasters.create')">+ Add Disaster Event</x-ui.button>
+            </div>
+        </x-slot:actions>
 
-            <select name="type"
-                    class="rounded-lg border border-input px-3 py-2 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600">
-                <option value="">All types</option>
-                @foreach ($types as $type)
-                    <option value="{{ $type }}" @selected(request('type') === $type)>
-                        {{ ucwords(str_replace('_', ' ', $type)) }}
-                    </option>
-                @endforeach
-            </select>
+        {{-- Filters. No visible button - Enter in the text field, or
+             choosing a type, submits the form. --}}
+        <form method="GET" class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <x-ui.select name="type" placeholder="All types" onchange="this.form.submit()"
+                         :options="collect($types)->mapWithKeys(fn ($t) => [$t => ucwords(str_replace('_', ' ', $t))])"
+                         :selected="request('type')" class="sm:w-48" />
 
-            <button class="rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                Filter
-            </button>
+            <x-ui.input type="text" name="search" value="{{ request('search') }}" placeholder="Search event name"
+                        class="sm:min-w-[14rem] sm:flex-1" />
+
             @if (request('search') || request('type'))
                 <a href="{{ route('mao.disasters.index') }}"
-                   class="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground">Clear</a>
+                   class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
             @endif
         </form>
 
-        <div class="flex shrink-0 items-center gap-3">
-            <a href="{{ route('mao.archive.index', ['type' => 'disasters']) }}"
-               class="text-sm text-muted-foreground hover:text-foreground">
-                View archived
-            </a>
-            <a href="{{ route('mao.disasters.create') }}"
-               class="rounded-lg bg-green-800 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-green-900">
-                + Add Disaster Event
-            </a>
-        </div>
-    </div>
-
     {{-- Table --}}
-    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div class="overflow-hidden rounded-xl border border-border">
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
                 <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
@@ -129,6 +118,7 @@
         </div>
     </div>
 
-    <div class="mt-4">{{ $disasters->links() }}</div>
+        <div class="mt-4">{{ $disasters->links() }}</div>
+    </x-ui.card>
 </div>
 @endsection

@@ -43,6 +43,7 @@ use App\Http\Controllers\MAO\FarmerDirectoryController;
 use App\Http\Controllers\MAO\MapController;
 use App\Http\Controllers\MAO\MembershipApplicationController;
 use App\Http\Controllers\MAO\NotificationBroadcastController;
+use App\Http\Controllers\MAO\NotificationInboxController;
 use App\Http\Controllers\MAO\ProfileController as MaoProfileController;
 use App\Http\Controllers\MAO\ReportController;
 use App\Http\Controllers\MAO\SettingsController;
@@ -132,6 +133,8 @@ Route::middleware(['auth', 'active', 'role:farmer'])
         Route::get('/planting/create', [FarmerPlantingController::class, 'create'])->name('planting.create');
         Route::post('/planting', [FarmerPlantingController::class, 'store'])->name('planting.store');
         Route::get('/planting/{planting}', [FarmerPlantingController::class, 'show'])->name('planting.show');
+        Route::get('/planting/{planting}/edit', [FarmerPlantingController::class, 'edit'])->name('planting.edit');
+        Route::put('/planting/{planting}', [FarmerPlantingController::class, 'update'])->name('planting.update');
 
         /* ---------- Crop damage reporting ---------- */
         Route::get('/reports', [FarmerDamageReportController::class, 'index'])->name('reports.index');
@@ -374,6 +377,16 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('crop-planting.index');
         Route::get('/crop-planting/{plantingRecord}', [CropPlantingMonitorController::class, 'show'])
             ->name('crop-planting.show');
+        Route::get('/crop-planting/{plantingRecord}/edit', [CropPlantingMonitorController::class, 'edit'])
+            ->name('crop-planting.edit');
+        Route::put('/crop-planting/{plantingRecord}', [CropPlantingMonitorController::class, 'update'])
+            ->name('crop-planting.update');
+        Route::put('/crop-planting/{plantingRecord}/archive', [CropPlantingMonitorController::class, 'archive'])
+            ->name('crop-planting.archive');
+        Route::put('/crop-planting/{plantingRecord}/restore', [CropPlantingMonitorController::class, 'restore'])
+            ->name('crop-planting.restore');
+        Route::delete('/crop-planting/{plantingRecord}', [CropPlantingMonitorController::class, 'destroy'])
+            ->name('crop-planting.destroy');
 
         /* ---------- Crop damage monitoring ---------- */
         Route::get('/damage-reports', [DamageReportMonitorController::class, 'index'])
@@ -384,6 +397,12 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('damage-reports.decide');
         Route::put('/damage-reports/{damageReport}/disasters', [DamageReportMonitorController::class, 'updateDisasters'])
             ->name('damage-reports.disasters.update');
+        Route::put('/damage-reports/{damageReport}/archive', [DamageReportMonitorController::class, 'archive'])
+            ->name('damage-reports.archive');
+        Route::put('/damage-reports/{damageReport}/restore', [DamageReportMonitorController::class, 'restore'])
+            ->name('damage-reports.restore');
+        Route::delete('/damage-reports/{damageReport}', [DamageReportMonitorController::class, 'destroy'])
+            ->name('damage-reports.destroy');
 
         /* ---------- Validation monitoring ---------- */
         Route::get('/validations', [ValidationMonitorController::class, 'index'])
@@ -438,6 +457,20 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('notifications.restore');
         Route::delete('/notifications/{notification}', [NotificationBroadcastController::class, 'destroy'])
             ->name('notifications.destroy');
+
+        /* ---------- Notification inbox (the bell) ----------
+           Separate from "Notifications and alerts" above, which is where MAO
+           composes and reviews everything it has SENT. This is the mirror of
+           the Farmer/Technician/Association bell: things addressed TO the
+           signed-in MAO user (new registrations, new reports, and so on -
+           see the Sept 2026 notification-system rule), on its own path so it
+           never collides with the compose/manage routes just above. */
+        Route::get('/notifications-inbox', [NotificationInboxController::class, 'index'])
+            ->name('notifications.inbox');
+        Route::put('/notifications-inbox/read-all', [NotificationInboxController::class, 'markAllRead'])
+            ->name('notifications.inbox.read-all');
+        Route::get('/notifications-inbox/{notification}', [NotificationInboxController::class, 'show'])
+            ->name('notifications.inbox.show');
 
         /* ---------- SMS history ----------
            Proposal section 71: every text the system has sent or tried to

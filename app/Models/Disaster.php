@@ -16,7 +16,8 @@ class Disaster extends Model
 
     protected function casts(): array
     {
-        return ['date_start' => 'date', 'date_end' => 'date', 'deleted_at' => 'datetime'];
+        // archived_at cast added Sept 2026 - see Crop::casts() for why.
+        return ['date_start' => 'date', 'date_end' => 'date', 'archived_at' => 'datetime', 'deleted_at' => 'datetime'];
     }
 
     public function damageReports()

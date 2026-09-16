@@ -10,6 +10,30 @@
      | Settings is not in this list. The layout renders it on its own at the
      | bottom of the sidebar, below a divider, for every role.
      */
+    // Sept 2026 notification-system rule: a sidebar badge here represents
+    // pending work the association itself needs to act on, never a count of
+    // unread bell notifications. Per that rule, Members and Damage Reports
+    // stay unbadged - an officer only ever MONITORS those (proposal section
+    // 61), there is nothing for them to do on either page. Assistance is the
+    // one page an officer actually acts on: distributing what MAO allocated,
+    // and following up when a member says they didn't receive something.
+    $associationId = \App\Models\AssociationOfficer::where('user_id', auth()->id())->value('association_id');
+
+    $assistanceNeedingAction = $associationId
+        // Allocated to this association but nothing has been handed to a
+        // member yet.
+        ? \App\Models\AssistanceAllocation::where('association_id', $associationId)
+            ->where('status', 'allocated')
+            ->count()
+        // Plus distributions a member said they did NOT receive - the
+        // association needs to follow that up.
+        + \App\Models\AssistanceDistribution::where('receipt_status', 'not_received')
+            ->whereIn('assistance_allocation_id', \App\Models\AssistanceAllocation::where(
+                'association_id', $associationId
+            )->select('id'))
+            ->count()
+        : 0;
+
     $items = [
         [
             'label'    => 'Dashboard',
@@ -40,11 +64,14 @@
             'icon'     => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
         ],
         [
-            'label'    => 'Assistance',
-            'filipino' => 'Tulong',
-            'route'    => 'association.assistance.index',
-            'pattern'  => 'association.assistance.*',
-            'icon'     => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
+            'label'       => 'Assistance',
+            'filipino'    => 'Tulong',
+            'route'       => 'association.assistance.index',
+            'pattern'     => 'association.assistance.*',
+            'icon'        => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
+            'badge'       => $assistanceNeedingAction,
+            'badge_noun'  => 'item',
+            'badge_label' => 'needing your action',
         ],
         [
             'label'    => 'Maps and Visualization',
@@ -80,16 +107,26 @@
 
     <{{ $item['route'] ? 'a' : 'span' }}
         @if ($item['route']) href="{{ route($item['route']) }}" @else title="Coming in a later build step" @endif
-        class="{{ $classes }}">
+        class="{{ $classes }} justify-between">
 
-        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="{{ $item['icon'] }}"/>
-        </svg>
+        <span class="flex min-w-0 items-center gap-3">
+            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="{{ $item['icon'] }}"/>
+            </svg>
 
-        <span class="min-w-0 flex-1 leading-tight">
-            <span class="block truncate">{{ $item['label'] }}</span>
-            <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
+            <span class="min-w-0 flex-1 leading-tight">
+                <span class="block truncate">{{ $item['label'] }}</span>
+                <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
+            </span>
         </span>
+
+        @if (! empty($item['badge']))
+            <span class="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full
+                         bg-destructive px-1.5 text-[11px] font-bold leading-none text-destructive-foreground"
+                  title="{{ $item['badge'] }} {{ $item['badge_noun'] ?? 'report' }}{{ $item['badge'] === 1 ? '' : 's' }} {{ $item['badge_label'] ?? 'needs attention' }}">
+                {{ $item['badge'] > 99 ? '99+' : $item['badge'] }}
+            </span>
+        @endif
     </{{ $item['route'] ? 'a' : 'span' }}>
 @endforeach

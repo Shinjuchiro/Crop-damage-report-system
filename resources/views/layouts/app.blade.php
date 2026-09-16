@@ -85,19 +85,31 @@
 
                 {{-- Notifications --}}
                 @php
-                    // The bell opens each role's own inbox/alert page (MAO's
-                    // is the alert-composer, since MAO has no personal inbox
-                    // of incoming events). Every role also has this same page
-                    // in its sidebar (see layouts/partials/nav-*.blade.php) -
-                    // the bell is just the quick shortcut to it. A farmer's
-                    // new damage report is a separate signal and does not go
-                    // through here: see the badge on MAO's "Crop Damage
-                    // Monitoring" sidebar item instead.
+                    // The bell opens each role's own inbox: things addressed
+                    // TO the signed-in user, most with their own read state
+                    // and a click-through to the record they're about (see
+                    // NotificationBroadcast::linkUrl() and the Sept 2026
+                    // notification-system rule). None of these four inboxes
+                    // sit in the sidebar too (see nav-farmer.blade.php's note
+                    // on this) - the bell is the only door to each.
+                    //
+                    // MAO is the one exception worth calling out: its
+                    // sidebar's "Notification and Alerts" is a DIFFERENT
+                    // page - where the office composes and reviews what it
+                    // has SENT (NotificationBroadcastController) - so the
+                    // bell here deliberately points at a separate inbox
+                    // route (NotificationInboxController) instead of that
+                    // one. A farmer's new damage report, a completed
+                    // inspection, and the like land in this inbox; the
+                    // office's own queues for those are also visible at a
+                    // glance via the sidebar badges on Membership
+                    // Applications / Crop Damage Monitoring / Validation
+                    // Monitoring.
                     $bellRoute = match (auth()->user()->role) {
                         'farmer'      => route('farmer.notifications.index'),
                         'association' => route('association.notifications.index'),
                         'technician'  => route('technician.notifications.index'),
-                        'mao'         => route('mao.notifications.index'),
+                        'mao'         => route('mao.notifications.inbox'),
                         default       => null,
                     };
 
@@ -136,22 +148,32 @@
             <div class="w-full">
 
                 {{-- Heading. Hidden on phones because the title is already in
-                     the top bar, which is one less block of wasted height. --}}
-                <div class="mb-4 hidden flex-col gap-3 sm:flex sm:flex-row sm:items-start sm:justify-between">
-                    <div class="min-w-0">
-                        <h1 class="truncate text-xl font-bold tracking-tight lg:text-2xl">
-                            @yield('heading', 'Welcome back, ' . auth()->user()->display_name . '!')
-                            @hasSection('heading-fil')
-                                <span class="font-medium text-muted-foreground">/ @yield('heading-fil')</span>
-                            @endif
-                        </h1>
-                        <p class="mt-0.5 text-sm text-muted-foreground">
-                            @yield('subheading', 'Monitor crop damage reports and manage assistance for disaster affected farmers.')
-                        </p>
-                    </div>
+                     the top bar, which is one less block of wasted height.
 
-                    <div class="shrink-0">@yield('header-actions')</div>
-                </div>
+                     A page can opt out of this whole block with
+                     @section('hideHeading', true) when it carries its own
+                     name + primary action inside its own card instead (see
+                     the filter-bar pages redesigned per the reference
+                     screenshots - mao/users/index.blade.php and friends).
+                     Opt-in only: every page that doesn't set this keeps
+                     working exactly as before. --}}
+                @unless (View::hasSection('hideHeading'))
+                    <div class="mb-4 hidden flex-col gap-3 sm:flex sm:flex-row sm:items-start sm:justify-between">
+                        <div class="min-w-0">
+                            <h1 class="truncate text-xl font-bold tracking-tight lg:text-2xl">
+                                @yield('heading', 'Welcome back, ' . auth()->user()->display_name . '!')
+                                @hasSection('heading-fil')
+                                    <span class="font-medium text-muted-foreground">/ @yield('heading-fil')</span>
+                                @endif
+                            </h1>
+                            <p class="mt-0.5 text-sm text-muted-foreground">
+                                @yield('subheading', 'Monitor crop damage reports and manage assistance for disaster affected farmers.')
+                            </p>
+                        </div>
+
+                        <div class="shrink-0">@yield('header-actions')</div>
+                    </div>
+                @endunless
 
                 {{-- On phones the page actions still need somewhere to live -
                      right-aligned to match where they sit on the desktop

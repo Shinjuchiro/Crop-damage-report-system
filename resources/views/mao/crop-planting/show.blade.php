@@ -7,10 +7,38 @@
 @php $farmer = $plantingRecord->farmer; @endphp
 
 @section('header-actions')
-    <a href="{{ route('mao.crop-planting.index') }}"
-       class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
-        Back to Monitoring
-    </a>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('mao.crop-planting.index') }}"
+           class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
+            Back to Monitoring
+        </a>
+        <a href="{{ route('mao.crop-planting.edit', $plantingRecord) }}"
+           class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
+            Edit
+        </a>
+
+        @if ($plantingRecord->is_archived)
+            <form method="POST" action="{{ route('mao.crop-planting.restore', $plantingRecord) }}"
+                  data-confirm="Restore this planting record to the active monitoring list?"
+                  data-confirm-title="Restore planting record"
+                  data-confirm-action="Confirm Restore">
+                @csrf @method('PUT')
+                <button type="submit" class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
+                    Restore
+                </button>
+            </form>
+        @else
+            <form method="POST" action="{{ route('mao.crop-planting.archive', $plantingRecord) }}"
+                  data-confirm="This record will be removed from active monitoring. It stays fully intact for audit purposes, does not change the farmer's Active/Inactive history, and can be restored at any time from the Archive page."
+                  data-confirm-title="Archive this planting record?"
+                  data-confirm-action="Confirm Archive">
+                @csrf @method('PUT')
+                <button type="submit" class="inline-block rounded-lg border border-amber-200 bg-card px-5 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-50">
+                    Archive
+                </button>
+            </form>
+        @endif
+    </div>
 @endsection
 
 @section('content')

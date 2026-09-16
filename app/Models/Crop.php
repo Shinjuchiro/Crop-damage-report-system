@@ -16,7 +16,10 @@ class Crop extends Model
 
     protected function casts(): array
     {
-        return ['is_hvcc' => 'boolean', 'deleted_at' => 'datetime'];
+        // archived_at was missing here before Sept 2026 - a plain DB string
+        // rather than Carbon, which threw the moment anything called
+        // ->format() on it (every archived crop shown on the Archive page).
+        return ['is_hvcc' => 'boolean', 'archived_at' => 'datetime', 'deleted_at' => 'datetime'];
     }
 
     public function mainCrops()

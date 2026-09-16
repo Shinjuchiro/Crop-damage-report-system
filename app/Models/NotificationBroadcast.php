@@ -48,12 +48,24 @@ class NotificationBroadcast extends Model
         'all_mao'              => 'MAO Staff',
     ];
 
+    /**
+     * What kind of record link_id (see the Sept 2026 notification-linking
+     * migration) can point at. Kept short and internal, the same style as
+     * target_type above, rather than a full Eloquent morph class string.
+     *
+     * damage_report          -> damage_reports.id
+     * membership_application -> farmers.id (MAO's membership application
+     *                           page is keyed by farmer, not a separate id)
+     * assistance_allocation  -> assistance_allocations.id
+     */
+    public const LINK_TYPES = ['damage_report', 'membership_application', 'assistance_allocation'];
+
     protected $table = 'notification_broadcasts';
 
     protected $fillable = [
         'title', 'message', 'category', 'priority',
-        'target_type', 'target_id', 'attachment_path', 'status',
-        'scheduled_for', 'created_by', 'sent_at',
+        'target_type', 'target_id', 'link_type', 'link_id',
+        'attachment_path', 'status', 'scheduled_for', 'created_by', 'sent_at',
     ];
 
     protected function casts(): array
@@ -73,6 +85,58 @@ class NotificationBroadcast extends Model
     public function notifications()
     {
         return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Where clicking this notification should take a recipient of $forRole,
+     * or null when there is nothing to open (no link recorded, or that role
+     * has no page for this kind of link - a farmer has no membership
+     * application review page, for instance).
+     *
+     * route() is given a bare id rather than the model itself on purpose:
+     * every one of these routes resolves its parameter through implicit
+     * route-model binding anyway, and building the URL from just the id
+     * means this never has to load the record (which may since have been
+     * archived or deleted - the bell must still render even then, see the
+     * migration's docblock) just to link to it.
+     */
+    public function linkUrl(string $forRole): ?string
+    {
+        if (! $this->link_type || ! $this->link_id) {
+            return null;
+        }
+
+        try {
+            return match ($this->link_type) {
+                'damage_report' => match ($forRole) {
+                    'farmer'      => route('farmer.reports.show', $this->link_id),
+                    'technician'  => route('technician.reports.show', $this->link_id),
+                    'mao'         => route('mao.damage-reports.show', $this->link_id),
+                    // No per-report page on the association side - the
+                    // monitoring list is the closest thing it has.
+                    'association' => route('association.reports.index'),
+                    default       => null,
+                },
+                'membership_application' => match ($forRole) {
+                    // Only MAO reviews applications - nobody else has this page.
+                    'mao' => route('mao.membership-applications.show', $this->link_id),
+                    default => null,
+                },
+                'assistance_allocation' => match ($forRole) {
+                    'mao'         => route('mao.assistance-allocations.show', $this->link_id),
+                    'association' => route('association.assistance.show', $this->link_id),
+                    // A farmer never opens an allocation directly, only the
+                    // distributions made from it - their own Assistance page.
+                    'farmer'      => route('farmer.assistance.index'),
+                    default       => null,
+                },
+                default => null,
+            };
+        } catch (\Throwable $e) {
+            // A malformed or now-invalid id must never break the bell page
+            // itself - worst case, the notification just isn't clickable.
+            return null;
+        }
     }
 
     /* ------------------------------------------------------------------

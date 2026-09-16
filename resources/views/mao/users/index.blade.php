@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'User Management')
+@section('hideHeading', true)
 
 @php
     $statusBadges = [
@@ -19,25 +20,17 @@
 @endphp
 
 @section('content')
-<div x-data="{ addOpen: false, archiving: null }" class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6 space-y-5">
-
-    @if ($errors->any())
-        <div class="mb-5 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
-            {{ $errors->first() }}
-        </div>
-    @endif
-
-    {{-- Title + Add User. items-end keeps the button on the right on
-         phones too - flex-col makes the cross axis horizontal, and with
-         no alignment class it defaults to stretch (button reads as
-         left-aligned within the full-width row). sm:items-center takes
-         back over once sm:flex-row makes justify-between do the job. --}}
-    <div class="mb-6 flex flex-col items-end gap-4 sm:flex-row sm:items-center sm:justify-between">
+<div x-data="{ addOpen: false, archiving: null }">
+<x-ui.card title="Users">
+    <x-slot:actions>
+        {{-- Kept as its own relative/absolute dropdown rather than the
+             card's normal single-button actions slot, since this one opens
+             a small menu (Technician / Association Officer) instead of
+             going straight to a route. --}}
         <div class="relative">
-            <button type="button" @click="addOpen = ! addOpen"
-                    class="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">
+            <x-ui.button @click="addOpen = ! addOpen">
                 <span class="text-base leading-none">+</span> Add User
-            </button>
+            </x-ui.button>
 
             <div x-show="addOpen" x-cloak @click.outside="addOpen = false"
                  class="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-border bg-card shadow-lg">
@@ -56,32 +49,28 @@
                 </p>
             </div>
         </div>
-    </div>
+    </x-slot:actions>
 
-    {{-- Filters --}}
-    <form method="GET" class="mb-6 flex flex-wrap items-center justify-end gap-3">
-        <select name="role"
-                class="rounded-lg border border-input px-3 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-            <option value="">All roles</option>
-            @foreach ($roleLabels as $value => $label)
-                <option value="{{ $value }}" @selected(request('role') === $value)>{{ $label }}</option>
-            @endforeach
-        </select>
+    @if ($errors->any())
+        <div class="mb-5 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
+            {{ $errors->first() }}
+        </div>
+    @endif
 
-        <select name="status"
-                class="rounded-lg border border-input px-3 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-            <option value="">All statuses</option>
-            @foreach (['active', 'pending', 'inactive', 'rejected'] as $value)
-                <option value="{{ $value }}" @selected(request('status') === $value)>{{ ucfirst($value) }}</option>
-            @endforeach
-        </select>
+    {{-- Filters. Stacked and full-width on a phone, one row from sm up.
+         No Search button: the text field submits on Enter and the two
+         selects submit as soon as a choice is made, the same way every
+         other filter bar in the system now works. --}}
+    <form method="GET" class="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <x-ui.select name="role" placeholder="All roles" onchange="this.form.submit()"
+                     :options="$roleLabels" :selected="request('role')" class="sm:w-48" />
 
-        <input type="text" name="search" value="{{ request('search') }}" placeholder="Search..."
-               class="w-56 rounded-lg border-2 border-primary px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+        <x-ui.select name="status" placeholder="All statuses" onchange="this.form.submit()"
+                     :options="collect(['active', 'pending', 'inactive', 'rejected'])->mapWithKeys(fn ($v) => [$v => ucfirst($v)])"
+                     :selected="request('status')" class="sm:w-48" />
 
-        <button class="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#0a2f15]">
-            Search
-        </button>
+        <x-ui.input type="text" name="search" value="{{ request('search') }}" placeholder="Search name or email"
+                    class="sm:min-w-[14rem] sm:flex-1" />
 
         @if (request()->hasAny(['search', 'role', 'status']))
             <a href="{{ route('mao.users.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
@@ -161,6 +150,7 @@
     </div>
 
     <div class="mt-6 border-t border-border pt-5">{{ $users->links() }}</div>
+</x-ui.card>
 
     {{-- Archive / restore confirmation --}}
     <div x-show="archiving" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">

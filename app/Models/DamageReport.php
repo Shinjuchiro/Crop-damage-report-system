@@ -2,10 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Archivable;
+use App\Models\Concerns\SoftDeletable;
 use Illuminate\Database\Eloquent\Model;
 
 class DamageReport extends Model
 {
+    /**
+     * Sept 2026: joined the Archive page as its own tab (migration
+     * 2024_01_16_000001). Deliberately independent of the STATUSES workflow
+     * above - the developer asked that Archive be available "any report, any
+     * status", so a report can be taken off the active monitoring list at
+     * any point in its pipeline without touching its status/decision at all.
+     */
+    use Archivable, SoftDeletable;
+
     /**
      * The statuses from proposal section 38, in the order they happen.
      *
@@ -75,6 +86,8 @@ class DamageReport extends Model
             // Set once, when the MAO hands the report to a technician.
             // The technician dashboard counts today's work off this.
             'assigned_at' => 'datetime',
+            'archived_at' => 'datetime',
+            'deleted_at'  => 'datetime',
         ];
     }
 

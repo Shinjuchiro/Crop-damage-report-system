@@ -16,7 +16,8 @@ class Association extends Model
 
     protected function casts(): array
     {
-        return ['deleted_at' => 'datetime'];
+        // archived_at cast added Sept 2026 - see Crop::casts() for why.
+        return ['archived_at' => 'datetime', 'deleted_at' => 'datetime'];
     }
 
     /** Where the association's office sits. Used to place it on the map. */

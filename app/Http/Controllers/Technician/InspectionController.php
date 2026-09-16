@@ -7,11 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\DamageReport;
 use App\Models\Disaster;
+use App\Models\NotificationBroadcast;
 use App\Models\Validation;
 use App\Models\ValidationPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -247,9 +249,64 @@ class InspectionController extends Controller
             ]);
         });
 
+        $this->notifyInspectionSubmitted($report);
+
         return redirect()
             ->route('technician.reports.show', $report)
             ->with('status', 'Inspection successfully submitted.');
+    }
+
+    /**
+     * Proposal section 66: once a report is verified, both MAO ("validation
+     * completed/needs review" / "verified reports ready for assistance
+     * allocation") and the farmer ("validation results") should be told.
+     * Runs after the transaction above has already committed, and never
+     * throws - a notification failure must never make an otherwise-successful
+     * inspection appear to fail (see the Sept 2026 notification-system rule).
+     *
+     * Both are 'normal' priority: a completed inspection is routine, not
+     * urgent (section 68). link_type/link_id let each bell open this exact
+     * report (NotificationBroadcast::linkUrl()).
+     */
+    private function notifyInspectionSubmitted(DamageReport $report): void
+    {
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'Report Verified',
+                'message'     => $report->reference . ' has been inspected and verified. It is now ready for review and possible assistance allocation.',
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'all_mao',
+                'link_type'   => 'damage_report',
+                'link_id'     => $report->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify MAO of verified report ' . $report->id . ': ' . $e->getMessage());
+        }
+
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'Your Report Was Verified',
+                'message'     => 'Your damage report ' . $report->reference . ' has been inspected by a technician '
+                    . 'and is now with the Municipal Agriculture Office for review.',
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'specific_farmer',
+                'target_id'   => $report->farmer_id,
+                'link_type'   => 'damage_report',
+                'link_id'     => $report->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify farmer of verified report ' . $report->id . ': ' . $e->getMessage());
+        }
     }
 
     /* ==================================================================

@@ -9,9 +9,11 @@ use App\Models\Crop;
 use App\Models\DamageReport;
 use App\Models\Disaster;
 use App\Models\Farmer;
+use App\Models\NotificationBroadcast;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -179,9 +181,82 @@ class DamageReportController extends Controller
             return $report;
         });
 
+        $this->notifyMaoOfNewReport($report);
+        $this->notifyAssociationOfNewReport($report);
+
         return redirect()
             ->route('farmer.reports.show', $report)
             ->with('status', 'Damage report submitted successfully. Naisumite na po ang inyong ulat.');
+    }
+
+    /**
+     * Proposal section 66: MAO should be told about a "new/unprocessed
+     * damage report" - this was previously missing entirely, the same gap
+     * RegisterController::notifyMaoOfNewRegistration() closed for new farmer
+     * registrations. Runs after the transaction above has already committed,
+     * and never throws - a notification failure must never make a farmer's
+     * report appear to fail (see the Sept 2026 notification-system rule).
+     *
+     * 'normal' priority: a new report is routine, not urgent (section 68
+     * reserves SMS for urgent/critical matters). link_type/link_id let MAO's
+     * bell open this exact report (NotificationBroadcast::linkUrl()).
+     */
+    private function notifyMaoOfNewReport(DamageReport $report): void
+    {
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'New Damage Report',
+                'message'     => $this->farmer()->full_name . ' submitted damage report '
+                    . $report->reference . ' and is waiting to be assigned to a technician.',
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'all_mao',
+                'link_type'   => 'damage_report',
+                'link_id'     => $report->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify MAO of new damage report ' . $report->id . ': ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Proposal section 66: the association should be told about "member
+     * damage reports" - purely informational, no action expected of them
+     * (proposal Role 3, they only monitor). Skipped entirely for a farmer who
+     * registered without an association. 'normal' priority: routine, not
+     * urgent (section 68).
+     */
+    private function notifyAssociationOfNewReport(DamageReport $report): void
+    {
+        $farmer = $this->farmer();
+
+        if (! $farmer->association_id) {
+            return;
+        }
+
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'       => 'Member Damage Report Submitted',
+                'message'     => $farmer->full_name . ' submitted damage report ' . $report->reference . '.',
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'specific_association',
+                'target_id'   => $farmer->association_id,
+                'link_type'   => 'damage_report',
+                'link_id'     => $report->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify association ' . $farmer->association_id
+                . ' of new report ' . $report->id . ': ' . $e->getMessage());
+        }
     }
 
     /**

@@ -1,6 +1,32 @@
 @php
     // The farmer menu. Short on purpose: a farmer has four things to do here,
     // and burying them under a long list helps nobody.
+
+    // Sept 2026 notification-system rule: sidebar badges show PENDING WORK
+    // on the actual records, never a count of unread bell notifications -
+    // that distinction matters because a farmer could read every bell
+    // notification about a report and the badge should still show while the
+    // report itself is sitting in a state that needs their attention.
+    $farmerId = \App\Models\Farmer::where('user_id', auth()->id())->value('id');
+
+    // A status the farmer hasn't necessarily "seen" play out yet: verified/
+    // flagged/approved/rejected are all the office or the technician having
+    // just moved the report somewhere new. Pending/assigned/under_verification
+    // are just the normal wait and are not badged.
+    $reportsNeedingAttention = $farmerId
+        ? \App\Models\DamageReport::where('farmer_id', $farmerId)
+            ->whereIn('status', ['verified', 'flagged', 'approved', 'rejected'])
+            ->count()
+        : 0;
+
+    // Assistance the association has recorded giving out, that this farmer
+    // hasn't yet confirmed receiving (see Farmer\AssistanceController).
+    $assistanceAwaitingConfirmation = $farmerId
+        ? \App\Models\AssistanceDistribution::where('farmer_id', $farmerId)
+            ->where('receipt_status', 'pending_confirmation')
+            ->count()
+        : 0;
+
     $items = [
         [
             'label'   => 'Dashboard',
@@ -31,18 +57,23 @@
             'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
         ],
         [
-            'label'   => 'My Reports',
-            'filipino'=> 'Aking mga Ulat',
-            'route'   => 'farmer.reports.index',
-            'pattern' => 'farmer.reports.index',
-            'icon'    => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+            'label'       => 'My Reports',
+            'filipino'    => 'Aking mga Ulat',
+            'route'       => 'farmer.reports.index',
+            'pattern'     => 'farmer.reports.index',
+            'icon'        => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+            'badge'       => $reportsNeedingAttention,
+            'badge_label' => 'with a status update',
         ],
         [
-            'label'   => 'Assistance',
-            'filipino'=> 'Tulong',
-            'route'   => 'farmer.assistance.index',
-            'pattern' => 'farmer.assistance.*',
-            'icon'    => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
+            'label'       => 'Assistance',
+            'filipino'    => 'Tulong',
+            'route'       => 'farmer.assistance.index',
+            'pattern'     => 'farmer.assistance.*',
+            'icon'        => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
+            'badge'       => $assistanceAwaitingConfirmation,
+            'badge_noun'  => 'item',
+            'badge_label' => 'awaiting your confirmation',
         ],
         [
             'label'   => 'Need Help?',
@@ -72,17 +103,27 @@
 
     <{{ $item['route'] ? 'a' : 'span' }}
         @if ($item['route']) href="{{ route($item['route']) }}" @else title="Coming in a later build step" @endif
-        class="{{ $classes }}">
+        class="{{ $classes }} justify-between">
 
-        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="{{ $item['icon'] }}"/>
-        </svg>
+        <span class="flex min-w-0 items-center gap-3">
+            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="{{ $item['icon'] }}"/>
+            </svg>
 
-        <span class="min-w-0 flex-1 leading-tight">
-            <span class="block truncate">{{ $item['label'] }}</span>
-            {{-- The Filipino line is the one most farmers will actually read --}}
-            <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
+            <span class="min-w-0 flex-1 leading-tight">
+                <span class="block truncate">{{ $item['label'] }}</span>
+                {{-- The Filipino line is the one most farmers will actually read --}}
+                <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
+            </span>
         </span>
+
+        @if (! empty($item['badge']))
+            <span class="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full
+                         bg-destructive px-1.5 text-[11px] font-bold leading-none text-destructive-foreground"
+                  title="{{ $item['badge'] }} {{ $item['badge_noun'] ?? 'report' }}{{ $item['badge'] === 1 ? '' : 's' }} {{ $item['badge_label'] ?? 'needs attention' }}">
+                {{ $item['badge'] > 99 ? '99+' : $item['badge'] }}
+            </span>
+        @endif
     </{{ $item['route'] ? 'a' : 'span' }}>
 @endforeach

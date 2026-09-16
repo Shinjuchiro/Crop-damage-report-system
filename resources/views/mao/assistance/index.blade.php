@@ -1,8 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Assistance Catalogue')
-@section('heading', 'Assistance Catalogue')
-@section('subheading', 'The pools of cash and in-kind assistance the MAO can allocate to associations.')
+@section('hideHeading', true)
 
 @php
     $statusBadges = [
@@ -12,21 +11,17 @@
     ];
 @endphp
 
-@section('header-actions')
-    <div class="flex items-center gap-3">
-        <a href="{{ route('mao.archive.index', ['type' => 'assistance']) }}"
-           class="text-sm text-muted-foreground hover:text-foreground">
-            View archived
-        </a>
-        <a href="{{ route('mao.assistance.create') }}"
-           class="inline-block rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">
-            + Add Assistance
-        </a>
-    </div>
-@endsection
-
 @section('content')
-<div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6 space-y-5">
+<x-ui.card title="Assistance Catalogue" description="The pools of cash and in-kind assistance the MAO can allocate to associations.">
+    <x-slot:actions>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('mao.archive.index', ['type' => 'assistance']) }}"
+               class="text-sm text-muted-foreground hover:text-foreground">
+                View archived
+            </a>
+            <x-ui.button :href="route('mao.assistance.create')">+ Add Assistance</x-ui.button>
+        </div>
+    </x-slot:actions>
 
     @if ($errors->any())
         <div class="mb-5 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
@@ -34,36 +29,23 @@
         </div>
     @endif
 
-    {{-- Filters --}}
-    <form method="GET" class="mb-6 flex flex-wrap items-center gap-3">
-        <select name="type"
-                class="min-w-40 rounded-lg border-2 border-primary px-4 py-2.5 text-sm font-medium text-foreground focus:outline-none">
-            <option value="">All Types</option>
-            @foreach ($types as $value)
-                <option value="{{ $value }}" @selected(request('type') === $value)>
-                    {{ $value === 'cash' ? 'Cash' : 'In-Kind' }}
-                </option>
-            @endforeach
-        </select>
+    {{-- Filters. No visible Search button - Enter in the field, or
+         choosing a dropdown option, submits the form. --}}
+    <form method="GET" class="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <x-ui.select name="type" placeholder="All Types" onchange="this.form.submit()"
+                     :options="collect($types)->mapWithKeys(fn ($v) => [$v => $v === 'cash' ? 'Cash' : 'In-Kind'])"
+                     :selected="request('type')" class="sm:w-44" />
 
-        <select name="status"
-                class="min-w-40 rounded-lg border-2 border-primary px-4 py-2.5 text-sm font-medium text-foreground focus:outline-none">
-            <option value="">All Status</option>
-            @foreach ($statuses as $value)
-                <option value="{{ $value }}" @selected(request('status') === $value)>{{ ucfirst($value) }}</option>
-            @endforeach
-        </select>
+        <x-ui.select name="status" placeholder="All Status" onchange="this.form.submit()"
+                     :options="collect($statuses)->mapWithKeys(fn ($v) => [$v => ucfirst($v)])"
+                     :selected="request('status')" class="sm:w-44" />
 
-        <div class="ml-auto flex items-center gap-3">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search assistance..."
-                   class="w-56 rounded-lg border-2 border-primary px-3 py-2.5 text-sm focus:outline-none">
-            <button class="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#0a2f15]">
-                Search
-            </button>
-            @if (request()->hasAny(['search', 'type', 'status']))
-                <a href="{{ route('mao.assistance.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
-            @endif
-        </div>
+        <x-ui.input type="text" name="search" value="{{ request('search') }}" placeholder="Search assistance"
+                    class="sm:min-w-[14rem] sm:flex-1" />
+
+        @if (request()->hasAny(['search', 'type', 'status']))
+            <a href="{{ route('mao.assistance.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
+        @endif
     </form>
 
     {{-- Table --}}
@@ -173,5 +155,5 @@
     </div>
 
     <div class="mt-6 border-t border-border pt-5">{{ $assistances->links() }}</div>
-</div>
+</x-ui.card>
 @endsection

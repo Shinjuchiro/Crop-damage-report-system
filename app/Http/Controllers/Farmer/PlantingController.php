@@ -128,6 +128,54 @@ class PlantingController extends Controller
         ]);
     }
 
+    /**
+     * Correct a mistake in a record the farmer already submitted - wrong
+     * crop, date or area. Sept 2026: farmers can fix their own records this
+     * way, but (unlike MAO's monitoring page) cannot archive them - only the
+     * office retires a record from the active list.
+     */
+    public function edit(CropPlantingRecord $planting)
+    {
+        $this->authorizeOwnership($planting);
+
+        return view('farmer.planting.edit', [
+            'record' => $planting->load('crops.crop'),
+            'farmer' => $this->farmer(),
+            'crops'  => Crop::active()->orderBy('name')->get(),
+        ]);
+    }
+
+    public function update(Request $request, CropPlantingRecord $planting)
+    {
+        $this->authorizeOwnership($planting);
+
+        $data = $this->validated($request);
+
+        DB::transaction(function () use ($planting, $data) {
+            $planting->crops()->delete();
+
+            foreach ($data['crops'] as $crop) {
+                $planting->crops()->create([
+                    'crop_id'       => $crop['crop_id'],
+                    'crop_specify'  => $crop['crop_specify'] ?? null,
+                    'date_planted'  => $crop['date_planted'],
+                    'area_hectares' => $crop['area_hectares'],
+                ]);
+            }
+
+            AuditLog::create([
+                'user_id'      => Auth::id(),
+                'action'       => 'Corrected own crop planting record #' . $planting->id,
+                'target_table' => 'crop_planting_records',
+                'target_id'    => $planting->id,
+                'created_at'   => now(),
+            ]);
+        });
+
+        return redirect()->route('farmer.planting.show', $planting)
+            ->with('status', 'Crop planting activity updated successfully.');
+    }
+
     /* ==================================================================
      | Helper methods
      ================================================================== */
