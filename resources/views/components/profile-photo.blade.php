@@ -39,7 +39,7 @@
                 $dispatch('open-dialog', '{{ $dialogName }}');
             },
          }"
-         @{{ $eventName }}.window="$refs.form.submit()"
+         x-on:{{ $eventName }}.window="$refs.form.submit()"
          class="relative inline-flex shrink-0">
 
         <div class="{{ $dims }} flex items-center justify-center overflow-hidden rounded-full bg-accent

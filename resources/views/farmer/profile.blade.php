@@ -7,6 +7,10 @@
 
 @section('content')
 
+@if ($errors->any())
+    <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
+@endif
+
 {{--
     Laid out to match the web mockup.
 

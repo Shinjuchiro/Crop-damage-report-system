@@ -7,6 +7,10 @@
 @section('content')
 <div class="max-w-2xl space-y-4">
 
+    @if ($errors->any())
+        <x-ui.alert variant="destructive">{{ $errors->first() }}</x-ui.alert>
+    @endif
+
     <x-ui.card>
         <div class="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
             <x-profile-photo :user="$user"
