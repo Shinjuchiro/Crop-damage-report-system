@@ -26,6 +26,7 @@ php artisan db:seed --force
 # rest of this script.
 php artisan storage:link || true
 
+php artisan config:clear
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
