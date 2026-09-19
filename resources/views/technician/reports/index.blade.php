@@ -104,6 +104,19 @@
                                     <x-ui.badge variant="primary">{{ $crop->crop_specify ?: $crop->crop?->name }}</x-ui.badge>
                                 @endforeach
                             </div>
+
+                            {{-- Match signal only (section 62) - never eligible/ineligible --}}
+                            <p class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                                @if ($report->hasPlantingMatch)
+                                    <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
+                                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                        <path d="M20 6L9 17l-5-5"/>
+                                    </svg>
+                                    Matching planting record on file
+                                @else
+                                    No matching planting record
+                                @endif
+                            </p>
                         </a>
                     </li>
                 @endforeach
@@ -118,6 +131,7 @@
                             <th>Farmer</th>
                             <th>Barangay</th>
                             <th>Crop</th>
+                            <th>Planting Record</th>
                             <th>Severity</th>
                             <th>Submitted</th>
                             <th>Status</th>
@@ -152,6 +166,22 @@
                                         <x-ui.badge variant="primary">{{ $crop->crop_specify ?: $crop->crop?->name }}</x-ui.badge>
                                     @endforeach
                                 </div>
+                            </td>
+
+                            {{-- Match signal only (section 62) - never an eligible/ineligible
+                                 label. A "no match" report is still fully inspectable. --}}
+                            <td class="whitespace-nowrap text-xs text-muted-foreground">
+                                @if ($report->hasPlantingMatch)
+                                    <span class="inline-flex items-center gap-1">
+                                        <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                            <path d="M20 6L9 17l-5-5"/>
+                                        </svg>
+                                        Matching record on file
+                                    </span>
+                                @else
+                                    No matching record
+                                @endif
                             </td>
 
                             <td class="whitespace-nowrap">

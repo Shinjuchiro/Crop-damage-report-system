@@ -20,19 +20,19 @@
 
     <x-ui.card>
         <form method="GET" action="{{ route('association.members.index') }}"
-              class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+              class="flex flex-wrap items-end justify-end gap-3">
 
-            <div class="space-y-1.5 lg:col-span-2">
+            <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="q">Search</label>
                 <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
                        placeholder="First or last name"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-52">
             </div>
 
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="status">Status</label>
                 <select id="status" name="status"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-36">
                     <option value="">All</option>
                     <option value="active" @selected(($filters['status'] ?? '') === 'active')>Active</option>
                     <option value="inactive" @selected(($filters['status'] ?? '') === 'inactive')>Inactive</option>
@@ -42,7 +42,7 @@
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="barangay">Barangay</label>
                 <select id="barangay" name="barangay"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-44">
                     <option value="">All barangays</option>
                     @foreach ($barangays as $option)
                         <option value="{{ $option->id }}"
@@ -53,10 +53,7 @@
                 </select>
             </div>
 
-            <div class="flex gap-2">
-                <x-ui.button type="submit" class="flex-1 sm:flex-none">Apply</x-ui.button>
-                <x-ui.button variant="outline" :href="route('association.members.index')">Clear</x-ui.button>
-            </div>
+            <x-ui.button type="submit">Apply</x-ui.button>
         </form>
 
         {{-- A one-tap shortcut for the question officers actually ask most --}}

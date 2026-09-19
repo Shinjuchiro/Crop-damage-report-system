@@ -20,19 +20,19 @@
 
     <x-ui.card>
         <form method="GET" action="{{ route('association.reports.index') }}"
-              class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+              class="flex flex-wrap items-end justify-end gap-3">
 
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="q">Search member</label>
                 <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
                        placeholder="First or last name"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-52">
             </div>
 
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="status">Status</label>
                 <select id="status" name="status"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-40">
                     <option value="">All statuses</option>
                     @foreach ($statuses as $key => $label)
                         <option value="{{ $key }}" @selected(($filters['status'] ?? '') === $key)>{{ $label }}</option>
@@ -43,7 +43,7 @@
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="cause">Cause</label>
                 <select id="cause" name="cause"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-40">
                     <option value="">All causes</option>
                     @foreach ($causes as $key => $label)
                         <option value="{{ $key }}" @selected(($filters['cause'] ?? '') === $key)>{{ $label }}</option>
@@ -51,10 +51,7 @@
                 </select>
             </div>
 
-            <div class="flex gap-2">
-                <x-ui.button type="submit" class="flex-1 sm:flex-none">Apply</x-ui.button>
-                <x-ui.button variant="outline" :href="route('association.reports.index')">Clear</x-ui.button>
-            </div>
+            <x-ui.button type="submit">Apply</x-ui.button>
         </form>
     </x-ui.card>
 
@@ -109,6 +106,7 @@
                             <th>Crops</th>
                             <th>Damaged Area</th>
                             <th>Farmer / Technician</th>
+                            <th>Verifying Technician</th>
                             <th>Status</th>
                         </tr>
                     </x-slot:head>
@@ -170,13 +168,12 @@
                                 </span>
                             </td>
 
+                            <td class="whitespace-nowrap">
+                                {{ $report->assignedTechnician?->display_name ?? '-' }}
+                            </td>
+
                             <td>
                                 <x-ui.status :value="$report->status" />
-                                @if ($report->assignedTechnician)
-                                    <span class="mt-1 block text-xs text-muted-foreground">
-                                        {{ $report->assignedTechnician->display_name }}
-                                    </span>
-                                @endif
                             </td>
                         </tr>
                     @endforeach

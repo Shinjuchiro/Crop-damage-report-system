@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Technician;
 
 use App\Http\Controllers\Controller;
 use App\Models\Barangay;
+use App\Models\CropPlantingRecordCrop;
 use App\Models\DamageReport;
 use App\Models\Validation;
 use Illuminate\Http\Request;
@@ -39,6 +40,13 @@ class AssignmentController extends Controller
             ->latest()
             ->paginate(15)
             ->withQueryString();
+
+        // Section 62's cross-check: a match signal only, never an eligible/
+        // ineligible label - a report with no matching planting record is
+        // still fully available to inspect.
+        $reports->getCollection()->each(
+            fn ($report) => $report->hasPlantingMatch = $this->hasMatchingPlantingRecord($report)
+        );
 
         return view('technician.reports.index', [
             'reports'   => $reports,
@@ -144,6 +152,26 @@ class AssignmentController extends Controller
                         ->orWhere('id', (int) preg_replace('/\D/', '', $term));
                 });
             });
+    }
+
+    /**
+     * Section 62's cross-check: does the farmer have their own crop
+     * planting record for the same crop, planted before this damage report
+     * was filed? Same rule as MAO's Validation Monitoring comparison (see
+     * ValidationMonitorController::plantingComparison) - same farmer, same
+     * crop, planted before the damage date. Checked across every crop on
+     * the report; one match is enough. This is a signal only - a report
+     * with no match still shows up here and is still fully inspectable.
+     */
+    private function hasMatchingPlantingRecord(DamageReport $report): bool
+    {
+        return $report->crops->contains(fn ($reportCrop) => CropPlantingRecordCrop::whereHas(
+                'plantingRecord',
+                fn ($q) => $q->where('farmer_id', $report->farmer_id)->whereNull('archived_at')
+            )
+            ->where('crop_id', $reportCrop->crop_id)
+            ->where('date_planted', '<=', $report->created_at)
+            ->exists());
     }
 
     /**

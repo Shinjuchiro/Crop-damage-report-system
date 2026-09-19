@@ -25,6 +25,7 @@
           @submit.prevent="confirm = true"
           x-data="{
               confirm: false,
+              step: @js($assistance ? 'details' : 'type'),
               name: @js(old('name', $assistance->name ?? '')),
               type: @js(old('type', $assistance->type ?? 'in_kind')),
               description: @js(old('description', $assistance->description ?? '')),
@@ -41,6 +42,48 @@
         @csrf
         @if ($assistance) @method('PUT') @endif
 
+        <input type="hidden" name="type" :value="type">
+
+        {{-- Step 1: choose the assistance type before anything else --}}
+        <div x-show="step === 'type'" x-cloak x-transition.opacity
+             class="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h3 class="mb-1 text-base font-semibold text-foreground">Assistance Type</h3>
+            <p class="mb-5 text-sm text-muted-foreground">
+                Choose the kind of assistance this pool provides. You can change this later.
+            </p>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <button type="button" @click="type = 'in_kind'; step = 'details'"
+                        class="rounded-xl border-2 p-5 text-left transition"
+                        :class="type === 'in_kind' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'">
+                    <span class="mb-1 block text-sm font-bold text-foreground">In-Kind</span>
+                    <span class="block text-xs text-muted-foreground">Seeds, fertilizer, farm tools, or other physical goods.</span>
+                </button>
+                <button type="button" @click="type = 'cash'; step = 'details'"
+                        class="rounded-xl border-2 p-5 text-left transition"
+                        :class="type === 'cash' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'">
+                    <span class="mb-1 block text-sm font-bold text-foreground">Cash</span>
+                    <span class="block text-xs text-muted-foreground">Financial assistance disbursed directly to the recipient.</span>
+                </button>
+            </div>
+
+            <a href="{{ route('mao.assistance.index') }}" class="mt-5 inline-block text-sm text-muted-foreground hover:text-foreground">
+                Cancel
+            </a>
+        </div>
+
+        {{-- Step 2: item details, gated on a type having been chosen --}}
+        <div x-show="step === 'details'" x-cloak x-transition.opacity>
+
+            <div class="mb-5 flex items-center justify-between rounded-lg bg-muted px-4 py-3">
+                <div>
+                    <span class="block text-xs uppercase tracking-wide text-muted-foreground">Assistance Type</span>
+                    <span class="text-sm font-bold text-foreground" x-text="type === 'cash' ? 'Cash' : 'In-Kind'"></span>
+                </div>
+                <button type="button" @click="step = 'type'" class="text-sm font-medium text-primary hover:underline">
+                    Change
+                </button>
+            </div>
+
         <div class="space-y-5 rounded-xl border border-border bg-card p-6 shadow-sm">
 
             <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -48,14 +91,6 @@
                     <label class="{{ $labelClass }}">Assistance Name <span class="text-red-500">*</span></label>
                     <input type="text" name="name" x-model="name" required maxlength="255"
                            placeholder="e.g. Rice Seeds, Financial Assistance" class="{{ $inputClass }}">
-                </div>
-
-                <div>
-                    <label class="{{ $labelClass }}">Type <span class="text-red-500">*</span></label>
-                    <select name="type" x-model="type" required class="{{ $inputClass }}">
-                        <option value="in_kind">In-Kind</option>
-                        <option value="cash">Cash</option>
-                    </select>
                 </div>
 
                 <div>
@@ -118,6 +153,8 @@
                 {{ $assistance ? 'Review Changes' : 'Review & Add Assistance' }}
             </button>
         </div>
+
+        </div>{{-- /step: details --}}
 
         {{-- Review before saving --}}
         <div x-show="confirm" x-cloak x-transition.opacity

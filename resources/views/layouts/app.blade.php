@@ -44,8 +44,10 @@
 
         <div class="mx-4 border-t border-sidebar-border lg:mx-5"></div>
 
-        {{-- Role navigation --}}
-        <nav class="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-3 py-3 text-sm">
+        {{-- Role navigation. flex-col + mt-auto on the trailing "Need Help?"
+             block (see the nav-* partials) is what pins it to the very
+             bottom of the sidebar instead of just after the last menu item. --}}
+        <nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-3 py-3 text-sm">
             @include('layouts.partials.nav-' . auth()->user()->role)
         </nav>
 

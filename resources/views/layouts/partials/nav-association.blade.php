@@ -87,14 +87,10 @@
             'pattern'  => 'association.summaries.*',
             'icon'     => 'M6 20V10M12 20V4M18 20v-6M3.5 20h17',
         ],
-        [
-            'label'    => 'Need Help?',
-            'filipino' => 'Kailangan ng Tulong?',
-            'route'    => 'help',
-            'pattern'  => 'help',
-            'icon'     => 'M12 22a10 10 0 100-20 10 10 0 000 20zM9.5 9.5a2.5 2.5 0 113.2 2.4c-.5.2-.7.6-.7 1.1v.5m0 3h.01',
-        ],
     ];
+
+    // "Need Help?" is rendered on its own below a divider, after the loop,
+    // set apart from the working menu above it - for every role.
 
     $base     = 'flex items-center gap-3 rounded-lg px-3 py-2.5 transition';
     $idle     = $base . ' hover:translate-x-1 hover:bg-sidebar-accent';
@@ -130,3 +126,25 @@
         @endif
     </{{ $item['route'] ? 'a' : 'span' }}>
 @endforeach
+
+{{-- Pinned to the very bottom of the sidebar: the nav element is a flex
+     column (layouts/app.blade.php) and mt-auto here pushes this whole
+     block - divider included - all the way down, not just after the
+     last menu entry. --}}
+<div class="mt-auto">
+    <div class="my-2 border-t border-sidebar-border"></div>
+
+    <a href="{{ route('help') }}" class="{{ request()->routeIs('help') ? $current : $idle }} justify-between">
+        <span class="flex min-w-0 items-center gap-3">
+            <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM9.5 9.5a2.5 2.5 0 113.2 2.4c-.5.2-.7.6-.7 1.1v.5m0 3h.01"/>
+            </svg>
+
+            <span class="min-w-0 flex-1 leading-tight">
+                <span class="block truncate">Need Help?</span>
+                <span class="block truncate text-xs opacity-70">Kailangan ng Tulong?</span>
+            </span>
+        </span>
+    </a>
+</div>

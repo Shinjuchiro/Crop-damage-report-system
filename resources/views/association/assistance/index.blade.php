@@ -31,11 +31,11 @@
     {{-- Status filter --}}
     <x-ui.card>
         <form method="GET" action="{{ route('association.assistance.index') }}"
-              class="flex flex-wrap items-end gap-3">
-            <div class="min-w-48 flex-1 space-y-1.5">
+              class="flex flex-wrap items-end justify-end gap-3">
+            <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="status">Status</label>
-                <select id="status" name="status" onchange="this.form.submit()"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                <select id="status" name="status"
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-48">
                     <option value="">All</option>
                     @foreach (['allocated' => 'Allocated', 'distributed' => 'Partly distributed',
                                'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $key => $label)
@@ -44,7 +44,7 @@
                 </select>
             </div>
 
-            <x-ui.button variant="outline" :href="route('association.assistance.index')">Clear</x-ui.button>
+            <x-ui.button type="submit">Apply</x-ui.button>
         </form>
     </x-ui.card>
 
@@ -58,95 +58,155 @@
         </x-ui.card>
     @else
 
-        {{-- Cards, not a table. Each one carries a progress bar and its own
-             action button, which a table row handles badly on a phone. --}}
-        <div class="stagger grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            @foreach ($allocations as $allocation)
-                @php
-                    $given  = (float) ($allocation->distributed_so_far ?? 0);
-                    $total  = (float) $allocation->allocated_quantity;
-                    $hasQty = $allocation->allocated_quantity !== null;
-                    $left   = $hasQty ? max($total - $given, 0) : null;
-                    $pct    = ($hasQty && $total > 0) ? min(100, round($given / $total * 100)) : 0;
-                    $closed = in_array($allocation->status, ['completed', 'cancelled'], true);
-                @endphp
+        <x-ui.card :padded="false">
 
-                <x-ui.card>
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="truncate text-base font-semibold">
-                                {{ $allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance' }}
-                            </p>
-                            <p class="mt-0.5 text-xs text-muted-foreground">
-                                {{ ucfirst($allocation->assistance?->type ?? 'in kind') }}
-                                @if ($allocation->disaster)
-                                    &middot; for {{ $allocation->disaster->name }}
-                                @endif
-                            </p>
+            {{-- ---------- PHONE ---------- --}}
+            <ul class="divide-y divide-border sm:hidden">
+                @foreach ($allocations as $allocation)
+                    @php
+                        $given  = (float) ($allocation->distributed_so_far ?? 0);
+                        $total  = (float) $allocation->allocated_quantity;
+                        $hasQty = $allocation->allocated_quantity !== null;
+                        $left   = $hasQty ? max($total - $given, 0) : null;
+                        $pct    = ($hasQty && $total > 0) ? min(100, round($given / $total * 100)) : 0;
+                        $closed = in_array($allocation->status, ['completed', 'cancelled'], true);
+                    @endphp
+
+                    <li class="px-4 py-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-semibold">
+                                    {{ $allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance' }}
+                                </p>
+                                <p class="mt-0.5 text-xs text-muted-foreground">
+                                    {{ ucfirst($allocation->assistance?->type ?? 'in kind') }}
+                                    @if ($allocation->disaster)
+                                        &middot; for {{ $allocation->disaster->name }}
+                                    @endif
+                                </p>
+                            </div>
+                            <x-ui.status :value="$allocation->status" />
                         </div>
-                        <x-ui.status :value="$allocation->status" />
-                    </div>
 
-                    @if ($hasQty)
-                        <div class="mt-4">
-                            <div class="flex items-baseline justify-between gap-3 text-sm">
-                                <span>
-                                    <span class="text-xl font-bold">{{ number_format($left, 2) }}</span>
-                                    <span class="text-muted-foreground">left</span>
+                        @if ($hasQty)
+                            <p class="mt-2 text-sm">
+                                <span class="font-semibold">{{ number_format($left, 2) }}</span>
+                                <span class="text-muted-foreground">
+                                    left of {{ number_format($total, 2) }}
                                 </span>
-                                <span class="text-xs text-muted-foreground">
-                                    {{ number_format($given, 2) }} of {{ number_format($total, 2) }} given
-                                </span>
+                            </p>
+                            <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                                <div class="h-full rounded-full bg-primary" style="width: {{ $pct }}%"></div>
                             </div>
-
-                            <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                                <div class="h-full rounded-full bg-primary transition-all"
-                                     style="width: {{ $pct }}%"></div>
-                            </div>
-                        </div>
-                    @else
-                        <p class="mt-4 text-sm text-muted-foreground">
-                            No quantity recorded on this allocation. This is how cash assistance is stored.
-                        </p>
-                    @endif
-
-                    <dl class="mt-4 space-y-1.5 text-xs text-muted-foreground">
-                        <div>
-                            <dt class="inline font-medium">Allocated:</dt>
-                            <dd class="inline">{{ $allocation->allocated_at?->format('M d, Y') ?? '-' }}</dd>
-                        </div>
-                        <div>
-                            <dt class="inline font-medium">Members given:</dt>
-                            <dd class="inline">{{ $allocation->distributions_count }}</dd>
-                        </div>
-                        @if ($allocation->crop)
-                            <div>
-                                <dt class="inline font-medium">For crop:</dt>
-                                <dd class="inline">{{ $allocation->crop->name }}</dd>
-                            </div>
+                        @else
+                            <p class="mt-2 text-xs text-muted-foreground">Not tracked (cash assistance)</p>
                         @endif
-                    </dl>
 
-                    <div class="mt-4 flex gap-2">
-                        <x-ui.button variant="outline" class="flex-1"
-                                     :href="route('association.assistance.show', $allocation)">
-                            View
-                        </x-ui.button>
-
-                        @unless ($closed)
-                            <x-ui.button class="flex-1"
-                                         :href="route('association.assistance.distribute', $allocation)">
-                                Distribute
+                        <div class="mt-3 flex gap-2">
+                            <x-ui.button size="sm" variant="outline" class="flex-1"
+                                         :href="route('association.assistance.show', $allocation)">
+                                View
                             </x-ui.button>
-                        @endunless
-                    </div>
-                </x-ui.card>
-            @endforeach
-        </div>
 
-        @if ($allocations->hasPages())
-            <div>{{ $allocations->links() }}</div>
-        @endif
+                            @unless ($closed)
+                                <x-ui.button size="sm" class="flex-1"
+                                             :href="route('association.assistance.distribute', $allocation)">
+                                    Distribute
+                                </x-ui.button>
+                            @endunless
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+
+            {{-- ---------- TABLET AND UP ---------- --}}
+            <div class="hidden sm:block">
+                <x-ui.table>
+                    <x-slot:head>
+                        <tr>
+                            <th>Assistance</th>
+                            <th>For</th>
+                            <th>Progress</th>
+                            <th>Allocated</th>
+                            <th>Members Given</th>
+                            <th>Status</th>
+                            <th class="text-right">Action</th>
+                        </tr>
+                    </x-slot:head>
+
+                    @foreach ($allocations as $allocation)
+                        @php
+                            $given  = (float) ($allocation->distributed_so_far ?? 0);
+                            $total  = (float) $allocation->allocated_quantity;
+                            $hasQty = $allocation->allocated_quantity !== null;
+                            $left   = $hasQty ? max($total - $given, 0) : null;
+                            $pct    = ($hasQty && $total > 0) ? min(100, round($given / $total * 100)) : 0;
+                            $closed = in_array($allocation->status, ['completed', 'cancelled'], true);
+                        @endphp
+
+                        <tr>
+                            <td>
+                                <span class="font-medium">
+                                    {{ $allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance' }}
+                                </span>
+                                <span class="block text-xs text-muted-foreground">
+                                    {{ ucfirst($allocation->assistance?->type ?? 'in kind') }}
+                                </span>
+                            </td>
+
+                            <td class="text-muted-foreground">
+                                {{ $allocation->disaster?->name ?? 'Any disaster' }}
+                                @if ($allocation->crop)
+                                    <span class="block text-xs text-muted-foreground">{{ $allocation->crop->name }}</span>
+                                @endif
+                            </td>
+
+                            <td class="whitespace-nowrap">
+                                @if ($hasQty)
+                                    <span class="font-semibold">{{ number_format($left, 2) }}</span>
+                                    <span class="text-xs text-muted-foreground">
+                                        left of {{ number_format($total, 2) }}
+                                    </span>
+                                    <div class="mt-1 h-1.5 w-32 overflow-hidden rounded-full bg-secondary">
+                                        <div class="h-full rounded-full bg-primary" style="width: {{ $pct }}%"></div>
+                                    </div>
+                                @else
+                                    <span class="text-muted-foreground">Not tracked</span>
+                                @endif
+                            </td>
+
+                            <td class="whitespace-nowrap text-muted-foreground">
+                                {{ $allocation->allocated_at?->format('M d, Y') ?? '-' }}
+                            </td>
+
+                            <td class="text-muted-foreground">{{ $allocation->distributions_count }}</td>
+
+                            <td><x-ui.status :value="$allocation->status" /></td>
+
+                            <td class="whitespace-nowrap text-right">
+                                <div class="flex justify-end gap-2">
+                                    <x-ui.button size="sm" variant="outline"
+                                                 :href="route('association.assistance.show', $allocation)">
+                                        View
+                                    </x-ui.button>
+
+                                    @unless ($closed)
+                                        <x-ui.button size="sm"
+                                                     :href="route('association.assistance.distribute', $allocation)">
+                                            Distribute
+                                        </x-ui.button>
+                                    @endunless
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-ui.table>
+            </div>
+
+            @if ($allocations->hasPages())
+                <x-slot:footer>{{ $allocations->links() }}</x-slot:footer>
+            @endif
+        </x-ui.card>
     @endif
 </div>
 @endsection
