@@ -87,7 +87,7 @@
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
                                     <td class="px-3 py-4 text-foreground">{{ $report->reference }}</td>
                                     <td class="px-3 py-4">
-                                        <p class="font-medium text-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</p>
+                                        <p class="font-bold text-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</p>
                                         <p class="text-xs text-muted-foreground">{{ $report->farmer?->barangay?->name }}</p>
                                     </td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $report->farmer?->association?->name ?? '-' }}</td>
@@ -164,7 +164,7 @@
                     <div class="mb-4 flex items-start justify-between gap-3">
                         <div>
                             <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ $damageReport->reference }}</p>
-                            <h3 class="mt-0.5 text-lg font-semibold text-foreground">
+                            <h3 class="mt-0.5 text-lg font-bold text-foreground">
                                 <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
                             </h3>
                             <p class="text-sm text-muted-foreground">{{ $farmer->association?->name ?? '-' }} &middot; {{ $farmer->barangay?->name ?? '-' }}</p>
@@ -326,7 +326,7 @@
                         </div>
                     @elseif ($damageReport->assignedTechnician)
                         <div class="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">
-                            Assigned to <span class="font-medium text-foreground">{{ $damageReport->assignedTechnician->full_name ?: $damageReport->assignedTechnician->username }}</span>.
+                            Assigned to <span class="font-bold text-foreground">{{ $damageReport->assignedTechnician->full_name ?: $damageReport->assignedTechnician->username }}</span>.
                             Inspection progress and results are in Validation Monitoring once complete.
                         </div>
                     @endif

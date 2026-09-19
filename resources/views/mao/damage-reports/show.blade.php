@@ -79,7 +79,7 @@
         @if ($damageReport->assignedTechnician)
             <p class="text-sm text-muted-foreground">
                 Technician
-                <span class="font-medium text-foreground">
+                <span class="font-bold text-foreground">
                     {{ $damageReport->assignedTechnician->full_name ?: $damageReport->assignedTechnician->username }}
                 </span>
             </p>
@@ -88,7 +88,7 @@
         @if ($damageReport->approved_at)
             <p class="text-sm text-muted-foreground">
                 Approved <span class="font-medium text-foreground">{{ $damageReport->approved_at->format('M d, Y') }}</span>
-                by {{ $damageReport->approvedBy?->full_name ?: $damageReport->approvedBy?->username }}
+                by <span class="font-bold text-foreground">{{ $damageReport->approvedBy?->full_name ?: $damageReport->approvedBy?->username }}</span>
             </p>
         @endif
     </div>
@@ -100,13 +100,13 @@
             <dl class="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
                     <dt class="text-muted-foreground">Name</dt>
-                    <dd class="font-medium text-foreground">
+                    <dd class="font-bold text-foreground">
                         <a href="{{ route('mao.farmers.show', $farmer) }}" class="text-green-800 hover:underline">
                             {{ $farmer->full_name }}
                         </a>
                     </dd>
                 </div>
-                <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $farmer->association?->name ?? '-' }}</dd></div>
+                <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $farmer->association?->name ?? '-' }}</dd></div>
                 <div><dt class="text-muted-foreground">Barangay</dt><dd class="font-medium text-foreground">{{ $farmer->barangay?->name ?? '-' }}</dd></div>
                 <div><dt class="text-muted-foreground">Contact Number</dt><dd class="font-medium text-foreground">{{ $farmer->user?->phone_number ?? '-' }}</dd></div>
             </dl>
@@ -363,7 +363,7 @@
             <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <dt class="text-muted-foreground">Technician</dt>
-                    <dd class="font-medium text-foreground">
+                    <dd class="font-bold text-foreground">
                         {{ $validation->technician?->full_name ?: $validation->technician?->username ?? '-' }}
                     </dd>
                 </div>

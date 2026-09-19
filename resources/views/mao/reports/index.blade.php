@@ -46,7 +46,7 @@
             @forelse ($history as $entry)
                 <tr>
                     <td class="font-medium text-foreground">{{ $entry->period_label }}</td>
-                    <td>{{ $entry->generatedBy?->display_name ?? 'Unknown' }}</td>
+                    <td class="font-bold text-foreground">{{ $entry->generatedBy?->display_name ?? 'Unknown' }}</td>
                     <td>{{ $entry->generated_at->format('M j, Y g:i A') }}</td>
                     <td class="text-right">
                         <x-ui.button size="sm" variant="outline"

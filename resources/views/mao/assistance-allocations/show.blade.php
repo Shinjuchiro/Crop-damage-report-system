@@ -45,7 +45,7 @@
 
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div><dt class="text-muted-foreground">Assistance</dt><dd class="font-medium text-foreground">{{ $allocation->assistance?->name ?? '-' }}</dd></div>
-            <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $allocation->association?->name ?? '-' }}</dd></div>
+            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $allocation->association?->name ?? '-' }}</dd></div>
             <div><dt class="text-muted-foreground">Disaster Event</dt><dd class="font-medium text-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</dd></div>
             <div><dt class="text-muted-foreground">Crop</dt><dd class="font-medium text-foreground">{{ $allocation->crop?->name ?? 'Not crop specific' }}</dd></div>
             <div>
@@ -69,7 +69,7 @@
             <div><dt class="text-muted-foreground">Allocated On</dt><dd class="font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
             <div>
                 <dt class="text-muted-foreground">Allocated By</dt>
-                <dd class="font-medium text-foreground">
+                <dd class="font-bold text-foreground">
                     {{ $allocation->allocatedBy?->full_name ?: $allocation->allocatedBy?->username ?? '-' }}
                 </dd>
             </div>
@@ -113,7 +113,7 @@
                     <tbody class="divide-y divide-border">
                         @foreach ($allocation->beneficiaries as $beneficiary)
                             <tr class="hover:bg-muted/60">
-                                <td class="px-6 py-3 font-medium text-foreground">{{ $beneficiary->farmer?->full_name ?? 'Unknown' }}</td>
+                                <td class="px-6 py-3 font-bold text-foreground">{{ $beneficiary->farmer?->full_name ?? 'Unknown' }}</td>
                                 <td class="px-6 py-3 text-muted-foreground">{{ $beneficiary->farmer?->barangay?->name ?? '-' }}</td>
                                 <td class="px-6 py-3 text-muted-foreground">
                                     @if ($beneficiary->damageReport)
@@ -193,7 +193,7 @@
                                 <td class="px-6 py-3 text-foreground">
                                     DIST-{{ str_pad($distribution->id, 3, '0', STR_PAD_LEFT) }}
                                 </td>
-                                <td class="px-6 py-3 font-medium text-foreground">
+                                <td class="px-6 py-3 font-bold text-foreground">
                                     {{ $distribution->farmer?->full_name ?? 'Unknown' }}
                                 </td>
                                 <td class="px-6 py-3 text-muted-foreground">

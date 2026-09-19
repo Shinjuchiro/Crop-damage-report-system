@@ -56,7 +56,7 @@
                         @endphp
                         <tr class="hover:bg-muted/60">
                             <td class="px-5 py-3">
-                                <p class="font-medium text-foreground">{{ $association->name }}</p>
+                                <p class="font-bold text-foreground">{{ $association->name }}</p>
                                 @if ($association->description)
                                     <p class="mt-0.5 max-w-md truncate text-xs text-muted-foreground">{{ $association->description }}</p>
                                 @endif

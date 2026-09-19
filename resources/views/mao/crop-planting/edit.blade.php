@@ -32,8 +32,8 @@
     <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Farmer</h3>
         <dl class="grid gap-4 text-sm sm:grid-cols-3">
-            <div><dt class="text-muted-foreground">Name</dt><dd class="font-medium text-foreground">{{ $farmer->full_name }}</dd></div>
-            <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $farmer->association?->name ?? '-' }}</dd></div>
+            <div><dt class="text-muted-foreground">Name</dt><dd class="font-bold text-foreground">{{ $farmer->full_name }}</dd></div>
+            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $farmer->association?->name ?? '-' }}</dd></div>
             <div><dt class="text-muted-foreground">Date Submitted</dt><dd class="font-medium text-foreground">{{ $plantingRecord->date_submitted?->format('M d, Y') }}</dd></div>
         </dl>
     </div>

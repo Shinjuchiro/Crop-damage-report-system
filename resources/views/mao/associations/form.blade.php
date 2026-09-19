@@ -86,7 +86,7 @@
                 <dl class="mb-5 space-y-3 rounded-lg bg-muted p-4 text-sm">
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Name</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="name || '-'"></dd>
+                        <dd class="text-right font-bold text-foreground" x-text="name || '-'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Office Barangay</dt>

@@ -184,7 +184,7 @@
         <x-ui.table>
             <x-slot:head><tr><th>Technician</th><th class="text-right">Inspections Completed</th></tr></x-slot:head>
             @forelse ($data['verification']['by_technician'] as $row)
-                <tr><td>{{ $row->full_name }}</td><td class="text-right tabular-nums">{{ $row->total }}</td></tr>
+                <tr><td class="font-bold text-foreground">{{ $row->full_name }}</td><td class="text-right tabular-nums">{{ $row->total }}</td></tr>
             @empty
                 <tr><td colspan="2" class="py-4 text-center text-muted-foreground">No inspections completed this period</td></tr>
             @endforelse

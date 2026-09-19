@@ -50,13 +50,13 @@
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
                 <dt class="text-muted-foreground">Name</dt>
-                <dd class="font-medium text-foreground">
+                <dd class="font-bold text-foreground">
                     <a href="{{ route('mao.farmers.show', $farmer) }}" class="text-green-800 hover:underline">
                         {{ $farmer->full_name }}
                     </a>
                 </dd>
             </div>
-            <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $farmer->association?->name ?? '-' }}</dd></div>
+            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $farmer->association?->name ?? '-' }}</dd></div>
             <div><dt class="text-muted-foreground">Barangay</dt><dd class="font-medium text-foreground">{{ $farmer->barangay?->name ?? '-' }}</dd></div>
             <div><dt class="text-muted-foreground">Date Submitted</dt><dd class="font-medium text-foreground">{{ $plantingRecord->date_submitted?->format('M d, Y') }}</dd></div>
         </dl>

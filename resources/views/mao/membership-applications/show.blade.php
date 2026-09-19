@@ -10,13 +10,13 @@
     <div class="rounded-xl border border-border bg-card p-6">
         <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-green-800">Personal Information</h3>
         <dl class="grid gap-4 text-sm sm:grid-cols-2">
-            <div><dt class="text-muted-foreground">Full Name</dt><dd class="font-medium text-foreground">{{ $farmer->full_name }}</dd></div>
+            <div><dt class="text-muted-foreground">Full Name</dt><dd class="font-bold text-foreground">{{ $farmer->full_name }}</dd></div>
             <div><dt class="text-muted-foreground">Date of Birth</dt><dd class="font-medium text-foreground">{{ $farmer->date_of_birth?->format('M d, Y') ?? '—' }}</dd></div>
             <div><dt class="text-muted-foreground">Sex</dt><dd class="font-medium capitalize text-foreground">{{ $farmer->sex }}</dd></div>
             <div><dt class="text-muted-foreground">Contact Number</dt><dd class="font-medium text-foreground">{{ $farmer->user->phone_number }}</dd></div>
             <div class="sm:col-span-2"><dt class="text-muted-foreground">Address</dt><dd class="font-medium text-foreground">{{ $farmer->address }}</dd></div>
             <div><dt class="text-muted-foreground">Barangay</dt><dd class="font-medium text-foreground">{{ $farmer->barangay->name ?? '—' }}</dd></div>
-            <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $farmer->association->name ?? '—' }}</dd></div>
+            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $farmer->association->name ?? '—' }}</dd></div>
         </dl>
     </div>
 

@@ -196,7 +196,7 @@
                                 <dd class="font-medium text-foreground">{{ $allocation->distributed_quantity !== null ? number_format($allocation->distributed_quantity, 2) : 'Not yet released' }}</dd>
                             </div>
                             <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Allocated On</dt><dd class="font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
-                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Allocated By</dt><dd class="font-medium text-foreground">{{ $allocation->allocatedBy?->full_name ?: $allocation->allocatedBy?->username ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Allocated By</dt><dd class="font-bold text-foreground">{{ $allocation->allocatedBy?->full_name ?: $allocation->allocatedBy?->username ?? '-' }}</dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Released To Assoc.</dt><dd class="font-medium text-foreground">{{ $allocation->distributed_to_association_at?->format('M d, Y') ?? 'Not yet' }}</dd></div>
                             <div>
                                 <dt class="text-muted-foreground">Description</dt>
@@ -217,7 +217,7 @@
                             <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Qualified Beneficiaries</p>
                             @foreach ($allocation->beneficiaries as $beneficiary)
                                 <div class="mb-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                                    <p class="font-medium text-foreground">{{ $beneficiary->farmer?->full_name ?? 'Unknown' }}</p>
+                                    <p class="font-bold text-foreground">{{ $beneficiary->farmer?->full_name ?? 'Unknown' }}</p>
                                     <p class="text-muted-foreground">
                                         {{ $beneficiary->farmer?->barangay?->name ?? '-' }}
                                         @if ($beneficiary->damageReport)
@@ -252,7 +252,7 @@
                         @forelse ($allocation->distributions as $distribution)
                             <div class="mb-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
                                 <div class="flex items-center justify-between gap-2">
-                                    <p class="font-medium text-foreground">{{ $distribution->farmer?->full_name ?? 'Unknown' }}</p>
+                                    <p class="font-bold text-foreground">{{ $distribution->farmer?->full_name ?? 'Unknown' }}</p>
                                     @php $receipt = $distribution->receipt_status; @endphp
                                     <span class="inline-flex rounded px-2 py-0.5 font-medium
                                         {{ $receipt === 'confirmed_received'

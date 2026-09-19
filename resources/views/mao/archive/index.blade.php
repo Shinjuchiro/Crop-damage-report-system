@@ -108,7 +108,7 @@
                                 @forelse ($records as $record)
                                     <tr class="hover:bg-muted/60 {{ $selected?->id === $record->id ? 'bg-muted/60' : '' }}">
                                         <td class="px-4 py-3">
-                                            <p class="font-medium text-foreground">
+                                            <p class="{{ in_array($type, ['farmers', 'users', 'crop_planting', 'associations']) ? 'font-bold' : 'font-medium' }} text-foreground">
                                                 @switch($type)
                                                     @case('farmers')
                                                         {{ $record->full_name }}
@@ -150,7 +150,7 @@
                                 @forelse ($records as $record)
                                     <tr class="hover:bg-muted/60 {{ $selected?->id === $record->id ? 'bg-muted/60' : '' }}">
                                         <td class="px-4 py-3">
-                                            <p class="font-medium text-foreground">
+                                            <p class="{{ in_array($type, ['farmers', 'users', 'crop_planting', 'associations']) ? 'font-bold' : 'font-medium' }} text-foreground">
                                                 @switch($type)
                                                     @case('farmers')
                                                         {{ $record->full_name }}
@@ -238,7 +238,7 @@
                         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                             {{ $types[$type] }} &middot; {{ $view === 'deleted' ? 'Deleted' : 'Archived' }}
                         </p>
-                        <h3 class="mt-0.5 text-lg font-semibold text-foreground">
+                        <h3 class="mt-0.5 text-lg {{ in_array($type, ['farmers', 'users', 'crop_planting', 'associations']) ? 'font-bold' : 'font-semibold' }} text-foreground">
                             @switch($type)
                                 @case('farmers') {{ $record->full_name }} @break
                                 @case('users') {{ $record->display_name }} @break
@@ -255,7 +255,7 @@
                     @switch($type)
                         @case('farmers')
                             <div><dt class="text-muted-foreground">Username</dt><dd class="font-medium text-foreground">{{ $record->user?->username ?? '-' }}</dd></div>
-                            <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $record->association?->name ?? '-' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $record->association?->name ?? '-' }}</dd></div>
                             <div><dt class="text-muted-foreground">Barangay</dt><dd class="font-medium text-foreground">{{ $record->barangay?->name ?? '-' }}</dd></div>
                             @break
 
@@ -264,23 +264,23 @@
                             <div><dt class="text-muted-foreground">Members</dt><dd class="font-medium text-foreground">{{ $record->farmers_count }}</dd></div>
                             <div><dt class="text-muted-foreground">Officers</dt><dd class="font-medium text-foreground">{{ $record->officers_count }}</dd></div>
                             <div><dt class="text-muted-foreground">Allocations</dt><dd class="font-medium text-foreground">{{ $record->assistance_allocations_count }}</dd></div>
-                            <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-medium text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-bold text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
                             @break
 
                         @case('users')
                             <div><dt class="text-muted-foreground">Username</dt><dd class="font-medium text-foreground">{{ $record->username }}</dd></div>
                             <div><dt class="text-muted-foreground">Role</dt><dd class="font-medium text-foreground">{{ ucfirst($record->role) }}</dd></div>
-                            <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $record->associationOfficer?->association?->name ?? '-' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $record->associationOfficer?->association?->name ?? '-' }}</dd></div>
                             @break
 
                         @case('crops')
                             <div><dt class="text-muted-foreground">Records using it</dt><dd class="font-medium text-foreground">{{ $record->main_crops_count + $record->planting_record_crops_count + $record->damage_report_crops_count }}</dd></div>
-                            <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-medium text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-bold text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
                             @break
 
                         @case('disasters')
                             <div><dt class="text-muted-foreground">Damage reports</dt><dd class="font-medium text-foreground">{{ $record->damage_reports_count }}</dd></div>
-                            <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-medium text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-bold text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
                             @break
 
                         @case('assistance')
@@ -293,31 +293,31 @@
                             <div><dt class="text-muted-foreground">Message</dt><dd class="font-medium text-foreground">{{ $record->message }}</dd></div>
                             <div><dt class="text-muted-foreground">Priority</dt><dd class="font-medium text-foreground">{{ $record->priority_label }}</dd></div>
                             <div><dt class="text-muted-foreground">Sent to</dt><dd class="font-medium text-foreground">{{ $record->notifications_count }}</dd></div>
-                            <div><dt class="text-muted-foreground">Created by</dt><dd class="font-medium text-foreground">{{ $record->createdBy?->display_name ?? 'Unknown' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Created by</dt><dd class="font-bold text-foreground">{{ $record->createdBy?->display_name ?? 'Unknown' }}</dd></div>
                             @break
 
                         @case('crop_planting')
-                            <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $record->farmer?->association?->name ?? '-' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $record->farmer?->association?->name ?? '-' }}</dd></div>
                             <div><dt class="text-muted-foreground">Crops planted</dt><dd class="font-medium text-foreground">{{ $record->crops_count }}</dd></div>
                             <div><dt class="text-muted-foreground">Date submitted</dt><dd class="font-medium text-foreground">{{ $record->date_submitted?->format('M d, Y') }}</dd></div>
                             @if ($view !== 'deleted')
-                                <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-medium text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
+                                <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-bold text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
                             @endif
                             @break
 
                         @case('damage_reports')
-                            <div><dt class="text-muted-foreground">Farmer</dt><dd class="font-medium text-foreground">{{ $record->farmer?->full_name ?? '-' }}</dd></div>
-                            <div><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $record->farmer?->association?->name ?? '-' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Farmer</dt><dd class="font-bold text-foreground">{{ $record->farmer?->full_name ?? '-' }}</dd></div>
+                            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $record->farmer?->association?->name ?? '-' }}</dd></div>
                             <div><dt class="text-muted-foreground">Crops on report</dt><dd class="font-medium text-foreground">{{ $record->crops_count }}</dd></div>
                             <div><dt class="text-muted-foreground">Status</dt><dd class="font-medium text-foreground">{{ \App\Models\DamageReport::STATUSES[$record->status] ?? ucfirst($record->status) }}</dd></div>
                             @if ($view !== 'deleted')
-                                <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-medium text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
+                                <div><dt class="text-muted-foreground">Archived by</dt><dd class="font-bold text-foreground">{{ $record->archivedBy?->display_name ?? 'Unknown' }}</dd></div>
                             @endif
                             @break
                     @endswitch
 
                     @if ($view === 'deleted')
-                        <div><dt class="text-muted-foreground">Deleted by</dt><dd class="font-medium text-foreground">{{ $record->deletedBy?->display_name ?? 'Unknown' }}</dd></div>
+                        <div><dt class="text-muted-foreground">Deleted by</dt><dd class="font-bold text-foreground">{{ $record->deletedBy?->display_name ?? 'Unknown' }}</dd></div>
                         <div><dt class="text-muted-foreground">Deleted on</dt><dd class="font-medium text-foreground">{{ $record->deleted_at?->format('M d, Y g:i A') }}</dd></div>
                     @else
                         <div><dt class="text-muted-foreground">Archived on</dt><dd class="font-medium text-foreground">{{ $record->archived_at?->format('M d, Y g:i A') }}</dd></div>

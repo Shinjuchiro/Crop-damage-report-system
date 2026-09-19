@@ -135,7 +135,7 @@
                         @forelse ($overviewRows as $row)
                             <tr class="hover:bg-muted/60">
                                 <td class="px-5 py-3">
-                                    <p class="font-medium text-foreground">{{ $row->association->name }}</p>
+                                    <p class="font-bold text-foreground">{{ $row->association->name }}</p>
                                     @if ($row->association->barangay)
                                         <p class="text-xs text-muted-foreground">Brgy. {{ $row->association->barangay->name }}</p>
                                     @endif
@@ -200,7 +200,7 @@
                         <li class="px-6 py-4">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-semibold text-foreground">{{ $allocation->association?->name ?? '-' }}</p>
+                                    <p class="truncate text-sm font-bold text-foreground">{{ $allocation->association?->name ?? '-' }}</p>
                                     <p class="truncate text-xs text-muted-foreground">{{ $allocation->assistance?->name ?? '-' }}</p>
                                     <p class="mt-1 text-xs text-muted-foreground">
                                         {{ $allocation->allocated_at?->format('M d, Y') }}

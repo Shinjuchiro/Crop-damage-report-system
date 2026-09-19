@@ -77,7 +77,7 @@
                                     <td class="px-3 py-4 text-foreground">
                                         {{ $farmer ? 'FARM-' . str_pad($farmer->id, 3, '0', STR_PAD_LEFT) : '-' }}
                                     </td>
-                                    <td class="px-3 py-4 font-medium text-foreground">{{ $farmer?->full_name ?? 'Unknown' }}</td>
+                                    <td class="px-3 py-4 font-bold text-foreground">{{ $farmer?->full_name ?? 'Unknown' }}</td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $farmer?->association?->name ?? '-' }}</td>
                                     <td class="px-3 py-4 text-muted-foreground">
                                         {{ $planting->crop?->name ?? '-' }}
@@ -127,7 +127,7 @@
                         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                             Planting Record &middot; Submitted {{ $plantingRecord->date_submitted?->format('M d, Y') }}
                         </p>
-                        <h3 class="mt-0.5 text-lg font-semibold text-foreground">
+                        <h3 class="mt-0.5 text-lg font-bold text-foreground">
                             <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">
                                 {{ $farmer->full_name }}
                             </a>

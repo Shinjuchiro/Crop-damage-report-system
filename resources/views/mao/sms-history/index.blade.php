@@ -90,7 +90,7 @@
                                     {{ $entry->created_at?->format('M d, Y g:i A') }}
                                 </td>
                                 <td class="px-4 py-3 sm:px-5">
-                                    <p class="font-medium text-foreground">{{ $entry->user?->display_name ?? 'Unknown' }}</p>
+                                    <p class="font-bold text-foreground">{{ $entry->user?->display_name ?? 'Unknown' }}</p>
                                     <p class="text-xs text-muted-foreground">{{ $entry->user?->phone_number ?: 'No phone on file' }}</p>
                                 </td>
                                 <td class="max-w-xs px-4 py-3 sm:px-5">

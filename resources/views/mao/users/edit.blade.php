@@ -132,7 +132,7 @@
                 <dl class="mb-5 space-y-3 rounded-lg bg-muted p-4 text-sm">
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Full Name</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="fullName || 'Not set'"></dd>
+                        <dd class="text-right font-bold text-foreground" x-text="fullName || 'Not set'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Username</dt>
@@ -149,7 +149,7 @@
                     @if ($user->role === 'association')
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Association</dt>
-                            <dd class="text-right font-medium text-foreground" x-text="associationName()"></dd>
+                            <dd class="text-right font-bold text-foreground" x-text="associationName()"></dd>
                         </div>
                     @endif
                     <div class="flex justify-between gap-4">

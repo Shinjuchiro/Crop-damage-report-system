@@ -74,7 +74,7 @@
                                     <td class="px-3 py-4 text-foreground">
                                         APP-{{ str_pad($application->id, 3, '0', STR_PAD_LEFT) }}
                                     </td>
-                                    <td class="px-3 py-4 font-medium text-foreground">{{ $application->full_name }}</td>
+                                    <td class="px-3 py-4 font-bold text-foreground">{{ $application->full_name }}</td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $application->created_at?->format('M d, Y') }}</td>
                                     <td class="px-3 py-4 text-muted-foreground">
                                         {{ $application->farm_size_hectares ? $application->farm_size_hectares . ' ha' : '-' }}
@@ -125,7 +125,7 @@
                     <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         APP-{{ str_pad($farmer->id, 3, '0', STR_PAD_LEFT) }}
                     </p>
-                    <h3 class="mt-0.5 text-lg font-semibold text-foreground">{{ $farmer->full_name }}</h3>
+                    <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $farmer->full_name }}</h3>
                     <span class="mt-2 inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $badge }}">{{ $label }}</span>
                 </div>
 
@@ -138,7 +138,7 @@
                             <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Contact</dt><dd class="font-medium text-foreground">{{ $farmer->user->phone_number }}</dd></div>
                             <div><dt class="text-muted-foreground">Address</dt><dd class="font-medium text-foreground">{{ $farmer->address }}</dd></div>
                             <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Barangay</dt><dd class="font-medium text-foreground">{{ $farmer->barangay->name ?? '-' }}</dd></div>
-                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Association</dt><dd class="font-medium text-foreground">{{ $farmer->association->name ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $farmer->association->name ?? '-' }}</dd></div>
                         </dl>
                     </div>
 

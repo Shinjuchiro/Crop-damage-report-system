@@ -319,7 +319,7 @@
 
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Association</dt>
-                            <dd class="text-right font-medium" x-text="label('associations', associationId)"></dd>
+                            <dd class="text-right font-bold" x-text="label('associations', associationId)"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Type</dt>

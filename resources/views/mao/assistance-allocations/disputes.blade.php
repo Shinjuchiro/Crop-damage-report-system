@@ -66,7 +66,7 @@
                             <td class="px-5 py-3 text-foreground">
                                 DIST-{{ str_pad($distribution->id, 3, '0', STR_PAD_LEFT) }}
                             </td>
-                            <td class="px-5 py-3 font-medium text-foreground">
+                            <td class="px-5 py-3 font-bold text-foreground">
                                 {{ $distribution->farmer?->full_name ?? 'Unknown' }}
                             </td>
                             <td class="px-5 py-3 text-muted-foreground">

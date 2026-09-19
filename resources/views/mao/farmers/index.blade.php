@@ -94,7 +94,7 @@
                                         FARM-{{ str_pad($farmer->id, 3, '0', STR_PAD_LEFT) }}
                                     </td>
                                     <td class="px-3 py-4">
-                                        <p class="font-medium text-foreground">{{ $farmer->full_name }}</p>
+                                        <p class="font-bold text-foreground">{{ $farmer->full_name }}</p>
                                         <p class="text-xs text-muted-foreground">{{ $farmer->user?->username }}</p>
                                     </td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $farmer->association?->name ?? '-' }}</td>
@@ -139,7 +139,7 @@
                     <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         FARM-{{ str_pad($farmer->id, 3, '0', STR_PAD_LEFT) }}
                     </p>
-                    <h3 class="mt-0.5 text-lg font-semibold text-foreground">{{ $farmer->full_name }}</h3>
+                    <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $farmer->full_name }}</h3>
                     <p class="text-sm text-muted-foreground">
                         {{ $farmer->barangay?->name ?? 'No barangay' }} &middot; {{ $farmer->association?->name ?? 'No association' }}
                     </p>

@@ -84,11 +84,11 @@
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
                                     <td class="px-3 py-4 text-foreground">{{ $report->reference }}</td>
                                     <td class="px-3 py-4">
-                                        <p class="font-medium text-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</p>
+                                        <p class="font-bold text-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</p>
                                         <p class="text-xs text-muted-foreground">{{ $report->farmer?->barangay?->name }}</p>
                                     </td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $report->farmer?->association?->name ?? '-' }}</td>
-                                    <td class="px-3 py-4 text-foreground">
+                                    <td class="px-3 py-4 font-bold text-foreground">
                                         {{ $report->assignedTechnician?->full_name ?: $report->assignedTechnician?->username ?? '-' }}
                                     </td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $report->validation?->validated_at?->format('M d, Y') ?? '-' }}</td>
@@ -140,7 +140,7 @@
 
                 <div class="mb-4">
                     <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ $report->reference }}</p>
-                    <h3 class="mt-0.5 text-lg font-semibold text-foreground">
+                    <h3 class="mt-0.5 text-lg font-bold text-foreground">
                         <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
                     </h3>
                     <p class="text-sm text-muted-foreground">{{ $farmer->association?->name ?? '-' }} &middot; {{ $farmer->barangay?->name ?? '-' }}</p>
@@ -189,7 +189,7 @@
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Inspection Summary</p>
                         @if ($validation)
                             <dl class="space-y-1.5">
-                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Technician</dt><dd class="font-medium text-foreground">{{ $validation->technician?->full_name ?: $validation->technician?->username ?? '-' }}</dd></div>
+                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Technician</dt><dd class="font-bold text-foreground">{{ $validation->technician?->full_name ?: $validation->technician?->username ?? '-' }}</dd></div>
                                 <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Severity</dt><dd class="font-medium capitalize text-foreground">{{ $validation->severity ?? 'Not assessed' }}</dd></div>
                                 <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Farmer Estimated Damage</dt><dd class="font-medium text-foreground">{{ $report->crops->avg('estimated_damage_percent') !== null ? round($report->crops->avg('estimated_damage_percent')) . '%' : '-' }}</dd></div>
                                 <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Technician Assessed Damage</dt><dd class="font-medium text-foreground">{{ $validation->assessed_damage_percent !== null ? $validation->assessed_damage_percent . '%' : '-' }}</dd></div>

@@ -35,7 +35,7 @@
                 {{ strtoupper(substr($farmer->first_name, 0, 1) . substr($farmer->last_name, 0, 1)) }}
             </div>
             <div>
-                <p class="text-lg font-semibold text-foreground">{{ $farmer->full_name }}</p>
+                <p class="text-lg font-bold text-foreground">{{ $farmer->full_name }}</p>
                 <p class="text-sm text-muted-foreground">
                     {{ $farmer->barangay?->name ?? 'No barangay' }}
                     &middot; {{ $farmer->association?->name ?? 'No association' }}
@@ -75,7 +75,7 @@
     <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-green-800">Personal Information</h3>
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <div><dt class="text-muted-foreground">Full Name</dt><dd class="font-medium text-foreground">{{ $farmer->full_name }}</dd></div>
+            <div><dt class="text-muted-foreground">Full Name</dt><dd class="font-bold text-foreground">{{ $farmer->full_name }}</dd></div>
             <div><dt class="text-muted-foreground">Date of Birth</dt><dd class="font-medium text-foreground">{{ $farmer->date_of_birth?->format('M d, Y') ?? '-' }}</dd></div>
             <div><dt class="text-muted-foreground">Sex</dt><dd class="font-medium capitalize text-foreground">{{ $farmer->sex }}</dd></div>
             <div><dt class="text-muted-foreground">Contact Number</dt><dd class="font-medium text-foreground">{{ $farmer->user?->phone_number ?? '-' }}</dd></div>

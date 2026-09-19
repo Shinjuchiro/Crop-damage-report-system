@@ -96,7 +96,7 @@
                             USR-{{ str_pad($user->id, 3, '0', STR_PAD_LEFT) }}
                         </td>
                         <td class="px-4 py-4">
-                            <p class="font-medium text-foreground">{{ $user->display_name }}</p>
+                            <p class="font-bold text-foreground">{{ $user->display_name }}</p>
                             <p class="text-xs text-muted-foreground">{{ $user->email }}</p>
                         </td>
                         <td class="px-4 py-4 text-foreground">
