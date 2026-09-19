@@ -50,6 +50,7 @@ use App\Http\Controllers\MAO\SettingsController;
 use App\Http\Controllers\MAO\SmsHistoryController;
 use App\Http\Controllers\MAO\UserManagementController;
 use App\Http\Controllers\MAO\ValidationMonitorController;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -530,3 +531,19 @@ Route::middleware(['auth', 'active', 'role:mao'])
            every module and links to each type's own restore action. */
         Route::get('/archive', [ArchiveController::class, 'index'])->name('archive.index');
     });
+
+/*
+|--------------------------------------------------------------------------
+| TEMPORARY: mail delivery test
+|--------------------------------------------------------------------------
+| Visit this URL once from your browser to confirm the MAIL_* variables on
+| Railway are actually working in production. Remove this whole block once
+| the test email is confirmed received - it is not meant to stay in the app.
+*/
+Route::get('/dev-test-mail-x9k2p7qzm4', function () {
+    Mail::raw('This is a test email sent from your live Railway deployment.', function ($message) {
+        $message->to('shinjuchiro@gmail.com')->subject('Railway Test Email');
+    });
+
+    return 'Test email dispatched. Check the inbox (and spam folder) for shinjuchiro@gmail.com.';
+});
