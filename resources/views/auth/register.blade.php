@@ -95,8 +95,28 @@
             <h1 class="text-2xl font-bold text-foreground sm:text-3xl">Create an Account</h1>
             <p class="mt-1 text-base text-muted-foreground">Fill in your details to get started.</p>
 
-            {{-- ===================== STEPPER ===================== --}}
-            <ol class="my-8 flex items-start">
+            {{-- ===================== STEPPER (mobile) =====================
+                 The full labeled-circle stepper below assumes room for 4
+                 circles plus a ~96px caption under each one - on a phone
+                 (this page's most important breakpoint per section 82,
+                 "Mobile-first... Damage reporting") that is wider than the
+                 viewport itself and wraps/overflows. Below sm, show a
+                 compact "Step 2 of 4" line with a progress bar instead; the
+                 labeled stepper takes over from sm up, where it actually
+                 fits. --}}
+            <div class="my-6 sm:hidden">
+                <div class="mb-2 flex items-center justify-between text-sm">
+                    <span class="font-semibold text-primary" x-text="'Step ' + step + ' of {{ count($steps) }}'"></span>
+                    <span class="font-medium text-muted-foreground" x-text="stepLabel()"></span>
+                </div>
+                <div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div class="h-full rounded-full bg-primary transition-all duration-300"
+                         :style="`width: ${(step / {{ count($steps) }}) * 100}%`"></div>
+                </div>
+            </div>
+
+            {{-- ===================== STEPPER (sm and up) ===================== --}}
+            <ol class="my-8 hidden items-start sm:flex">
                 @foreach ($steps as $number => $label)
                     <li class="flex flex-1 items-start {{ $number < count($steps) ? '' : 'flex-none' }}">
                         <div class="flex flex-col items-center">
@@ -622,6 +642,13 @@
                 associations: @json($associations->pluck('name', 'id')),
                 crops:        @json($crops->pluck('name', 'id')),
                 hvcc:         @json($crops->where('is_hvcc', true)->pluck('id')->values()),
+            },
+
+            // Step captions for the mobile "Step X of 4" progress bar (keys
+            // are step numbers, matching $steps in the Blade @php block above).
+            steps: @json($steps),
+            stepLabel() {
+                return this.steps[this.step] || '';
             },
 
             f: {
