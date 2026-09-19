@@ -100,7 +100,7 @@
                                 @if ($distribution->allocation)
                                     <a href="{{ route('mao.assistance-allocations.show', $distribution->allocation) }}"
                                        class="text-sm font-medium text-sky-700 underline hover:text-sky-900">
-                                        View Allocation
+                                        View
                                     </a>
                                 @endif
                             </td>

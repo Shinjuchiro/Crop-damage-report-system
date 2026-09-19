@@ -85,19 +85,6 @@
                                             Archive
                                         </button>
                                     </form>
-
-                                    <form method="POST" action="{{ route('mao.crops.destroy', $crop) }}"
-                                          data-confirm="Are you sure you want to continue? {{ $crop->name }} will be removed from active lists. Its data - and any records that cite it - are kept for audit purposes, and this deletion will be recorded."
-                                          data-confirm-title="Delete crop permanently"
-                                          data-confirm-detail="This action cannot be undone from this screen."
-                                          data-confirm-action="Delete Permanently"
-                                          data-confirm-tone="danger">
-                                        @csrf @method('DELETE')
-                                        <button type="submit"
-                                                class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
-                                            Delete
-                                        </button>
-                                    </form>
                                 </div>
                             </td>
                         </tr>

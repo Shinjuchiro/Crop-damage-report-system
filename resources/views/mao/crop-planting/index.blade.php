@@ -30,7 +30,7 @@
             <x-ui.card title="Crop Planting Monitoring">
                 <x-slot:actions>
                     <a href="{{ route('mao.archive.index', ['type' => 'crop_planting']) }}"
-                       class="text-sm text-muted-foreground hover:text-foreground">
+                       class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
                         View archived
                     </a>
                 </x-slot:actions>
@@ -95,18 +95,6 @@
                                     <td class="px-3 py-4">
                                         <div class="flex justify-end gap-2">
                                             <x-ui.button :href="$viewUrl($planting->crop_planting_record_id)" variant="view" size="sm">View</x-ui.button>
-                                            <a href="{{ route('mao.crop-planting.edit', $planting->crop_planting_record_id) }}"
-                                               class="rounded-lg border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60">
-                                                Edit
-                                            </a>
-                                            <button type="button"
-                                                    @click="archiving = {
-                                                        id: {{ $planting->crop_planting_record_id }},
-                                                        label: @js(($farmer?->full_name ?? 'this record') . ' - ' . ($planting->crop?->name ?? 'planting record'))
-                                                    }"
-                                                    class="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">
-                                                Archive
-                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -187,60 +175,8 @@
                     @endif
                 </div>
 
-                <div class="mt-5 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row">
-                    <a href="{{ route('mao.crop-planting.edit', $plantingRecord) }}"
-                       class="w-full rounded-lg border border-input px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-muted/60">
-                        Edit
-                    </a>
-                    @if ($plantingRecord->is_archived)
-                        <form method="POST" action="{{ route('mao.crop-planting.restore', $plantingRecord) }}" class="w-full"
-                              data-confirm="Restore this planting record to the active monitoring list?"
-                              data-confirm-title="Restore planting record"
-                              data-confirm-action="Confirm Restore">
-                            @csrf @method('PUT')
-                            <button type="submit" class="w-full rounded-lg border border-input px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                                Restore
-                            </button>
-                        </form>
-                    @else
-                        <form method="POST" action="{{ route('mao.crop-planting.archive', $plantingRecord) }}" class="w-full"
-                              data-confirm="This record will be removed from active monitoring. It stays fully intact for audit purposes, does not change the farmer's Active/Inactive history, and can be restored at any time from the Archive page."
-                              data-confirm-title="Archive this planting record?"
-                              data-confirm-action="Confirm Archive">
-                            @csrf @method('PUT')
-                            <button type="submit" class="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50">
-                                Archive
-                            </button>
-                        </form>
-                    @endif
-                </div>
             @endif
         </x-ui.detail-panel>
-    </div>
-
-    {{-- Archive confirmation (used by the list rows' Archive button) --}}
-    <div x-show="archiving" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-            <h3 class="mb-2 text-lg font-semibold text-foreground">Archive this planting record?</h3>
-            <p class="mb-5 text-sm text-muted-foreground">
-                <strong x-text="archiving?.label"></strong> will be removed from active monitoring. It stays fully
-                intact for audit purposes, does not change the farmer's Active/Inactive history, and can be restored
-                at any time from the Archive page.
-            </p>
-            <div class="flex gap-3">
-                <button type="button" @click="archiving = null"
-                        class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                    Cancel
-                </button>
-                <form method="POST" :action="`{{ url('mao/crop-planting') }}/${archiving?.id}/archive`" class="flex-1">
-                    @csrf @method('PUT')
-                    <button type="submit"
-                            class="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
-                        Confirm Archive
-                    </button>
-                </form>
-            </div>
-        </div>
     </div>
 </div>
 @endsection

@@ -47,10 +47,9 @@
         <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
             <x-ui.card title="Farmers Directory" description="Every approved farmer in the system and everything attached to them.">
                 <x-slot:actions>
-                    <a href="{{ route('mao.associations.index') }}"
-                       class="text-sm text-muted-foreground hover:text-foreground">
+                    <x-ui.button :href="route('mao.associations.index')" size="sm">
                         Manage Associations
-                    </a>
+                    </x-ui.button>
                 </x-slot:actions>
 
                 {{-- Filters. No visible Search button - Enter in the field, or

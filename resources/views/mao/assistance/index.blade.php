@@ -16,7 +16,7 @@
     <x-slot:actions>
         <div class="flex items-center gap-3">
             <a href="{{ route('mao.archive.index', ['type' => 'assistance']) }}"
-               class="text-sm text-muted-foreground hover:text-foreground">
+               class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
                 View archived
             </a>
             <x-ui.button :href="route('mao.assistance.create')">+ Add Assistance</x-ui.button>
@@ -124,19 +124,6 @@
                                         </button>
                                     </form>
                                 @endif
-
-                                <form method="POST" action="{{ route('mao.assistance.destroy', $assistance) }}"
-                                      data-confirm="Are you sure you want to continue? {{ $assistance->name }} will be removed from the active catalogue. Its allocation and distribution history is kept for audit purposes, and this deletion will be recorded."
-                                      data-confirm-title="Delete assistance permanently"
-                                      data-confirm-detail="This action cannot be undone from this screen."
-                                      data-confirm-action="Delete Permanently"
-                                      data-confirm-tone="danger">
-                                    @csrf @method('DELETE')
-                                    <button type="submit"
-                                            class="rounded border border-red-200 px-4 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
-                                        Delete
-                                    </button>
-                                </form>
                             </div>
                         </td>
                     </tr>

@@ -40,7 +40,7 @@
             <x-ui.card title="Crop Damage Monitoring">
                 <x-slot:actions>
                     <a href="{{ route('mao.archive.index', ['type' => 'damage_reports']) }}"
-                       class="text-sm text-muted-foreground hover:text-foreground">
+                       class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
                         View archived
                     </a>
                 </x-slot:actions>
@@ -122,11 +122,6 @@
                                     <td class="px-3 py-4">
                                         <div class="flex justify-end gap-2">
                                             <x-ui.button :href="$viewUrl($report->id)" variant="view" size="sm">View</x-ui.button>
-                                            <button type="button"
-                                                    @click="archiving = { id: {{ $report->id }}, label: @js($report->reference) }"
-                                                    class="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">
-                                                Archive
-                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -382,25 +377,6 @@
                     @endif
                 </div>
 
-                {{-- Archive / Restore --}}
-                <div class="mt-5 border-t border-border pt-4">
-                    @if ($damageReport->is_archived)
-                        <form method="POST" action="{{ route('mao.damage-reports.restore', $damageReport) }}"
-                              data-confirm="Restore {{ $damageReport->reference }} to the active monitoring list?"
-                              data-confirm-title="Restore damage report" data-confirm-action="Confirm Restore">
-                            @csrf @method('PUT')
-                            <button type="submit" class="w-full rounded-lg border border-input px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60">Restore</button>
-                        </form>
-                    @else
-                        <form method="POST" action="{{ route('mao.damage-reports.archive', $damageReport) }}"
-                              data-confirm="{{ $damageReport->reference }} will be removed from active monitoring. Its status, inspection and assistance history are unaffected, and it can be restored at any time from the Archive page."
-                              data-confirm-title="Archive this damage report?" data-confirm-action="Confirm Archive">
-                            @csrf @method('PUT')
-                            <button type="submit" class="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50">Archive</button>
-                        </form>
-                    @endif
-                </div>
-
                 @if ($validation && $validation->latitude && $validation->longitude)
                     @push('head')
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -428,31 +404,6 @@
                 @endif
             @endif
         </x-ui.detail-panel>
-    </div>
-
-    {{-- Archive confirmation (used by the list rows' Archive button) --}}
-    <div x-show="archiving" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-            <h3 class="mb-2 text-lg font-semibold text-foreground">Archive this damage report?</h3>
-            <p class="mb-5 text-sm text-muted-foreground">
-                <strong x-text="archiving?.label"></strong> will be removed from active monitoring. Its status,
-                inspection and assistance history are unaffected, and it can be restored at any time from the
-                Archive page.
-            </p>
-            <div class="flex gap-3">
-                <button type="button" @click="archiving = null"
-                        class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                    Cancel
-                </button>
-                <form method="POST" :action="`{{ url('mao/damage-reports') }}/${archiving?.id}/archive`" class="flex-1">
-                    @csrf @method('PUT')
-                    <button type="submit"
-                            class="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
-                        Confirm Archive
-                    </button>
-                </form>
-            </div>
-        </div>
     </div>
 </div>
 @endsection

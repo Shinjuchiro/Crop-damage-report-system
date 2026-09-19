@@ -87,19 +87,6 @@
                                             Archive
                                         </button>
                                     </form>
-
-                                    <form method="POST" action="{{ route('mao.disasters.destroy', $disaster) }}"
-                                          data-confirm="Are you sure you want to continue? {{ $disaster->name }} will be removed from active lists. Its data - and any reports that cite it - are kept for audit purposes, and this deletion will be recorded."
-                                          data-confirm-title="Delete disaster event permanently"
-                                          data-confirm-detail="This action cannot be undone from this screen."
-                                          data-confirm-action="Delete Permanently"
-                                          data-confirm-tone="danger">
-                                        @csrf @method('DELETE')
-                                        <button type="submit"
-                                                class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
-                                            Delete
-                                        </button>
-                                    </form>
                                 </div>
                             </td>
                         </tr>
