@@ -10,6 +10,7 @@ use App\Models\Barangay;
 use App\Models\DamageReport;
 use App\Models\Disaster;
 use App\Models\NotificationBroadcast;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +82,12 @@ class DamageReportMonitorController extends Controller
             'associations' => Association::orderBy('name')->get(),
             'barangays'    => Barangay::orderBy('name')->get(),
             'disasters'    => Disaster::orderByDesc('date_start')->get(),
+            // Section 9's "assign a technician directly from here" - the
+            // assignment form itself still posts to ValidationMonitorController
+            // @assign (mao.validations.assign) rather than duplicating that
+            // logic, this page just needs the technician list to render it.
+            'technicians'  => User::where('role', 'technician')->where('status', 'active')
+                ->orderBy('full_name')->orderBy('username')->get(),
         ]);
     }
 

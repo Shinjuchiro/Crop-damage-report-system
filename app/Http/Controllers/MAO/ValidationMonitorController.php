@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Association;
 use App\Models\AuditLog;
 use App\Models\Barangay;
+use App\Models\CropPlantingRecordCrop;
 use App\Models\DamageReport;
 use App\Models\NotificationBroadcast;
 use App\Models\User;
@@ -16,25 +17,34 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
- * MAO watches field verification here and assigns reports to technicians.
+ * Sept 2026: this page used to be the live assignment queue (every report,
+ * with an Assign/Reassign button on each row). That moved to Damage Report
+ * Monitoring, which is where a report lives before a technician has been
+ * sent - see DamageReportMonitorController. This page is now a HISTORY of
+ * completed field work: it only lists reports a technician has actually
+ * finished inspecting (validation.validated_at is set), so MAO can review
+ * what was found without wading through reports still in progress.
  *
- * The MAO never enters an inspection result. Severity, assessed damage and the
- * verified location are the technician's alone.
+ * assign() below still exists and is still routed to from here
+ * (mao.validations.assign) only because Damage Report Monitoring's own
+ * "Assign Technician" button posts to this same route rather than
+ * duplicating the logic - nothing here still uses it directly.
  */
 class ValidationMonitorController extends Controller
 {
     public function index(Request $request)
     {
         $reports = DamageReportMonitorController::baseQuery($request)
+            ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
         $summary = [
-            'unassigned'         => DamageReport::whereNull('assigned_technician_id')->count(),
-            'assigned'           => DamageReport::where('status', 'assigned')->count(),
-            'under_verification' => DamageReport::where('status', 'under_verification')->count(),
-            'verified'           => DamageReport::whereIn('status', ['verified', 'approved'])->count(),
+            'completed' => DamageReport::whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))->count(),
+            'verified'  => DamageReport::where('status', 'verified')->count(),
+            'approved'  => DamageReport::where('status', 'approved')->count(),
+            'rejected'  => DamageReport::where('status', 'rejected')->count(),
         ];
 
         // List + detail panel (Sept 2026): "View Details" loads the report
@@ -45,17 +55,37 @@ class ValidationMonitorController extends Controller
             : null;
 
         return view('mao.validations.index', [
-            'reports'      => $reports,
-            'selected'     => $selected,
-            'summary'      => $summary,
-            'technicians'  => User::where('role', 'technician')
-                                  ->where('status', 'active')
-                                  ->orderBy('full_name')
-                                  ->orderBy('username')
-                                  ->get(),
-            'associations' => Association::orderBy('name')->get(),
-            'barangays'    => Barangay::orderBy('name')->get(),
+            'reports'            => $reports,
+            'selected'           => $selected,
+            'plantingComparison' => $selected ? $this->plantingComparison($selected) : collect(),
+            'summary'            => $summary,
+            'associations'       => Association::orderBy('name')->get(),
+            'barangays'          => Barangay::orderBy('name')->get(),
         ]);
+    }
+
+    /**
+     * Section 23's "comparison of PLANTED REPORT and DAMAGE report": for each
+     * crop on the damage report, find the farmer's own crop planting record
+     * for the same crop, planted before this damage report was filed - the
+     * same matching rule already used for the Technician's cross-check in
+     * Assigned Reports (same farmer, same crop, planted before the damage
+     * date). When more than one planting record matches, the most recent one
+     * before the damage report wins.
+     */
+    private function plantingComparison(DamageReport $report)
+    {
+        return $report->crops->map(function ($reportCrop) use ($report) {
+            $planted = CropPlantingRecordCrop::whereHas('plantingRecord', fn ($q) => $q
+                    ->where('farmer_id', $report->farmer_id)
+                    ->whereNull('archived_at'))
+                ->where('crop_id', $reportCrop->crop_id)
+                ->where('date_planted', '<=', $report->created_at)
+                ->orderByDesc('date_planted')
+                ->first();
+
+            return ['reportCrop' => $reportCrop, 'planted' => $planted];
+        });
     }
 
     /**

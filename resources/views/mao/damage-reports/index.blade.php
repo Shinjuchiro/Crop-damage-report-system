@@ -19,7 +19,7 @@
 @endphp
 
 @section('content')
-<div x-data="{ archiving: null }">
+<div x-data="{ assigning: null }">
 
     {{-- Summary --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -293,43 +293,43 @@
                             @endif
                         </div>
 
-                        {{-- Technician inspection --}}
+                        {{-- Farmer-reported location --}}
                         <div class="border-t border-border pt-4">
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Technician Inspection</p>
-                            @if ($validation)
-                                <dl class="space-y-1.5">
-                                    <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Technician</dt><dd class="font-medium text-foreground">{{ $validation->technician?->full_name ?: $validation->technician?->username ?? '-' }}</dd></div>
-                                    <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Severity</dt><dd class="font-medium capitalize text-foreground">{{ $validation->severity ?? 'Not yet assessed' }}</dd></div>
-                                    <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Assessed Damage</dt><dd class="font-medium text-foreground">{{ $validation->assessed_damage_percent !== null ? $validation->assessed_damage_percent . '%' : '-' }}</dd></div>
-                                    <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Submitted</dt><dd class="font-medium text-foreground">{{ $validation->validated_at?->format('M d, Y') ?? 'In progress' }}</dd></div>
-                                    <div><dt class="text-muted-foreground">Notes</dt><dd class="font-medium text-foreground">{{ $validation->notes ?: 'No notes recorded.' }}</dd></div>
-                                </dl>
-
-                                @if ($validation->photos->isNotEmpty())
-                                    <p class="mb-2 mt-3 text-xs text-muted-foreground">Inspection photos</p>
-                                    <div class="grid grid-cols-3 gap-2">
-                                        @foreach ($validation->photos as $photo)
-                                            <a href="{{ asset('storage/' . $photo->file_path) }}" target="_blank" class="block overflow-hidden rounded-lg border border-border">
-                                                <img src="{{ asset('storage/' . $photo->file_path) }}" alt="Inspection photo" class="h-16 w-full object-cover transition hover:scale-105">
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            @else
-                                <p class="text-xs text-muted-foreground">No inspection has been started for this report yet.</p>
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farmer-Reported Location</p>
+                            <p class="text-xs text-foreground">{{ $damageReport->farm_location_description ?: 'No location description provided.' }}</p>
+                            <p class="mt-1 text-xs text-muted-foreground">{{ $damageReport->reportedBarangay?->name ?? $farmer->barangay?->name ?? '-' }}</p>
+                            @if ($damageReport->reported_latitude && $damageReport->reported_longitude)
+                                <div id="reportedMap-{{ $damageReport->id }}" class="mt-2 h-48 w-full rounded-lg border border-border"
+                                     data-lat="{{ $damageReport->reported_latitude }}" data-lng="{{ $damageReport->reported_longitude }}"
+                                     data-label="{{ $farmer->full_name }} &middot; {{ $damageReport->reportedBarangay?->name ?? $farmer->barangay?->name }}"></div>
                             @endif
                         </div>
-
-                        {{-- Verified location --}}
-                        @if ($validation && $validation->latitude && $validation->longitude)
-                            <div class="border-t border-border pt-4">
-                                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Verified Farm Location</p>
-                                <div id="verifiedMap-{{ $damageReport->id }}" class="h-48 w-full rounded-lg border border-border"
-                                     data-lat="{{ $validation->latitude }}" data-lng="{{ $validation->longitude }}"
-                                     data-label="{{ $farmer->full_name }} &middot; {{ $farmer->barangay?->name }}"></div>
-                            </div>
-                        @endif
                     </div>
+
+                    {{-- This page shows the farmer's own submitted report only (section
+                         23: "walang info na na-validate na") - a technician's assessment,
+                         once one exists, belongs in Validation Monitoring's completed-
+                         inspection history instead. What this page still owns is getting
+                         a report TO a technician in the first place. --}}
+                    @if (! in_array($damageReport->status, ['under_verification', 'verified', 'approved'], true) && $technicians->isNotEmpty())
+                        <div class="mt-5 border-t border-border pt-4">
+                            <button type="button"
+                                    @click="assigning = {
+                                        id: {{ $damageReport->id }},
+                                        code: @js($damageReport->reference),
+                                        farmer: @js($farmer->full_name ?? 'Unknown'),
+                                        current: {{ $damageReport->assigned_technician_id ?: 'null' }}
+                                    }"
+                                    class="w-full rounded-lg bg-green-800 px-3 py-2 text-sm font-semibold text-white hover:bg-green-900">
+                                {{ $damageReport->assignedTechnician ? 'Reassign Technician' : 'Assign Technician' }}
+                            </button>
+                        </div>
+                    @elseif ($damageReport->assignedTechnician)
+                        <div class="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">
+                            Assigned to <span class="font-medium text-foreground">{{ $damageReport->assignedTechnician->full_name ?: $damageReport->assignedTechnician->username }}</span>.
+                            Inspection progress and results are in Validation Monitoring once complete.
+                        </div>
+                    @endif
 
                     {{-- MAO decision --}}
                     @if ($canDecide)
@@ -377,7 +377,7 @@
                     @endif
                 </div>
 
-                @if ($validation && $validation->latitude && $validation->longitude)
+                @if ($damageReport->reported_latitude && $damageReport->reported_longitude)
                     @push('head')
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
                     @endpush
@@ -385,7 +385,7 @@
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
                         <script>
                             document.addEventListener('DOMContentLoaded', function () {
-                                const el = document.getElementById('verifiedMap-{{ $damageReport->id }}');
+                                const el = document.getElementById('reportedMap-{{ $damageReport->id }}');
                                 if (! el || typeof L === 'undefined') return;
 
                                 const lat = parseFloat(el.dataset.lat);
@@ -404,6 +404,46 @@
                 @endif
             @endif
         </x-ui.detail-panel>
+    </div>
+
+    {{-- Assign technician (Section 9: moved here from Validation Monitoring,
+         which now only shows completed inspections). Same backend as before -
+         posts to the existing mao.validations.assign route. --}}
+    <div x-show="assigning" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+            <h3 class="mb-2 text-lg font-semibold text-foreground">Assign a technician</h3>
+            <p class="mb-4 text-sm text-muted-foreground">
+                Report <strong x-text="assigning?.code"></strong> for
+                <strong x-text="assigning?.farmer"></strong>.
+                The technician will see it on their dashboard and conduct the field inspection.
+            </p>
+
+            <form method="POST" :action="`{{ url('mao/validations') }}/${assigning?.id}/assign`">
+                @csrf @method('PUT')
+
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Technician</label>
+                <select name="assigned_technician_id" required
+                        class="mb-5 w-full rounded-lg border border-input px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
+                    <option value="">Select technician</option>
+                    @foreach ($technicians as $technician)
+                        <option value="{{ $technician->id }}">
+                            {{ $technician->full_name ?: $technician->username }}
+                        </option>
+                    @endforeach
+                </select>
+
+                <div class="flex gap-3">
+                    <button type="button" @click="assigning = null"
+                            class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
+                        Confirm Assignment
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 @endsection
