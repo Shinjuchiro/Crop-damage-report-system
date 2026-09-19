@@ -355,12 +355,32 @@
                                 <span class="mt-1 text-2xl leading-none text-muted-foreground">+</span>
                                 <input type="file" name="barangay_certificate" class="hidden"
                                        accept=".jpg,.jpeg,.png,.pdf"
+                                       :required="f.ownership_type === 'land_owner'"
                                        @change="documentName = $event.target.files.length ? $event.target.files[0].name : ''">
                             </label>
                             <p class="mt-1.5 text-xs text-muted-foreground">
                                 A certificate from your barangay confirming that you own the land you farm.
                                 JPG, PNG or PDF, max 5MB.
                             </p>
+
+                            {{-- For security, no browser will let a website refill a file
+                                 input after the page reloads - so if this page reloaded
+                                 because of a validation error anywhere in the form, any
+                                 certificate already chosen here was cleared and needs to be
+                                 chosen again. The checkbox above stops this from happening
+                                 for a password error, but a few checks (duplicate
+                                 username/email, an expired association, etc.) can only be
+                                 caught by the server, so this notice still covers those. --}}
+                            @if ($errors->any() && old('ownership_type', 'land_owner') === 'land_owner')
+                                <p class="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-500">
+                                    @error('barangay_certificate')
+                                        {{ $message }}
+                                    @else
+                                        Something else on this form needed fixing, so this file was cleared when the
+                                        page reloaded. Please choose your Barangay Certificate again before submitting.
+                                    @enderror
+                                </p>
+                            @endif
                         </div>
 
                         {{-- Tenant: land owner details --}}
@@ -369,6 +389,7 @@
                             <div>
                                 <label class="{{ $labelClass }}">Land Owner Full Name <span class="text-red-500">*</span></label>
                                 <input type="text" name="landowner_name" x-model="f.landowner_name"
+                                       :required="f.ownership_type === 'tenant'"
                                        placeholder="Enter the land owner's name" class="{{ $inputClass }}">
                             </div>
                             <div>
@@ -379,6 +400,7 @@
                             <div class="sm:col-span-2 xl:col-span-3">
                                 <label class="{{ $labelClass }}">Land Owner Location <span class="text-red-500">*</span></label>
                                 <input type="text" name="landowner_location" x-model="f.landowner_location"
+                                       :required="f.ownership_type === 'tenant'"
                                        placeholder="Barangay, Municipality" class="{{ $inputClass }}">
                             </div>
                         </div>
@@ -674,14 +696,40 @@
                     }
                 }
 
-                if (this.step === 2 && this.f.password !== this.f.password_confirmation) {
-                    this.stepError = 'The password and its confirmation do not match.';
-                    return false;
+                if (this.step === 2) {
+                    // Mirrors FarmerRegistrationRequest's Password::min(8)->letters()->numbers()
+                    // rule. Catching this here - before the page ever leaves the browser -
+                    // is what stops a failed submission later from wiping the Barangay
+                    // Certificate the farmer may have already selected on step 3: a file
+                    // input can never be refilled by the server after a page reload, so
+                    // the only real fix is making sure this kind of error never reaches
+                    // the server in the first place.
+                    if (this.f.password.length < 8 || !/[A-Za-z]/.test(this.f.password) || !/[0-9]/.test(this.f.password)) {
+                        this.stepError = 'Password must be at least 8 characters and include both letters and numbers.';
+                        return false;
+                    }
+
+                    if (this.f.password !== this.f.password_confirmation) {
+                        this.stepError = 'The password and its confirmation do not match.';
+                        return false;
+                    }
                 }
 
-                if (this.step === 3 && !this.crops.some(crop => crop.crop_id)) {
-                    this.stepError = 'Please select at least one main crop.';
-                    return false;
+                if (this.step === 3) {
+                    // The real <input type="file"> is visually hidden (it sits inside the
+                    // styled upload box above), so the generic checkValidity() sweep above
+                    // never sees it - it always reports offsetParent === null and gets
+                    // skipped, required or not. documentName is only ever set by that
+                    // input's own @change handler, so it doubles as "is a file chosen".
+                    if (this.f.ownership_type === 'land_owner' && !this.documentName) {
+                        this.stepError = 'Please upload your Barangay Certificate before continuing.';
+                        return false;
+                    }
+
+                    if (!this.crops.some(crop => crop.crop_id)) {
+                        this.stepError = 'Please select at least one main crop.';
+                        return false;
+                    }
                 }
 
                 return true;
