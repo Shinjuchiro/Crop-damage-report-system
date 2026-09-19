@@ -164,11 +164,11 @@
                     <div>
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Personal Information</p>
                         <dl class="space-y-1.5">
-                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Date of Birth</dt><dd class="font-medium text-foreground">{{ $farmer->date_of_birth?->format('M d, Y') ?? '-' }}</dd></div>
-                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Sex</dt><dd class="font-medium capitalize text-foreground">{{ $farmer->sex }}</dd></div>
-                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Contact</dt><dd class="font-medium text-foreground">{{ $farmer->user?->phone_number ?? '-' }}</dd></div>
-                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Email</dt><dd class="max-w-[60%] truncate font-medium text-foreground">{{ $farmer->user?->email ?? '-' }}</dd></div>
-                            <div><dt class="text-muted-foreground">Address</dt><dd class="font-medium text-foreground">{{ $farmer->address }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Date of Birth</dt><dd class="text-right font-bold text-foreground">{{ $farmer->date_of_birth?->format('M d, Y') ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Sex</dt><dd class="text-right font-bold capitalize text-foreground">{{ $farmer->sex }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Contact</dt><dd class="text-right font-bold text-foreground">{{ $farmer->user?->phone_number ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Email</dt><dd class="max-w-[60%] truncate text-right font-bold text-foreground">{{ $farmer->user?->email ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Address</dt><dd class="text-right font-bold text-foreground">{{ $farmer->address }}</dd></div>
                         </dl>
                     </div>
 
@@ -176,14 +176,14 @@
                     <div class="border-t border-border pt-4">
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farm Ownership &amp; Information</p>
                         <dl class="space-y-1.5">
-                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Farmer Type</dt><dd class="font-medium text-foreground">{{ $farmer->ownership_type === 'tenant' ? 'Tenant' : 'Land Owner' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Farmer Type</dt><dd class="text-right font-bold text-foreground">{{ $farmer->ownership_type === 'tenant' ? 'Tenant' : 'Land Owner' }}</dd></div>
                             @if ($farmer->ownership_type === 'tenant')
-                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Land Owner</dt><dd class="font-medium text-foreground">{{ $farmer->landowner_name ?: '-' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Owner Contact</dt><dd class="font-medium text-foreground">{{ $farmer->landowner_contact ?: '-' }}</dd></div>
+                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Land Owner</dt><dd class="text-right font-bold text-foreground">{{ $farmer->landowner_name ?: '-' }}</dd></div>
+                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Owner Contact</dt><dd class="text-right font-bold text-foreground">{{ $farmer->landowner_contact ?: '-' }}</dd></div>
                             @else
                                 <div class="flex justify-between gap-3">
                                     <dt class="text-muted-foreground">Barangay Certificate</dt>
-                                    <dd class="font-medium text-foreground">
+                                    <dd class="text-right font-bold text-foreground">
                                         @if ($farmer->barangay_certificate_path)
                                             <a href="{{ asset('storage/' . $farmer->barangay_certificate_path) }}" target="_blank" class="text-green-800 hover:underline">View</a>
                                         @else
@@ -192,10 +192,10 @@
                                     </dd>
                                 </div>
                             @endif
-                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Farm Size</dt><dd class="font-medium text-foreground">{{ $farmer->farm_size_hectares ? $farmer->farm_size_hectares . ' ha' : 'Not provided' }}</dd></div>
-                            <div>
-                                <dt class="text-muted-foreground">Main Crops</dt>
-                                <dd class="font-medium text-foreground">
+                            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Farm Size</dt><dd class="text-right font-bold text-foreground">{{ $farmer->farm_size_hectares ? $farmer->farm_size_hectares . ' ha' : 'Not provided' }}</dd></div>
+                            <div class="flex justify-between gap-3">
+                                <dt class="shrink-0 text-muted-foreground">Main Crops</dt>
+                                <dd class="text-right font-bold text-foreground">
                                     @forelse ($farmer->mainCrops as $mainCrop)
                                         {{ $mainCrop->crop?->name }}{{ $mainCrop->crop_specify ? " ({$mainCrop->crop_specify})" : '' }}@if (! $loop->last), @endif
                                     @empty
