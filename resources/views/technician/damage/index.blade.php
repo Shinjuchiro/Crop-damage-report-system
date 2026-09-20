@@ -18,50 +18,21 @@
 
 <div class="space-y-4">
 
-    <x-ui.card>
-        <form method="GET" action="{{ route('technician.damage.index') }}"
-              class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
-
-            <div class="space-y-1.5 lg:col-span-2">
-                <label class="block text-sm font-medium" for="q">Search farmer</label>
-                <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
-                       placeholder="First or last name"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="barangay">Barangay</label>
-                <select id="barangay" name="barangay"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-                    <option value="">All your barangays</option>
-                    @foreach ($barangays as $option)
-                        <option value="{{ $option->id }}"
-                                @selected((string) ($filters['barangay'] ?? '') === (string) $option->id)>
-                            {{ $option->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="status">Status</label>
-                <select id="status" name="status"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-                    <option value="">All statuses</option>
-                    @foreach ($statuses as $key => $label)
-                        <option value="{{ $key }}" @selected(($filters['status'] ?? '') === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="flex gap-2">
-                <x-ui.button type="submit" class="flex-1 sm:flex-none">Apply</x-ui.button>
-                <x-ui.button variant="outline" :href="route('technician.damage.index')">Clear</x-ui.button>
-            </div>
-        </form>
-    </x-ui.card>
-
     <x-ui.card :padded="false">
+        <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
+            <x-ui.filter-bar :fields="['q', 'barangay', 'status']">
+                <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
+                            placeholder="Search farmer" class="sm:w-52" />
+
+                <x-ui.select name="barangay" placeholder="All your barangays" onchange="this.form.submit()"
+                             :options="$barangays->pluck('name', 'id')"
+                             :selected="$filters['barangay'] ?? null" class="sm:w-44" />
+
+                <x-ui.select name="status" placeholder="All statuses" onchange="this.form.submit()"
+                             :options="$statuses" :selected="$filters['status'] ?? null" class="sm:w-40" />
+            </x-ui.filter-bar>
+        </div>
+
         @if ($reports->isEmpty())
             <x-ui.empty title="No damage reports found"
                         icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"

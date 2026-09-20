@@ -18,51 +18,24 @@
 
 <div class="space-y-4">
 
-    <x-ui.card>
-        <form method="GET" action="{{ route('association.planting.index') }}"
-              class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="q">Search member</label>
-                <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
-                       placeholder="First or last name"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="month">Month</label>
-                <select id="month" name="month"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-                    <option value="">All months</option>
-                    @for ($m = 1; $m <= 12; $m++)
-                        <option value="{{ $m }}" @selected((string) ($filters['month'] ?? '') === (string) $m)>
-                            {{ \Carbon\Carbon::create(null, $m, 1)->format('F') }}
-                        </option>
-                    @endfor
-                </select>
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="year">Year</label>
-                <select id="year" name="year"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-                    <option value="">All years</option>
-                    @for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--)
-                        <option value="{{ $y }}" @selected((string) ($filters['year'] ?? '') === (string) $y)>
-                            {{ $y }}
-                        </option>
-                    @endfor
-                </select>
-            </div>
-
-            <div class="flex gap-2">
-                <x-ui.button type="submit" class="flex-1 sm:flex-none">Apply</x-ui.button>
-                <x-ui.button variant="outline" :href="route('association.planting.index')">Clear</x-ui.button>
-            </div>
-        </form>
-    </x-ui.card>
-
     <x-ui.card :padded="false">
+        <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
+            <x-ui.filter-bar :fields="['q', 'month', 'year']">
+                <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
+                            placeholder="Search member" class="sm:w-52" />
+
+                <x-ui.select name="month" placeholder="All months" onchange="this.form.submit()"
+                             :options="collect(range(1, 12))->mapWithKeys(
+                                 fn ($m) => [$m => \Carbon\Carbon::create(null, $m, 1)->format('F')]
+                             )"
+                             :selected="$filters['month'] ?? null" class="sm:w-40" />
+
+                <x-ui.select name="year" placeholder="All years" onchange="this.form.submit()"
+                             :options="collect(range((int) date('Y'), (int) date('Y') - 5))->mapWithKeys(fn ($y) => [$y => $y])"
+                             :selected="$filters['year'] ?? null" class="sm:w-32" />
+            </x-ui.filter-bar>
+        </div>
+
         @if ($records->isEmpty())
             <x-ui.empty title="No planting activity found"
                         icon="M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14z"

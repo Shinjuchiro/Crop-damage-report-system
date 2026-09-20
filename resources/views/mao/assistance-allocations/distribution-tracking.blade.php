@@ -31,29 +31,21 @@
 
         {{-- LIST --}}
         <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+            <x-ui.card>
+                <x-ui.filter-bar :fields="['association_id', 'distribution_status', 'receipt_status']">
+                    <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
+                                 class="sm:w-48" :selected="$filters['association_id'] ?? null"
+                                 :options="$associations->pluck('name', 'id')" />
 
-            {{-- Filters --}}
-            <form method="GET" class="mb-4 flex flex-wrap items-center gap-3">
-                <x-ui.select name="association_id" placeholder="All Associations" class="min-w-48"
-                             :selected="$filters['association_id'] ?? null" :options="$associations->pluck('name', 'id')" />
+                    <x-ui.select name="distribution_status" placeholder="All Distribution Statuses" onchange="this.form.submit()"
+                                 class="sm:w-56" :selected="$filters['distribution_status'] ?? null"
+                                 :options="['pending_distribution' => 'Pending Distribution', 'distributed' => 'Distributed', 'completed' => 'Completed', 'cancelled' => 'Cancelled']" />
 
-                <x-ui.select name="distribution_status" placeholder="All Distribution Statuses" class="min-w-52"
-                             :selected="$filters['distribution_status'] ?? null"
-                             :options="['pending_distribution' => 'Pending Distribution', 'distributed' => 'Distributed', 'completed' => 'Completed', 'cancelled' => 'Cancelled']" />
+                    <x-ui.select name="receipt_status" placeholder="All Receipt Statuses" onchange="this.form.submit()"
+                                 class="sm:w-48" :selected="$filters['receipt_status'] ?? null"
+                                 :options="['pending_confirmation' => 'Waiting', 'confirmed_received' => 'Confirmed', 'not_received' => 'Not Received']" />
+                </x-ui.filter-bar>
 
-                <x-ui.select name="receipt_status" placeholder="All Receipt Statuses" class="min-w-48"
-                             :selected="$filters['receipt_status'] ?? null"
-                             :options="['pending_confirmation' => 'Waiting', 'confirmed_received' => 'Confirmed', 'not_received' => 'Not Received']" />
-
-                <x-ui.button type="submit">Filter</x-ui.button>
-
-                @if (request()->hasAny(['association_id', 'distribution_status', 'receipt_status']))
-                    <a href="{{ route('mao.assistance-allocations.distribution-tracking') }}"
-                       class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
-                @endif
-            </form>
-
-            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
@@ -123,7 +115,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </x-ui.card>
 
             <div class="mt-4">{{ $distributions->links() }}</div>
         </div>

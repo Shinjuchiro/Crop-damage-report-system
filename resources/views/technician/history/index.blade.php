@@ -21,35 +21,20 @@
 
 <div class="space-y-4">
 
-    <x-ui.card>
-        <form method="GET" action="{{ route('technician.history.index') }}"
-              class="flex flex-wrap items-end justify-end gap-3">
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="q">Search farmer</label>
-                <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
-                       placeholder="Farmer name"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-52">
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="severity">Severity</label>
-                <select id="severity" name="severity"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-52">
-                    <option value="">All severities</option>
-                    @foreach ($severities as $key => $band)
-                        <option value="{{ $key }}" @selected(($filters['severity'] ?? '') === $key)>
-                            {{ $band['label'] }} ({{ $band['range'] }})
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <x-ui.button type="submit">Apply</x-ui.button>
-        </form>
-    </x-ui.card>
-
     <x-ui.card :padded="false">
+        <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
+            <x-ui.filter-bar :fields="['q', 'severity']">
+                <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
+                            placeholder="Farmer name" class="sm:w-52" />
+
+                <x-ui.select name="severity" placeholder="All severities" onchange="this.form.submit()"
+                             :options="collect($severities)->mapWithKeys(
+                                 fn ($band, $key) => [$key => $band['label'] . ' (' . $band['range'] . ')']
+                             )"
+                             :selected="$filters['severity'] ?? null" class="sm:w-52" />
+            </x-ui.filter-bar>
+        </div>
+
         @if ($inspections->isEmpty())
             <x-ui.empty title="No submitted inspections yet"
                         icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2"

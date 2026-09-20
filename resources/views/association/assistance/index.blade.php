@@ -28,37 +28,25 @@
         </span>
     </x-ui.alert>
 
-    {{-- Status filter --}}
-    <x-ui.card>
-        <form method="GET" action="{{ route('association.assistance.index') }}"
-              class="flex flex-wrap items-end justify-end gap-3">
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="status">Status</label>
-                <select id="status" name="status"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-48">
-                    <option value="">All</option>
-                    @foreach (['allocated' => 'Allocated', 'distributed' => 'Partly distributed',
-                               'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $key => $label)
-                        <option value="{{ $key }}" @selected(($filters['status'] ?? '') === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
+    <x-ui.card :padded="false">
+        <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
+            <x-ui.filter-bar :fields="['status']">
+                <x-ui.select name="status" placeholder="All statuses" onchange="this.form.submit()"
+                             :options="['allocated' => 'Allocated', 'distributed' => 'Partly distributed',
+                                        'completed' => 'Completed', 'cancelled' => 'Cancelled']"
+                             :selected="$filters['status'] ?? null" class="sm:w-48" />
+            </x-ui.filter-bar>
+        </div>
+
+        @if ($allocations->isEmpty())
+            <div class="p-4 sm:p-5">
+                <x-ui.empty title="Nothing allocated to you yet"
+                            icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21"
+                            message="When the Municipal Agriculture Office allocates cash or in-kind assistance to your association, it appears here and you record handing it to members.">
+                    <span class="text-xs text-muted-foreground">Wala pa pong naitalagang tulong sa inyong asosasyon.</span>
+                </x-ui.empty>
             </div>
-
-            <x-ui.button type="submit">Apply</x-ui.button>
-        </form>
-    </x-ui.card>
-
-    @if ($allocations->isEmpty())
-        <x-ui.card>
-            <x-ui.empty title="Nothing allocated to you yet"
-                        icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21"
-                        message="When the Municipal Agriculture Office allocates cash or in-kind assistance to your association, it appears here and you record handing it to members.">
-                <span class="text-xs text-muted-foreground">Wala pa pong naitalagang tulong sa inyong asosasyon.</span>
-            </x-ui.empty>
-        </x-ui.card>
-    @else
-
-        <x-ui.card :padded="false">
+        @else
 
             {{-- ---------- PHONE ---------- --}}
             <ul class="divide-y divide-border sm:hidden">
@@ -206,7 +194,7 @@
             @if ($allocations->hasPages())
                 <x-slot:footer>{{ $allocations->links() }}</x-slot:footer>
             @endif
-        </x-ui.card>
-    @endif
+        @endif
+    </x-ui.card>
 </div>
 @endsection

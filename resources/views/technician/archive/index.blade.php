@@ -17,35 +17,18 @@
 
 <div class="space-y-4">
 
-    <x-ui.card>
-        <form method="GET" action="{{ route('technician.archive.index') }}"
-              class="grid gap-3 sm:grid-cols-3 sm:items-end">
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="q">Search farmer</label>
-                <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
-                       placeholder="First or last name"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="reason">Reason</label>
-                <select id="reason" name="reason"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-                    <option value="">Both reasons</option>
-                    <option value="reassigned" @selected(($filters['reason'] ?? '') === 'reassigned')>Reassigned away from you</option>
-                    <option value="rejected" @selected(($filters['reason'] ?? '') === 'rejected')>Rejected by MAO</option>
-                </select>
-            </div>
-
-            <div class="flex gap-2">
-                <x-ui.button type="submit" class="flex-1 sm:flex-none">Apply</x-ui.button>
-                <x-ui.button variant="outline" :href="route('technician.archive.index')">Clear</x-ui.button>
-            </div>
-        </form>
-    </x-ui.card>
-
     <x-ui.card :padded="false">
+        <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
+            <x-ui.filter-bar :fields="['q', 'reason']">
+                <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
+                            placeholder="Search farmer" class="sm:w-52" />
+
+                <x-ui.select name="reason" placeholder="Both reasons" onchange="this.form.submit()"
+                             :options="['reassigned' => 'Reassigned away from you', 'rejected' => 'Rejected by MAO']"
+                             :selected="$filters['reason'] ?? null" class="sm:w-52" />
+            </x-ui.filter-bar>
+        </div>
+
         @if ($reports->isEmpty())
             <x-ui.empty title="Nothing archived"
                         icon="M3 7h18v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l1.2-2.4A1 1 0 015.1 4h13.8a1 1 0 01.9.6L21 7M10 12h4"

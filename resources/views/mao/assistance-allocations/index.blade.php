@@ -52,26 +52,20 @@
 
     {{-- ===================== FILTERS + ACTIONS ===================== --}}
     <div class="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <form method="GET" class="flex flex-wrap items-center gap-3">
-            <x-ui.select name="disaster_id" placeholder="All Disasters" class="min-w-52"
+        <x-ui.filter-bar :fields="['disaster_id', 'association_id', 'assistance_id', 'status']" :tight="true">
+            <x-ui.select name="disaster_id" placeholder="All Disasters" onchange="this.form.submit()" class="sm:w-52"
                          :selected="$filters['disaster_id']" :options="$disasters->pluck('name', 'id')" />
 
-            <x-ui.select name="association_id" placeholder="All Associations" class="min-w-48"
+            <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()" class="sm:w-48"
                          :selected="$filters['association_id']" :options="$associations->pluck('name', 'id')" />
 
-            <x-ui.select name="assistance_id" placeholder="All Assistance Types" class="min-w-48"
+            <x-ui.select name="assistance_id" placeholder="All Assistance Types" onchange="this.form.submit()" class="sm:w-48"
                          :selected="$filters['assistance_id']" :options="$assistances->pluck('name', 'id')" />
 
-            <x-ui.select name="status" placeholder="All Statuses" class="min-w-40" :selected="$filters['status']"
+            <x-ui.select name="status" placeholder="All Statuses" onchange="this.form.submit()" class="sm:w-40"
+                         :selected="$filters['status']"
                          :options="['allocated' => 'Allocated', 'pending' => 'Pending', 'not_eligible' => 'Not Eligible']" />
-
-            <x-ui.button type="submit">Filter</x-ui.button>
-
-            @if (request()->hasAny(['disaster_id', 'association_id', 'assistance_id', 'status']))
-                <a href="{{ route('mao.assistance-allocations.index') }}"
-                   class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
-            @endif
-        </form>
+        </x-ui.filter-bar>
 
         <div class="flex shrink-0 flex-wrap items-center gap-3">
             {{-- A farmer saying "I did not receive this" only ever showed up

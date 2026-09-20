@@ -33,43 +33,20 @@
 
     {{-- Filters + table --}}
     <x-ui.card :padded="false">
-        <form method="GET" class="flex flex-wrap items-end gap-3 border-b border-border px-4 py-3 sm:px-5">
-            <div>
-                <label class="mb-1 block text-xs font-medium text-muted-foreground">Status</label>
-                <select name="status" onchange="this.form.submit()"
-                        class="rounded-lg border border-input px-3 py-2 text-sm">
-                    <option value="">All</option>
-                    @foreach (['pending', 'sent', 'delivered', 'failed'] as $s)
-                        <option value="{{ $s }}" @selected(request('status') === $s)>{{ ucfirst($s) }}</option>
-                    @endforeach
-                </select>
-            </div>
+        <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
+            <x-ui.filter-bar :fields="['status', 'priority', 'search']">
+                <x-ui.select name="status" placeholder="All statuses" onchange="this.form.submit()"
+                             :options="collect(['pending', 'sent', 'delivered', 'failed'])->mapWithKeys(fn ($s) => [$s => ucfirst($s)])"
+                             :selected="request('status')" class="sm:w-40" />
 
-            <div>
-                <label class="mb-1 block text-xs font-medium text-muted-foreground">Priority</label>
-                <select name="priority" onchange="this.form.submit()"
-                        class="rounded-lg border border-input px-3 py-2 text-sm">
-                    <option value="">All</option>
-                    @foreach ($priorities as $key => $meta)
-                        @if ($meta['sms'])
-                            <option value="{{ $key }}" @selected(request('priority') === $key)>{{ $meta['label'] }}</option>
-                        @endif
-                    @endforeach
-                </select>
-            </div>
+                <x-ui.select name="priority" placeholder="All priorities" onchange="this.form.submit()"
+                             :options="collect($priorities)->filter(fn ($meta) => $meta['sms'])->map(fn ($meta) => $meta['label'])"
+                             :selected="request('priority')" class="sm:w-40" />
 
-            <div class="min-w-[12rem] flex-1">
-                <label class="mb-1 block text-xs font-medium text-muted-foreground">Search</label>
-                <input type="text" name="search" value="{{ request('search') }}"
-                       placeholder="Recipient or alert title"
-                       class="w-full rounded-lg border border-input px-3 py-2 text-sm">
-            </div>
-
-            <x-ui.button type="submit" size="sm">Filter</x-ui.button>
-            @if (request()->hasAny(['status', 'priority', 'search']))
-                <x-ui.button variant="outline" size="sm" :href="route('mao.sms-history.index')">Clear</x-ui.button>
-            @endif
-        </form>
+                <x-ui.input type="text" name="search" value="{{ request('search') }}"
+                            placeholder="Recipient or alert title" class="sm:min-w-[12rem] sm:flex-1" />
+            </x-ui.filter-bar>
+        </div>
 
         @if ($history->isNotEmpty())
             <div class="overflow-x-auto">

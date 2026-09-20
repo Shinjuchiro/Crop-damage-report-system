@@ -30,30 +30,13 @@
 
         {{-- LIST --}}
         <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+            <x-ui.card>
+                <x-ui.filter-bar :fields="['association_id']">
+                    <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
+                                 :options="$associations->pluck('name', 'id')"
+                                 :selected="request('association_id')" class="sm:w-56" />
+                </x-ui.filter-bar>
 
-            {{-- Filter --}}
-            <form method="GET" class="mb-4 flex flex-wrap items-center gap-3">
-                <select name="association_id"
-                        class="min-w-48 rounded-lg border-2 border-primary px-4 py-2.5 text-sm font-medium text-foreground focus:outline-none">
-                    <option value="">All Associations</option>
-                    @foreach ($associations as $association)
-                        <option value="{{ $association->id }}" @selected(request('association_id') == $association->id)>
-                            {{ $association->name }}
-                        </option>
-                    @endforeach
-                </select>
-
-                <button class="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0a2f15]">
-                    Filter
-                </button>
-
-                @if (request()->hasAny(['association_id']))
-                    <a href="{{ route('mao.assistance-allocations.disputes') }}"
-                       class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
-                @endif
-            </form>
-
-            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
@@ -113,7 +96,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </x-ui.card>
 
             <div class="mt-4">{{ $disputes->links() }}</div>
         </div>

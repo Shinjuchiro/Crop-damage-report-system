@@ -18,36 +18,18 @@
 
 <div class="space-y-4">
 
+    {{-- No shared list card to merge into here - each report below is its
+         own card in a grid, not rows in one table, so the filter bar keeps
+         a card of its own. --}}
     <x-ui.card>
-        <form method="GET" action="{{ route('technician.validation.index') }}"
-              class="grid gap-3 sm:grid-cols-3 sm:items-end">
+        <x-ui.filter-bar :fields="['q', 'barangay']">
+            <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
+                        placeholder="Farmer name or DR-0001" class="sm:w-52" />
 
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="q">Search</label>
-                <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
-                       placeholder="Farmer name or DR-0001"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="barangay">Barangay</label>
-                <select id="barangay" name="barangay"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
-                    <option value="">All barangays</option>
-                    @foreach ($barangays as $option)
-                        <option value="{{ $option->id }}"
-                                @selected((string) ($filters['barangay'] ?? '') === (string) $option->id)>
-                            {{ $option->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="flex gap-2">
-                <x-ui.button type="submit" class="flex-1 sm:flex-none">Apply</x-ui.button>
-                <x-ui.button variant="outline" :href="route('technician.validation.index')">Clear</x-ui.button>
-            </div>
-        </form>
+            <x-ui.select name="barangay" placeholder="All barangays" onchange="this.form.submit()"
+                         :options="$barangays->pluck('name', 'id')"
+                         :selected="$filters['barangay'] ?? null" class="sm:w-52" />
+        </x-ui.filter-bar>
     </x-ui.card>
 
     @if ($reports->isEmpty())

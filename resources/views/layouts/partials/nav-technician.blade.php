@@ -20,6 +20,14 @@
         ->where('status', 'assigned')
         ->count();
 
+    // Validation's own "pending work" count: everything still open on that
+    // page (not started, or started and not yet submitted) - see
+    // AssignmentController::validation(). Wider than $newAssignments above,
+    // which is only the not-yet-started slice used for Assigned Reports.
+    $openValidation = \App\Models\DamageReport::where('assigned_technician_id', auth()->id())
+        ->whereIn('status', ['assigned', 'under_verification'])
+        ->count();
+
     $items = [
         [
             'label'    => 'Technical Dashboard',
@@ -35,6 +43,16 @@
             'pattern'  => 'technician.reports.*',
             'icon'     => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
             'badge'    => $newAssignments,
+            'badgeLabel' => 'new assignment' . ($newAssignments === 1 ? '' : 's') . ' not started yet',
+        ],
+        [
+            'label'    => 'Validation',
+            'filipino' => 'Pagpapatunay',
+            'route'    => 'technician.validation.index',
+            'pattern'  => 'technician.validation.*',
+            'icon'     => 'M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8',
+            'badge'    => $openValidation,
+            'badgeLabel' => 'report' . ($openValidation === 1 ? '' : 's') . ' still needing inspection',
         ],
         [
             'label'    => 'Maps and Visualization',
@@ -88,7 +106,7 @@
         @if (! empty($item['badge']))
             <span class="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full
                          bg-destructive px-1.5 text-[11px] font-bold leading-none text-destructive-foreground"
-                  title="{{ $item['badge'] }} new assignment{{ $item['badge'] === 1 ? '' : 's' }} not started yet">
+                  title="{{ $item['badge'] }} {{ $item['badgeLabel'] ?? 'pending' }}">
                 {{ $item['badge'] > 99 ? '99+' : $item['badge'] }}
             </span>
         @endif

@@ -18,54 +18,30 @@
 
 <div class="space-y-4">
 
-    <x-ui.card>
-        <form method="GET" action="{{ route('association.members.index') }}"
-              class="flex flex-wrap items-end justify-end gap-3">
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="q">Search</label>
-                <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
-                       placeholder="First or last name"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-52">
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="status">Status</label>
-                <select id="status" name="status"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-36">
-                    <option value="">All</option>
-                    <option value="active" @selected(($filters['status'] ?? '') === 'active')>Active</option>
-                    <option value="inactive" @selected(($filters['status'] ?? '') === 'inactive')>Inactive</option>
-                </select>
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-sm font-medium" for="barangay">Barangay</label>
-                <select id="barangay" name="barangay"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-44">
-                    <option value="">All barangays</option>
-                    @foreach ($barangays as $option)
-                        <option value="{{ $option->id }}"
-                                @selected((string) ($filters['barangay'] ?? '') === (string) $option->id)>
-                            {{ $option->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <x-ui.button type="submit">Apply</x-ui.button>
-        </form>
-
-        {{-- A one-tap shortcut for the question officers actually ask most --}}
-        <div class="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-            <x-ui.button size="sm" :variant="($filters['affected'] ?? '') === 'yes' ? 'default' : 'outline'"
-                         :href="route('association.members.index', ['affected' => 'yes'])">
-                Only members with a damage report
-            </x-ui.button>
-        </div>
-    </x-ui.card>
-
     <x-ui.card :padded="false">
+        <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
+            <x-ui.filter-bar :fields="['q', 'status', 'barangay', 'affected']">
+                <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
+                            placeholder="First or last name" class="sm:w-52" />
+
+                <x-ui.select name="status" placeholder="All statuses" onchange="this.form.submit()"
+                             :options="['active' => 'Active', 'inactive' => 'Inactive']"
+                             :selected="$filters['status'] ?? null" class="sm:w-40" />
+
+                <x-ui.select name="barangay" placeholder="All barangays" onchange="this.form.submit()"
+                             :options="$barangays->pluck('name', 'id')"
+                             :selected="$filters['barangay'] ?? null" class="sm:w-44" />
+            </x-ui.filter-bar>
+
+            {{-- A one-tap shortcut for the question officers actually ask most --}}
+            <div class="mb-4 flex flex-wrap gap-2 border-t border-border pt-3 sm:mb-5">
+                <x-ui.button size="sm" :variant="($filters['affected'] ?? '') === 'yes' ? 'default' : 'outline'"
+                             :href="route('association.members.index', ['affected' => 'yes'])">
+                    Only members with a damage report
+                </x-ui.button>
+            </div>
+        </div>
+
         @if ($members->isEmpty())
             <x-ui.empty title="No members match this"
                         icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9"
