@@ -23,19 +23,19 @@
 
     <x-ui.card>
         <form method="GET" action="{{ route('technician.history.index') }}"
-              class="grid gap-3 sm:grid-cols-3 sm:items-end">
+              class="flex flex-wrap items-end justify-end gap-3">
 
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="q">Search farmer</label>
                 <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
                        placeholder="Farmer name"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-52">
             </div>
 
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="severity">Severity</label>
                 <select id="severity" name="severity"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-52">
                     <option value="">All severities</option>
                     @foreach ($severities as $key => $band)
                         <option value="{{ $key }}" @selected(($filters['severity'] ?? '') === $key)>
@@ -45,10 +45,7 @@
                 </select>
             </div>
 
-            <div class="flex gap-2">
-                <x-ui.button type="submit" class="flex-1 sm:flex-none">Apply</x-ui.button>
-                <x-ui.button variant="outline" :href="route('technician.history.index')">Clear</x-ui.button>
-            </div>
+            <x-ui.button type="submit">Apply</x-ui.button>
         </form>
     </x-ui.card>
 

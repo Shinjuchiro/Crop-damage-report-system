@@ -59,14 +59,14 @@
          does not eat a third of a phone screen for people who never use it. --}}
     <x-ui.card x-show="showFilters" x-cloak x-transition>
         <form method="GET" action="{{ route('technician.dashboard') }}"
-              class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+              class="flex flex-wrap items-end justify-end gap-3">
 
             <input type="hidden" name="period" value="{{ $period }}">
 
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="filter-status">Status</label>
                 <select id="filter-status" name="status"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-40">
                     <option value="">All</option>
                     <option value="to_inspect" @selected($filter === 'to_inspect')>To Inspect</option>
                     <option value="in_progress" @selected($filter === 'in_progress')>In Progress</option>
@@ -77,7 +77,7 @@
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="filter-barangay">Barangay</label>
                 <select id="filter-barangay" name="barangay"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-44">
                     <option value="">All barangays</option>
                     @foreach ($barangays as $option)
                         <option value="{{ $option->id }}" @selected((string) $barangay === (string) $option->id)>
@@ -87,11 +87,7 @@
                 </select>
             </div>
 
-            <div class="flex gap-2 sm:col-span-2 lg:col-span-2">
-                <x-ui.button type="submit">Apply filters</x-ui.button>
-                <x-ui.button variant="outline"
-                             :href="route('technician.dashboard', ['period' => $period])">Clear</x-ui.button>
-            </div>
+            <x-ui.button type="submit">Apply</x-ui.button>
         </form>
     </x-ui.card>
 

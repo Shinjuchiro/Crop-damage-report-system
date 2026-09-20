@@ -22,19 +22,19 @@
     {{-- Filters --}}
     <x-ui.card>
         <form method="GET" action="{{ route('technician.reports.index') }}"
-              class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+              class="flex flex-wrap items-end justify-end gap-3">
 
-            <div class="space-y-1.5 sm:col-span-2 lg:col-span-1">
+            <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="q">Search</label>
                 <input id="q" type="search" name="q" value="{{ $filters['q'] ?? '' }}"
                        placeholder="Farmer name or DR-0001"
-                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                       class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-52">
             </div>
 
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="status">Status</label>
                 <select id="status" name="status"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-40">
                     <option value="">All statuses</option>
                     @foreach (\App\Models\DamageReport::STATUSES as $key => $label)
                         <option value="{{ $key }}" @selected(($filters['status'] ?? '') === $key)>{{ $label }}</option>
@@ -45,7 +45,7 @@
             <div class="space-y-1.5">
                 <label class="block text-sm font-medium" for="barangay">Barangay</label>
                 <select id="barangay" name="barangay"
-                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm">
+                        class="h-10 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm sm:w-44">
                     <option value="">All barangays</option>
                     @foreach ($barangays as $option)
                         <option value="{{ $option->id }}"
@@ -56,10 +56,7 @@
                 </select>
             </div>
 
-            <div class="flex gap-2">
-                <x-ui.button type="submit" class="flex-1 sm:flex-none">Apply</x-ui.button>
-                <x-ui.button variant="outline" :href="route('technician.reports.index')">Clear</x-ui.button>
-            </div>
+            <x-ui.button type="submit">Apply</x-ui.button>
         </form>
     </x-ui.card>
 
