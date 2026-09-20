@@ -37,27 +37,6 @@
             'badge'    => $newAssignments,
         ],
         [
-            'label'    => 'Planting Reports',
-            'filipino' => 'Ulat sa Pagtatanim',
-            'route'    => 'technician.planting.index',
-            'pattern'  => 'technician.planting.*',
-            'icon'     => 'M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14z',
-        ],
-        [
-            'label'    => 'Damage Reports',
-            'filipino' => 'Ulat ng Pinsala',
-            'route'    => 'technician.damage.index',
-            'pattern'  => 'technician.damage.*',
-            'icon'     => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
-        ],
-        [
-            'label'    => 'Validation',
-            'filipino' => 'Pagpapatunay',
-            'route'    => 'technician.validation.index',
-            'pattern'  => 'technician.validation.*',
-            'icon'     => 'M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8',
-        ],
-        [
             'label'    => 'Maps and Visualization',
             'filipino' => 'Mapa',
             'route'    => 'technician.map.index',
@@ -77,13 +56,6 @@
             'route'    => 'technician.summaries.index',
             'pattern'  => 'technician.summaries.*',
             'icon'     => 'M6 20V10M12 20V4M18 20v-6M3.5 20h17',
-        ],
-        [
-            'label'    => 'Archive',
-            'filipino' => 'Imbakan',
-            'route'    => 'technician.archive.index',
-            'pattern'  => 'technician.archive.*',
-            'icon'     => 'M3 7h18v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l1.2-2.4A1 1 0 015.1 4h13.8a1 1 0 01.9.6L21 7M10 12h4',
         ],
     ];
 
