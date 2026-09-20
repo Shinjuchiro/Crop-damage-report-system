@@ -106,9 +106,22 @@
                 @endforeach
             </dl>
 
-            <x-ui.button size="lg" class="mt-4 w-full" @click="showDetails = ! showDetails">
+            {{-- Section 40 mobile fix: tapping this used to just flip a class
+                 on a div ~80 lines further down the page with no visible
+                 change above the fold - a technician standing in a field
+                 would tap it, see nothing happen, and assume it was broken.
+                 Now it also scrolls the revealed section into view, and the
+                 chevron flips to signal "there is more below" even before
+                 the scroll finishes. --}}
+            <x-ui.button size="lg" class="mt-4 w-full justify-center gap-2"
+                         @click="showDetails = ! showDetails; if (showDetails) $nextTick(() => $refs.reportDetails.scrollIntoView({ behavior: 'smooth', block: 'start' }))">
                 <span x-show="! showDetails">View Report Details</span>
                 <span x-show="showDetails" x-cloak>Hide Report Details</span>
+                <svg class="h-4 w-4 shrink-0 transition-transform duration-200" :class="{ 'rotate-180': showDetails }"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                     stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
             </x-ui.button>
         </x-ui.card>
 
@@ -186,7 +199,7 @@
          Always visible on a laptop. On a phone it stays closed until
          "View Report Details" is pressed.
     ================================================================== --}}
-    <div x-show="showDetails || wide" x-cloak class="space-y-4">
+    <div x-ref="reportDetails" x-show="showDetails || wide" x-cloak class="space-y-4">
 
         {{-- Status --}}
         <x-ui.card class="hidden lg:block">
