@@ -377,10 +377,9 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('crop-planting.index');
         Route::get('/crop-planting/{plantingRecord}', [CropPlantingMonitorController::class, 'show'])
             ->name('crop-planting.show');
-        Route::get('/crop-planting/{plantingRecord}/edit', [CropPlantingMonitorController::class, 'edit'])
-            ->name('crop-planting.edit');
-        Route::put('/crop-planting/{plantingRecord}', [CropPlantingMonitorController::class, 'update'])
-            ->name('crop-planting.update');
+        // Edit/update were removed (Sept 2026): MAO must not rewrite a
+        // farmer-submitted planting record - only view, archive or restore it,
+        // same rule already applied to every other farmer-submitted record.
         Route::put('/crop-planting/{plantingRecord}/archive', [CropPlantingMonitorController::class, 'archive'])
             ->name('crop-planting.archive');
         Route::put('/crop-planting/{plantingRecord}/restore', [CropPlantingMonitorController::class, 'restore'])

@@ -80,7 +80,17 @@ class AssistanceAllocationController extends Controller
     {
         $overview = $this->buildOverview($request);
 
+        // List + detail panel (Sept 2026, matching every other MAO list):
+        // "View" on either the overview table or Recent Allocations loads
+        // the allocation inline via ?selected=<id>, using the exact same
+        // relations as show() and history() so the panel content can be
+        // shared between them - see detailRelations().
+        $selected = $request->filled('selected')
+            ? AssistanceAllocation::query()->with(self::detailRelations())->find($request->selected)
+            : null;
+
         return view('mao.assistance-allocations.index', $overview + [
+            'selected'     => $selected,
             'assistances'  => Assistance::where('status', 'active')->orderBy('name')->get(),
             'associations' => Association::active()->orderBy('name')->get(),
             'disasters'    => Disaster::active()->orderByDesc('date_start')->get(),
@@ -417,8 +427,17 @@ class AssistanceAllocationController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // List + detail panel (Sept 2026, matching every other MAO list):
+        // "View" loads the distribution inline via ?selected=<id> instead
+        // of jumping straight to the allocation's own show page.
+        $selected = $request->filled('selected')
+            ? AssistanceDistribution::with(['farmer', 'allocation.assistance', 'allocation.association', 'distributedBy'])
+                ->find($request->selected)
+            : null;
+
         return view('mao.assistance-allocations.distribution-tracking', [
             'distributions' => $distributions,
+            'selected'      => $selected,
             'associations'  => Association::orderBy('name')->get(),
             'filters'       => $request->only(['association_id', 'distribution_status', 'receipt_status']),
         ]);
@@ -446,8 +465,20 @@ class AssistanceAllocationController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // List + detail panel (Sept 2026, matching every other MAO list):
+        // "View" loads the disputed distribution inline via ?selected=<id>.
+        $selected = $request->filled('selected')
+            ? AssistanceDistribution::with([
+                    'farmer', 'allocation.assistance', 'allocation.association',
+                    'allocation.disaster', 'damageReport', 'distributedBy',
+                ])
+                ->where('receipt_status', 'not_received')
+                ->find($request->selected)
+            : null;
+
         return view('mao.assistance-allocations.disputes', [
             'disputes'     => $disputes,
+            'selected'     => $selected,
             'associations' => Association::orderBy('name')->get(),
             'filters'      => $request->only(['association_id']),
         ]);

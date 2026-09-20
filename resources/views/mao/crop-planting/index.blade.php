@@ -95,6 +95,12 @@
                                     <td class="px-3 py-4">
                                         <div class="flex justify-end gap-2">
                                             <x-ui.button :href="$viewUrl($planting->crop_planting_record_id)" variant="view" size="sm">View</x-ui.button>
+
+                                            <button type="button"
+                                                    @click="archiving = { id: {{ $planting->crop_planting_record_id }}, name: @js($farmer?->full_name ?? 'this record') }"
+                                                    class="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">
+                                                Archive
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -177,6 +183,31 @@
 
             @endif
         </x-ui.detail-panel>
+    </div>
+
+    {{-- Archive confirmation --}}
+    <div x-show="archiving" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+            <h3 class="mb-2 text-lg font-semibold text-foreground">Archive this planting record?</h3>
+            <p class="mb-5 text-sm text-muted-foreground">
+                <strong x-text="archiving?.name"></strong>'s record will be removed from active monitoring.
+                Nothing is deleted, it does not change the farmer's Active/Inactive history, and it can be
+                restored at any time from the Archive page.
+            </p>
+            <div class="flex gap-3">
+                <button type="button" @click="archiving = null"
+                        class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
+                    Cancel
+                </button>
+                <form method="POST" :action="`{{ url('mao/crop-planting') }}/${archiving?.id}/archive`" class="flex-1">
+                    @csrf @method('PUT')
+                    <button type="submit"
+                            class="w-full rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
+                        Confirm Archive
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

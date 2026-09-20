@@ -12,10 +12,6 @@
            class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
             Back to Monitoring
         </a>
-        <a href="{{ route('mao.crop-planting.edit', $plantingRecord) }}"
-           class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
-            Edit
-        </a>
 
         @if ($plantingRecord->is_archived)
             <form method="POST" action="{{ route('mao.crop-planting.restore', $plantingRecord) }}"

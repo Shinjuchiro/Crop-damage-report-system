@@ -6,10 +6,12 @@
 
 @php
     $newValue = \App\Http\Controllers\MAO\AssistanceAllocationController::NEW_ASSISTANCE;
+    $viewUrl  = fn ($id) => request()->fullUrlWithQuery(['selected' => $id]);
+    $backUrl  = request()->fullUrlWithoutQuery(['selected']);
 @endphp
 
 @section('content')
-<div>
+<div x-data="{ action: null }">
 
     @if ($errors->any())
         <x-ui.alert variant="destructive" title="Please check the form" class="mb-5">
@@ -18,6 +20,15 @@
             </ul>
         </x-ui.alert>
     @endif
+
+    {{-- List + detail. Side by side from lg up; on a phone only one half
+         shows at a time - the working screen, or (once a row's View is
+         followed) the detail panel full-screen with its own Back link. --}}
+    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+
+    {{-- LIST (the whole working screen: stats, filters, overview table,
+         recent activity and the Allocate Assistance modal) --}}
+    <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
 
     {{-- ===================== STAT CARDS ===================== --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -133,7 +144,7 @@
                     </thead>
                     <tbody class="divide-y divide-border">
                         @forelse ($overviewRows as $row)
-                            <tr class="hover:bg-muted/60">
+                            <tr class="hover:bg-muted/60 {{ $row->allocation && $selected?->id === $row->allocation->id ? 'bg-muted/60' : '' }}">
                                 <td class="px-5 py-3">
                                     <p class="font-bold text-foreground">{{ $row->association->name }}</p>
                                     @if ($row->association->barangay)
@@ -156,7 +167,7 @@
                                 </td>
                                 <td class="px-5 py-3 text-center">
                                     @if ($row->allocation)
-                                        <x-ui.button :href="route('mao.assistance-allocations.show', $row->allocation)"
+                                        <x-ui.button :href="$viewUrl($row->allocation->id)"
                                                      variant="view" size="sm">View</x-ui.button>
                                     @elseif ($row->qualified_count > 0)
                                         <button type="button"
@@ -196,8 +207,8 @@
 
             @if ($recentAllocations->isNotEmpty())
                 <ul class="divide-y divide-border">
-                    @foreach ($recentAllocations as $allocation)
-                        <li class="px-6 py-4">
+    @foreach ($recentAllocations as $allocation)
+                        <li class="px-6 py-4 {{ $selected?->id === $allocation->id ? 'bg-muted/60' : '' }}">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-bold text-foreground">{{ $allocation->association?->name ?? '-' }}</p>
@@ -212,7 +223,7 @@
                                     {{ ucfirst($allocation->status) }}
                                 </span>
                             </div>
-                            <x-ui.button :href="route('mao.assistance-allocations.show', $allocation)"
+                            <x-ui.button :href="$viewUrl($allocation->id)"
                                          variant="view" size="sm" class="mt-2">
                                 View details
                             </x-ui.button>
@@ -558,5 +569,17 @@
             </x-ui.button>
         </x-slot:footer>
     </x-ui.dialog>
+
+    </div>{{-- /LIST --}}
+
+    {{-- DETAIL --}}
+    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-5 lg:mt-0"
+                        empty-text="Select an association's allocation from the list to view its details.">
+        @if ($selected)
+            @include('mao.assistance-allocations._allocation-detail', ['allocation' => $selected])
+        @endif
+    </x-ui.detail-panel>
+
+    </div>{{-- /lg:grid --}}
 </div>
 @endsection

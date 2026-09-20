@@ -32,7 +32,16 @@ class AssociationController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('mao.associations.index', compact('associations'));
+        // List + detail panel (Sept 2026, matching every other MAO list):
+        // "View" loads the association inline in the right-hand panel via
+        // ?selected=<id> instead of the row just carrying Members/Edit/Archive.
+        $selected = $request->filled('selected')
+            ? Association::with('barangay')
+                ->withCount(['farmers', 'officers', 'assistanceAllocations'])
+                ->find($request->selected)
+            : null;
+
+        return view('mao.associations.index', compact('associations', 'selected'));
     }
 
     public function create()

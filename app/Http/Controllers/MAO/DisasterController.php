@@ -31,9 +31,17 @@ class DisasterController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // List + detail panel (Sept 2026, matching every other MAO list):
+        // "View" loads the event inline in the right-hand panel via
+        // ?selected=<id> instead of the row just carrying Edit/Archive.
+        $selected = $request->filled('selected')
+            ? Disaster::withCount('damageReports')->find($request->selected)
+            : null;
+
         return view('mao.disasters.index', [
             'disasters' => $disasters,
             'types'     => self::TYPES,
+            'selected'  => $selected,
         ]);
     }
 

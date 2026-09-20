@@ -21,107 +21,175 @@
         office follows it up directly with the association.
     </div>
 
-    {{-- Filter --}}
-    <form method="GET" class="mb-4 flex flex-wrap items-center gap-3">
-        <select name="association_id"
-                class="min-w-48 rounded-lg border-2 border-primary px-4 py-2.5 text-sm font-medium text-foreground focus:outline-none">
-            <option value="">All Associations</option>
-            @foreach ($associations as $association)
-                <option value="{{ $association->id }}" @selected(request('association_id') == $association->id)>
-                    {{ $association->name }}
-                </option>
-            @endforeach
-        </select>
+    @php
+        $viewUrl = fn ($id) => request()->fullUrlWithQuery(['selected' => $id]);
+        $backUrl = request()->fullUrlWithoutQuery(['selected']);
+    @endphp
 
-        <button class="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0a2f15]">
-            Filter
-        </button>
+    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
 
-        @if (request()->hasAny(['association_id']))
-            <a href="{{ route('mao.assistance-allocations.disputes') }}"
-               class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
-        @endif
-    </form>
+        {{-- LIST --}}
+        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
 
-    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-                <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                        <th class="px-5 py-3 font-medium">Distribution</th>
-                        <th class="px-5 py-3 font-medium">Farmer</th>
-                        <th class="px-5 py-3 font-medium">Association</th>
-                        <th class="px-5 py-3 font-medium">Assistance</th>
-                        <th class="px-5 py-3 text-right font-medium">Quantity</th>
-                        <th class="px-5 py-3 font-medium">Distributed On</th>
-                        <th class="px-5 py-3 font-medium">Reported Not Received</th>
-                        <th class="px-5 py-3 font-medium">Farmer's Note</th>
-                        <th class="px-5 py-3 text-right font-medium">Action</th>
-                    </tr>
-                </thead>
+            {{-- Filter --}}
+            <form method="GET" class="mb-4 flex flex-wrap items-center gap-3">
+                <select name="association_id"
+                        class="min-w-48 rounded-lg border-2 border-primary px-4 py-2.5 text-sm font-medium text-foreground focus:outline-none">
+                    <option value="">All Associations</option>
+                    @foreach ($associations as $association)
+                        <option value="{{ $association->id }}" @selected(request('association_id') == $association->id)>
+                            {{ $association->name }}
+                        </option>
+                    @endforeach
+                </select>
 
-                <tbody class="divide-y divide-border">
-                    @forelse ($disputes as $distribution)
-                        <tr class="hover:bg-muted/60">
-                            <td class="px-5 py-3 text-foreground">
-                                DIST-{{ str_pad($distribution->id, 3, '0', STR_PAD_LEFT) }}
-                            </td>
-                            <td class="px-5 py-3 font-bold text-foreground">
-                                {{ $distribution->farmer?->full_name ?? 'Unknown' }}
-                            </td>
-                            <td class="px-5 py-3 text-muted-foreground">
-                                {{ $distribution->allocation?->association?->name ?? '-' }}
-                            </td>
-                            <td class="px-5 py-3 text-muted-foreground">
-                                {{ $distribution->allocation?->assistance?->name
-                                    ?? $distribution->in_kind_description
-                                    ?? '-' }}
-                            </td>
-                            <td class="px-5 py-3 text-right tabular-nums text-foreground">
-                                {{ $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-' }}
-                            </td>
-                            <td class="px-5 py-3 text-muted-foreground">
-                                {{ $distribution->distributed_at?->format('M d, Y') }}
-                                <span class="block text-xs">by {{ $distribution->distributedBy?->display_name ?? '-' }}</span>
-                            </td>
-                            <td class="px-5 py-3 text-muted-foreground">
-                                {{ $distribution->receipt_confirmed_at?->format('M d, Y g:i A') ?? '-' }}
-                            </td>
-                            <td class="px-5 py-3 max-w-xs text-muted-foreground">
-                                {{ $distribution->receipt_note ?? '-' }}
-                            </td>
-                            <td class="px-5 py-3 text-right">
-                                <div class="flex justify-end gap-3">
-                                    @if ($distribution->allocation)
-                                        <a href="{{ route('mao.assistance-allocations.show', $distribution->allocation) }}"
-                                           class="text-sm font-medium text-sky-700 underline hover:text-sky-900">
-                                            View Allocation
-                                        </a>
-                                    @endif
-                                    @if ($distribution->damageReport)
-                                        <a href="{{ route('mao.damage-reports.show', $distribution->damageReport) }}"
-                                           class="text-sm font-medium text-sky-700 underline hover:text-sky-900">
-                                            View Report
-                                        </a>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="9" class="px-5 py-14 text-center">
-                                <p class="text-sm font-medium text-muted-foreground">No disputes</p>
-                                <p class="mt-1 text-xs text-muted-foreground">
-                                    Every farmer who has answered so far has confirmed receiving their assistance.
-                                </p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                <button class="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0a2f15]">
+                    Filter
+                </button>
+
+                @if (request()->hasAny(['association_id']))
+                    <a href="{{ route('mao.assistance-allocations.disputes') }}"
+                       class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
+                @endif
+            </form>
+
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+                            <tr>
+                                <th class="px-5 py-3 font-medium">Distribution</th>
+                                <th class="px-5 py-3 font-medium">Farmer</th>
+                                <th class="px-5 py-3 font-medium">Association</th>
+                                <th class="px-5 py-3 font-medium">Assistance</th>
+                                <th class="px-5 py-3 text-right font-medium">Quantity</th>
+                                <th class="px-5 py-3 font-medium">Distributed On</th>
+                                <th class="px-5 py-3 font-medium">Reported Not Received</th>
+                                <th class="px-5 py-3 text-right font-medium">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="divide-y divide-border">
+                            @forelse ($disputes as $distribution)
+                                <tr class="hover:bg-muted/60 {{ $selected?->id === $distribution->id ? 'bg-muted/60' : '' }}">
+                                    <td class="px-5 py-3 text-foreground">
+                                        DIST-{{ str_pad($distribution->id, 3, '0', STR_PAD_LEFT) }}
+                                    </td>
+                                    <td class="px-5 py-3 font-bold text-foreground">
+                                        {{ $distribution->farmer?->full_name ?? 'Unknown' }}
+                                    </td>
+                                    <td class="px-5 py-3 text-muted-foreground">
+                                        {{ $distribution->allocation?->association?->name ?? '-' }}
+                                    </td>
+                                    <td class="px-5 py-3 text-muted-foreground">
+                                        {{ $distribution->allocation?->assistance?->name
+                                            ?? $distribution->in_kind_description
+                                            ?? '-' }}
+                                    </td>
+                                    <td class="px-5 py-3 text-right tabular-nums text-foreground">
+                                        {{ $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-' }}
+                                    </td>
+                                    <td class="px-5 py-3 text-muted-foreground">
+                                        {{ $distribution->distributed_at?->format('M d, Y') }}
+                                        <span class="block text-xs">by {{ $distribution->distributedBy?->display_name ?? '-' }}</span>
+                                    </td>
+                                    <td class="px-5 py-3 text-muted-foreground">
+                                        {{ $distribution->receipt_confirmed_at?->format('M d, Y g:i A') ?? '-' }}
+                                    </td>
+                                    <td class="px-5 py-3 text-right">
+                                        <x-ui.button :href="$viewUrl($distribution->id)" variant="view" size="sm">View</x-ui.button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="px-5 py-14 text-center">
+                                        <p class="text-sm font-medium text-muted-foreground">No disputes</p>
+                                        <p class="mt-1 text-xs text-muted-foreground">
+                                            Every farmer who has answered so far has confirmed receiving their assistance.
+                                        </p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mt-4">{{ $disputes->links() }}</div>
         </div>
-    </div>
 
-    <div class="mt-4">{{ $disputes->links() }}</div>
+        {{-- DETAIL (read-only by design - see the page subheading) --}}
+        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-5 lg:mt-0"
+                            empty-text="Select a dispute from the list to view its details.">
+            @if ($selected)
+                <div class="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            DIST-{{ str_pad($selected->id, 3, '0', STR_PAD_LEFT) }}
+                        </p>
+                        <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $selected->farmer?->full_name ?? 'Unknown farmer' }}</h3>
+                        <p class="text-sm text-muted-foreground">
+                            {{ $selected->allocation?->association?->name ?? 'No association' }}
+                        </p>
+                    </div>
+                </div>
+
+                <span class="inline-flex rounded px-3 py-1 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                    Not Received
+                </span>
+
+                <div class="border-t border-border pt-4">
+                    <dl class="space-y-3 text-sm">
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assistance</dt>
+                            <dd class="mt-0.5 font-medium text-foreground">
+                                {{ $selected->allocation?->assistance?->name ?? $selected->in_kind_description ?? '-' }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quantity</dt>
+                            <dd class="mt-0.5 font-medium text-foreground">
+                                {{ $selected->quantity !== null ? number_format($selected->quantity, 2) : '-' }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Distributed</dt>
+                            <dd class="mt-0.5 font-medium text-foreground">
+                                {{ $selected->distributed_at?->format('M d, Y') }}
+                                <span class="block text-xs font-normal text-muted-foreground">
+                                    by {{ $selected->distributedBy?->display_name ?? '-' }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Reported not received</dt>
+                            <dd class="mt-0.5 font-medium text-foreground">
+                                {{ $selected->receipt_confirmed_at?->format('M d, Y g:i A') ?? '-' }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Farmer's note</dt>
+                            <dd class="mt-0.5 text-foreground">{{ $selected->receipt_note ?? 'No note left.' }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="mt-5 flex flex-col gap-2 border-t border-border pt-4">
+                    @if ($selected->allocation)
+                        <a href="{{ route('mao.assistance-allocations.show', $selected->allocation) }}"
+                           class="block w-full rounded-lg border border-input px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-muted/60">
+                            View Full Allocation
+                        </a>
+                    @endif
+                    @if ($selected->damageReport)
+                        <a href="{{ route('mao.damage-reports.show', $selected->damageReport) }}"
+                           class="block w-full rounded-lg border border-input px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-muted/60">
+                            View Damage Report
+                        </a>
+                    @endif
+                </div>
+            @endif
+        </x-ui.detail-panel>
+    </div>
 </div>
 @endsection

@@ -28,7 +28,14 @@ class CropController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('mao.crops.index', compact('crops'));
+        // List + detail panel (Sept 2026, matching every other MAO list):
+        // "View" loads the crop inline in the right-hand panel via
+        // ?selected=<id> instead of the row just carrying Edit/Archive.
+        $selected = $request->filled('selected')
+            ? Crop::withCount(['mainCrops', 'plantingRecordCrops', 'damageReportCrops'])->find($request->selected)
+            : null;
+
+        return view('mao.crops.index', compact('crops', 'selected'));
     }
 
     public function create()

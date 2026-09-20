@@ -37,10 +37,21 @@ class AssistanceController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // List + detail panel (Sept 2026, matching every other MAO list):
+        // "View" loads the item inline in the right-hand panel via
+        // ?selected=<id> instead of the row just carrying Edit/Archive/Restore.
+        $selected = $request->filled('selected')
+            ? Assistance::with(['disaster', 'crop'])
+                ->withCount('allocations')
+                ->withSum('allocations', 'allocated_quantity')
+                ->find($request->selected)
+            : null;
+
         return view('mao.assistance.index', [
             'assistances' => $assistances,
             'types'       => self::TYPES,
             'statuses'    => self::STATUSES,
+            'selected'    => $selected,
         ]);
     }
 
