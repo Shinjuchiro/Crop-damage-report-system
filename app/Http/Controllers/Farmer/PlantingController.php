@@ -31,13 +31,23 @@ class PlantingController extends Controller
     /**
      * List all planting records of the logged in farmer.
      */
-    public function index()
+    public function index(Request $request)
     {
         $farmer = $this->farmer();
 
+        // List + detail panel (Sept 2026, matching the pattern used
+        // everywhere else in the app): "View" loads the record inline via
+        // ?selected=<id> instead of navigating to the separate show page
+        // (which stays reachable directly - store()/update() still redirect
+        // to it after saving).
+        $selected = $request->filled('selected')
+            ? $farmer->plantingRecords()->with('crops.crop')->find($request->selected)
+            : null;
+
         return view('farmer.planting.index', [
-            'farmer'  => $farmer,
-            'records' => $farmer->plantingRecords()
+            'farmer'   => $farmer,
+            'selected' => $selected,
+            'records'  => $farmer->plantingRecords()
                 ->with('crops.crop')       // eager load so the table does not run extra queries
                 ->withCount('crops')
                 ->latest('date_submitted')

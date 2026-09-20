@@ -43,13 +43,29 @@ class DamageReportController extends Controller
     /**
      * "My Reports" page.
      */
-    public function index()
+    public function index(Request $request)
     {
         $farmer = $this->farmer();
 
+        // List + detail panel (Sept 2026, matching the pattern used
+        // everywhere else in the app): "View" loads the report inline via
+        // ?selected=<id> instead of navigating to the separate show page
+        // (which stays reachable directly). Scoped through the farmer's own
+        // relation, not DamageReport::find(), so a report id typed into the
+        // URL for someone else's report never loads - same ownership rule
+        // show() already enforces.
+        $selected = $request->filled('selected')
+            ? $farmer->damageReports()->with([
+                    'crops.crop', 'disasters', 'photos',
+                    'assignedTechnician', 'reportedBarangay',
+                    'validation.technician', 'validation.photos',
+                ])->find($request->selected)
+            : null;
+
         return view('farmer.reports.index', [
-            'farmer'  => $farmer,
-            'reports' => $farmer->damageReports()
+            'farmer'   => $farmer,
+            'selected' => $selected,
+            'reports'  => $farmer->damageReports()
                 // Load everything the list needs in one go, otherwise
                 // each card would fire its own queries (N+1 problem).
                 ->with('crops.crop', 'disasters', 'assignedTechnician', 'validation')
