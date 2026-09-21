@@ -3,7 +3,7 @@
 @section('title', 'Record a distribution')
 @section('heading', 'Record a distribution')
 @section('heading-fil', 'Itala ang Pamamahagi')
-@section('subheading', ($allocation->assistance?->name ?? 'Assistance') . ' from ' . $association->name)
+@section('subheading', $allocation->display_name . ' from ' . $association->name)
 
 @section('header-actions')
     <x-ui.button variant="outline" :href="route('association.assistance.show', $allocation)">Cancel</x-ui.button>
@@ -64,7 +64,7 @@
             <div>
                 <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assistance</dt>
                 <dd class="mt-1 text-sm font-medium">
-                    {{ $allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance' }}
+                    {{ $allocation->display_name }}
                 </dd>
             </div>
             <div>
@@ -287,7 +287,7 @@
                         <div class="flex items-start justify-between gap-4 px-4 py-3">
                             <dt class="text-sm text-muted-foreground">Assistance</dt>
                             <dd class="text-right text-sm font-medium">
-                                {{ $allocation->assistance?->name ?? 'Assistance' }}
+                                {{ $allocation->display_name }}
                             </dd>
                         </div>
                         <div class="flex items-start justify-between gap-4 px-4 py-3">
@@ -440,7 +440,7 @@
                 return JSON.stringify([
                     { label: 'Member',          value: this.memberName() },
                     { label: 'For report',      value: this.chosenReport()?.reference || 'Not chosen' },
-                    { label: 'Assistance',      value: @js($allocation->assistance?->name ?? 'Assistance') },
+                    { label: 'Assistance',      value: @js($allocation->display_name) },
                     { label: 'Quantity',        value: String(this.quantity || 'Not entered') },
                     { label: 'What was given',  value: this.description || 'Not specified' },
                     { label: 'Date handed over',value: this.distributedAt || 'Not chosen' },

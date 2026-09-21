@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Allocation')
-@section('heading', $allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance allocation')
+@section('heading', $allocation->display_name)
 @section('subheading', 'Allocated to ' . $association->name . ' on ' . ($allocation->allocated_at?->format('F d, Y') ?? 'an unrecorded date'))
 
 @section('header-actions')
@@ -28,14 +28,12 @@
     <x-ui.card>
         <div class="flex flex-wrap items-center gap-2">
             <x-ui.status :value="$allocation->status" />
-            @if ($allocation->assistance?->type)
-                <x-ui.badge variant="primary">{{ ucfirst($allocation->assistance->type) }}</x-ui.badge>
-            @endif
+            <x-ui.badge variant="primary">{{ $allocation->is_cash ? 'Cash' : 'In-Kind' }}</x-ui.badge>
         </div>
 
         @php
             $details = [
-                'Assistance'  => $allocation->assistance?->name ?? 'Not linked',
+                'Assistance'  => $allocation->display_name,
                 'For disaster'=> $allocation->disaster?->name ?? 'Not tied to one',
                 'For crop'    => $allocation->crop?->name ?? 'Any crop',
                 'Allocated by'=> $allocation->allocatedBy?->display_name ?? 'Municipal Agriculture Office',

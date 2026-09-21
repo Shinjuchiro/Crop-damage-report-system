@@ -8,9 +8,11 @@
     $inputClass = 'w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring';
     $labelClass = 'mb-1.5 block text-sm font-medium text-foreground';
 
-    // The sentinel the Assistance dropdown uses for "make a new one". Read
-    // from the controller so the two can never drift apart.
-    $newValue = \App\Http\Controllers\MAO\AssistanceAllocationController::NEW_ASSISTANCE;
+    // The sentinel the In-Kind Item dropdown uses for "not one of these -
+    // let me describe it". Read from the controller so the two can never
+    // drift apart.
+    $otherInKind = \App\Http\Controllers\MAO\AssistanceAllocationController::OTHER_IN_KIND;
+    $inKindOptions = $assistances->where('type', 'in_kind')->values();
 @endphp
 
 @section('content')
@@ -25,12 +27,10 @@
     @endif
 
     {{--
-        An empty assistance catalogue used to block this whole page and send
-        the officer off to Settings to create an item, then walk back here.
-        It no longer does: the dropdown below has a "create a new one" option
-        that defines the item inline and saves it to the catalogue on the way
-        through. Only a missing association can stop you now, and that is
-        genuinely a different job.
+        Sept 2026: this no longer waits on the assistance catalogue at all.
+        Cash needs no catalogue item, and In-Kind can always fall back to
+        "Other" with its own typed description - so only a missing
+        association can stop you here.
     --}}
     @if ($associations->isEmpty())
         <x-ui.alert variant="warning" title="No Farmers' Association exists yet">
@@ -44,51 +44,40 @@
               @submit.prevent="confirm = true"
               x-data="{
                   confirm: false,
-                  assistanceId: @js((string) old('assistance_id', '')),
+                  assistanceType: @js(old('assistance_type', '')),
+                  inKindItem: @js(old('in_kind_item', '')),
+                  inKindDescription: @js(old('in_kind_description', '')),
                   associationId: @js((string) old('association_id', '')),
                   disasterId: @js((string) old('disaster_id', '')),
                   cropId: @js((string) old('crop_id', '')),
-                  description: @js(old('in_kind_description', '')),
                   quantity: @js((string) old('allocated_quantity', '')),
                   remarks: @js(old('remarks', '')),
 
-                  /* The inline new item */
-                  newName: @js(old('new_assistance_name', '')),
-                  newType: @js(old('new_assistance_type', 'in_kind')),
-                  newDescription: @js(old('new_assistance_description', '')),
-                  newAvailable: @js((string) old('new_assistance_available', '')),
-
                   lookup: {
-                      assistances: @js($assistances->pluck('name', 'id')),
-                      types: @js($assistances->pluck('type', 'id')),
+                      inKindNames: @js($inKindOptions->pluck('name', 'id')),
                       associations: @js($associations->pluck('name', 'id')),
                       disasters: @js($disasters->pluck('name', 'id')),
                       crops: @js($crops->pluck('name', 'id')),
                   },
 
-                  /* Are we defining a new catalogue item on this form? */
-                  makingNew() { return this.assistanceId === @js($newValue); },
-
-                  /* Cash or in kind, whichever source applies */
-                  isCash() {
-                      return this.makingNew()
-                          ? this.newType === 'cash'
-                          : this.lookup.types[this.assistanceId] === 'cash';
-                  },
+                  isCash() { return this.assistanceType === 'cash'; },
+                  isOther() { return this.assistanceType === 'in_kind' && this.inKindItem === @js($otherInKind); },
 
                   assistanceName() {
-                      if (this.makingNew()) {
-                          return (this.newName || 'Unnamed') + ' (new)';
-                      }
-                      return this.lookup.assistances[this.assistanceId] || 'Not specified';
+                      if (this.assistanceType === 'cash') return 'Cash';
+                      if (this.isOther()) return this.inKindDescription || 'Not specified';
+                      return this.lookup.inKindNames[this.inKindItem] || 'Not specified';
                   },
 
                   label(list, id) { return this.lookup[list][id] || 'Not specified'; },
 
                   /* Enough to submit? Stops the review opening on a half filled form. */
                   ready() {
-                      if (! this.assistanceId || ! this.associationId) return false;
-                      if (this.makingNew() && ! this.newName.trim()) return false;
+                      if (! this.assistanceType || ! this.associationId) return false;
+                      if (this.assistanceType === 'in_kind') {
+                          if (! this.inKindItem) return false;
+                          if (this.isOther() && ! this.inKindDescription.trim()) return false;
+                      }
                       return true;
                   },
               }">
@@ -98,39 +87,51 @@
 
                 <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     <div>
-                        <label for="assistance_id" class="{{ $labelClass }}">
-                            Assistance <span class="text-destructive">*</span>
+                        <label for="assistance_type" class="{{ $labelClass }}">
+                            Assistance Type <span class="text-destructive">*</span>
                         </label>
-                        <select id="assistance_id" name="assistance_id" x-model="assistanceId" required
+                        <select id="assistance_type" name="assistance_type" x-model="assistanceType"
+                                @change="inKindItem = ''; inKindDescription = ''" required
                                 class="{{ $inputClass }}">
-                            <option value="">Select assistance</option>
+                            <option value="">Select type</option>
+                            <option value="cash" @selected(old('assistance_type') === 'cash')>Cash</option>
+                            <option value="in_kind" @selected(old('assistance_type') === 'in_kind')>In-Kind</option>
+                        </select>
+                    </div>
 
-                            {{-- First, so it is found without hunting to the
-                                 bottom of a long list. --}}
-                            <option value="{{ $newValue }}">+ Create a new assistance item</option>
-
-                            @if ($assistances->isNotEmpty())
-                                <optgroup label="Already in your list">
-                                    @foreach ($assistances as $assistance)
-                                        <option value="{{ $assistance->id }}"
-                                                @selected(old('assistance_id') == $assistance->id)>
-                                            {{ $assistance->name }} ({{ $assistance->type === 'cash' ? 'Cash' : 'In-Kind' }})
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                            @endif
+                    <div x-show="assistanceType === 'in_kind'" x-cloak x-transition>
+                        <label for="in_kind_item" class="{{ $labelClass }}">
+                            In-Kind Item <span class="text-destructive">*</span>
+                        </label>
+                        <select id="in_kind_item" name="in_kind_item" x-model="inKindItem" required
+                                class="{{ $inputClass }}">
+                            <option value="">Select item</option>
+                            @foreach ($inKindOptions as $item)
+                                <option value="{{ $item->id }}" @selected(old('in_kind_item') == $item->id)>
+                                    {{ $item->name }}
+                                </option>
+                            @endforeach
+                            <option value="{{ $otherInKind }}" @selected(old('in_kind_item') === $otherInKind)>
+                                Other (describe below)
+                            </option>
                         </select>
 
                         <p class="mt-1.5 text-xs text-muted-foreground">
-                            @if ($assistances->isEmpty())
-                                Nothing in your list yet. Choose "Create a new assistance item" and define it here.
-                            @else
-                                <a href="{{ route('mao.assistance.index') }}" class="font-medium text-primary hover:underline">
-                                    Manage the full list
-                                </a>
-                                to rename, edit or close items.
-                            @endif
+                            <a href="{{ route('mao.assistance.index') }}" class="font-medium text-primary hover:underline">
+                                Manage the full list
+                            </a>
+                            to rename, edit or close items.
                         </p>
+                    </div>
+
+                    <div class="sm:col-span-2 xl:col-span-3" x-show="isOther()" x-cloak x-transition>
+                        <label for="in_kind_description" class="{{ $labelClass }}">
+                            Describe this item <span class="text-destructive">*</span>
+                        </label>
+                        <input id="in_kind_description" type="text" name="in_kind_description" maxlength="255" required
+                               x-model="inKindDescription" value="{{ old('in_kind_description') }}"
+                               placeholder="e.g. Certified Rice Seed, Fuel Subsidy"
+                               class="{{ $inputClass }}">
                     </div>
 
                     <div>
@@ -175,82 +176,9 @@
                 </div>
 
                 {{-- =========================================================
-                     THE NEW ITEM, only when one is being made
-                ========================================================== --}}
-                <div x-show="makingNew()" x-cloak x-transition
-                     class="rounded-xl border border-primary/30 bg-accent p-5">
-
-                    <p class="text-sm font-semibold text-accent-foreground">New assistance item</p>
-                    <p class="mt-0.5 text-xs text-accent-foreground/80">
-                        This is saved to your assistance list as well, so next time you can just pick it.
-                    </p>
-
-                    <div class="mt-4 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                        <div class="sm:col-span-2">
-                            <label for="new_assistance_name" class="{{ $labelClass }}">
-                                Name <span class="text-destructive">*</span>
-                            </label>
-                            <input id="new_assistance_name" type="text" name="new_assistance_name" maxlength="255"
-                                   x-model="newName" value="{{ old('new_assistance_name') }}"
-                                   placeholder="e.g. Certified Rice Seed, Fuel Subsidy"
-                                   class="{{ $inputClass }}">
-                        </div>
-
-                        <div>
-                            <label for="new_assistance_type" class="{{ $labelClass }}">
-                                Type <span class="text-destructive">*</span>
-                            </label>
-                            <select id="new_assistance_type" name="new_assistance_type" x-model="newType"
-                                    class="{{ $inputClass }}">
-                                @foreach ($types as $type)
-                                    <option value="{{ $type }}" @selected(old('new_assistance_type') === $type)>
-                                        {{ $type === 'cash' ? 'Cash' : 'In-Kind' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label for="new_assistance_available" class="{{ $labelClass }}">
-                                Total available
-                                <span class="font-normal text-muted-foreground">(optional)</span>
-                            </label>
-                            <input id="new_assistance_available" type="number" step="0.01" min="0"
-                                   name="new_assistance_available" x-model="newAvailable"
-                                   value="{{ old('new_assistance_available') }}"
-                                   placeholder="0.00" class="{{ $inputClass }}">
-                            <p class="mt-1.5 text-xs text-muted-foreground">
-                                The whole pool, across every association.
-                            </p>
-                        </div>
-
-                        <div class="sm:col-span-2 xl:col-span-4">
-                            <label for="new_assistance_description" class="{{ $labelClass }}">
-                                Description <span class="font-normal text-muted-foreground">(optional)</span>
-                            </label>
-                            <input id="new_assistance_description" type="text" name="new_assistance_description"
-                                   maxlength="1000" x-model="newDescription"
-                                   value="{{ old('new_assistance_description') }}"
-                                   placeholder="What this assistance is, in a sentence"
-                                   class="{{ $inputClass }}">
-                        </div>
-                    </div>
-                </div>
-
-                {{-- =========================================================
                      THIS PARTICULAR ALLOCATION
                 ========================================================== --}}
                 <div class="grid gap-5 border-t border-border pt-5 sm:grid-cols-2 xl:grid-cols-3">
-
-                    <div class="sm:col-span-2 xl:col-span-3">
-                        <label for="in_kind_description" class="{{ $labelClass }}">Description</label>
-                        <input id="in_kind_description" type="text" name="in_kind_description" x-model="description"
-                               maxlength="255" value="{{ old('in_kind_description') }}"
-                               placeholder="e.g. 10 bags of certified rice seed" class="{{ $inputClass }}">
-                        <p class="mt-1.5 text-xs text-muted-foreground">
-                            What exactly is going to this association. Leave blank to use the item's own description.
-                        </p>
-                    </div>
 
                     <div>
                         <label for="allocated_quantity" class="{{ $labelClass }}">
@@ -308,15 +236,6 @@
                             <dd class="text-right font-medium" x-text="assistanceName()"></dd>
                         </div>
 
-                        {{-- Only worth saying when something is actually being
-                             added to the catalogue. --}}
-                        <div class="flex justify-between gap-4" x-show="makingNew()">
-                            <dt class="shrink-0 text-muted-foreground">New item</dt>
-                            <dd class="text-right font-medium text-primary">
-                                Will be added to your assistance list
-                            </dd>
-                        </div>
-
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Association</dt>
                             <dd class="text-right font-bold" x-text="label('associations', associationId)"></dd>
@@ -324,10 +243,6 @@
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Type</dt>
                             <dd class="text-right font-medium" x-text="isCash() ? 'Cash' : 'In-Kind'"></dd>
-                        </div>
-                        <div class="flex justify-between gap-4">
-                            <dt class="shrink-0 text-muted-foreground">Description</dt>
-                            <dd class="text-right font-medium" x-text="description || 'Not specified'"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground" x-text="isCash() ? 'Amount' : 'Quantity'"></dt>

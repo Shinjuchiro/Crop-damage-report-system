@@ -118,7 +118,7 @@
                             @forelse ($allocations as $allocation)
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $allocation->id ? 'bg-muted/60' : '' }}">
                                     <td class="px-3 py-4 text-foreground">AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}</td>
-                                    <td class="px-3 py-4 font-medium text-foreground">{{ $allocation->assistance?->name ?? '-' }}</td>
+                                    <td class="px-3 py-4 font-medium text-foreground">{{ $allocation->display_name }}</td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $allocation->association?->name ?? '-' }}</td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</td>
                                     <td class="px-3 py-4 text-right tabular-nums text-foreground">

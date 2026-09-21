@@ -214,7 +214,7 @@ class AssistanceController extends Controller
             AuditLog::create([
                 'user_id'      => Auth::id(),
                 'action'       => 'Distributed ' . rtrim(rtrim(number_format((float) $data['quantity'], 2), '0'), '.')
-                                  . ' of ' . ($allocation->assistance?->name ?? 'assistance')
+                                  . ' of ' . $allocation->display_name
                                   . ' to ' . $farmer->full_name . ' for ' . $report->reference,
                 'target_table' => 'assistance_distributions',
                 'target_id'    => $distribution->id,
@@ -362,7 +362,7 @@ class AssistanceController extends Controller
      */
     private function notifyFarmer(AssistanceDistribution $distribution, Farmer $farmer, AssistanceAllocation $allocation): void
     {
-        $what = $allocation->assistance?->name
+        $what = $allocation->display_name
             ?? $distribution->in_kind_description
             ?? 'Assistance';
 

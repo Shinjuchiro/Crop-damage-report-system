@@ -156,7 +156,7 @@ class AssistanceController extends Controller
             return;
         }
 
-        $what = $distribution->allocation?->assistance?->name
+        $what = $distribution->allocation?->display_name
             ?? $distribution->in_kind_description
             ?? 'Assistance';
 
@@ -205,7 +205,7 @@ class AssistanceController extends Controller
     {
         $distribution->loadMissing('allocation.assistance');
         $allocationId = $distribution->allocation?->id;
-        $what = $distribution->allocation?->assistance?->name
+        $what = $distribution->allocation?->display_name
             ?? $distribution->in_kind_description
             ?? 'Assistance';
 

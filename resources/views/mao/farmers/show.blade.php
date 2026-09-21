@@ -281,7 +281,7 @@
                         @foreach ($farmer->assistanceDistributions->sortByDesc('distributed_at') as $distribution)
                             <tr class="hover:bg-muted/60">
                                 <td class="px-6 py-3 font-medium text-foreground">
-                                    {{ $distribution->allocation?->assistance?->name ?? 'Assistance' }}
+                                    {{ $distribution->allocation?->display_name ?? 'Assistance' }}
                                     @if ($distribution->in_kind_description)
                                         <span class="block text-xs font-normal text-muted-foreground">{{ $distribution->in_kind_description }}</span>
                                     @endif

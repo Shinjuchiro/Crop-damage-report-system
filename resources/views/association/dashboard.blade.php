@@ -126,7 +126,7 @@
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-semibold">
-                                            {{ $allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance' }}
+                                            {{ $allocation->display_name }}
                                         </p>
                                         <p class="mt-0.5 text-xs text-muted-foreground">
                                             @if ($allocation->disaster)

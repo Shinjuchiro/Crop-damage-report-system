@@ -65,7 +65,7 @@
                                         {{ $distribution->allocation?->association?->name ?? '-' }}
                                     </td>
                                     <td class="px-5 py-3 text-muted-foreground">
-                                        {{ $distribution->allocation?->assistance?->name
+                                        {{ $distribution->allocation?->display_name
                                             ?? $distribution->in_kind_description
                                             ?? '-' }}
                                     </td>
@@ -126,7 +126,7 @@
                         <div>
                             <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assistance</dt>
                             <dd class="mt-0.5 font-medium text-foreground">
-                                {{ $selected->allocation?->assistance?->name ?? $selected->in_kind_description ?? '-' }}
+                                {{ $selected->allocation?->display_name ?? $selected->in_kind_description ?? '-' }}
                             </dd>
                         </div>
                         <div>

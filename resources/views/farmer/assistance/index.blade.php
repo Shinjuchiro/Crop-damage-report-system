@@ -47,19 +47,18 @@
 
     @forelse ($distributions as $distribution)
         @php
-            $assistance = $distribution->allocation?->assistance;
-            $waiting    = $distribution->receipt_status === 'pending_confirmation';
+            $waiting = $distribution->receipt_status === 'pending_confirmation';
         @endphp
 
         <x-ui.card :class="$waiting ? 'border-primary/40' : ''">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="min-w-0 space-y-1.5">
                     <p class="text-base font-semibold">
-                        {{ $assistance?->name ?? $distribution->in_kind_description ?? 'Assistance' }}
+                        {{ $distribution->allocation?->display_name ?? $distribution->in_kind_description ?? 'Assistance' }}
                     </p>
 
                     <p class="text-sm text-muted-foreground">
-                        @if ($assistance?->type === 'cash')
+                        @if ($distribution->allocation?->is_cash)
                             &#8369;{{ number_format((float) $distribution->quantity, 2) }}
                         @else
                             {{ number_format((float) $distribution->quantity, 2) }} received

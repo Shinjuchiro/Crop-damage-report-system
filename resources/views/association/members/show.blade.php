@@ -224,7 +224,7 @@
                 @foreach ($member->assistanceDistributions->sortByDesc('distributed_at') as $given)
                     <tr>
                         <td class="font-medium">
-                            {{ $given->allocation?->assistance?->name
+                            {{ $given->allocation?->display_name
                                 ?? $given->in_kind_description ?? 'Assistance' }}
                         </td>
                         <td class="whitespace-nowrap">{{ number_format((float) $given->quantity, 2) }}</td>

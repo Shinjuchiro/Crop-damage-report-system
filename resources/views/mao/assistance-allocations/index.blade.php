@@ -5,7 +5,8 @@
 @section('subheading', "Generate and manage assistance allocation to farmer associations based on MAO-approved beneficiary lists.")
 
 @php
-    $newValue = \App\Http\Controllers\MAO\AssistanceAllocationController::NEW_ASSISTANCE;
+    $otherInKind = \App\Http\Controllers\MAO\AssistanceAllocationController::OTHER_IN_KIND;
+    $inKindOptions = $assistances->where('type', 'in_kind')->values();
     $viewUrl  = fn ($id) => request()->fullUrlWithQuery(['selected' => $id]);
     $backUrl  = request()->fullUrlWithoutQuery(['selected']);
 @endphp
@@ -103,10 +104,11 @@
         </div>
     </div>
 
-    @if ($assistances->isEmpty())
-        <x-ui.alert variant="warning" title="No assistance in your catalogue yet" class="mb-5">
-            You can still create one on the fly from the Allocate Assistance form, or add one under
-            <a href="{{ route('mao.assistance.index') }}" class="font-medium underline">Assistance Catalogue</a> first.
+    @if ($inKindOptions->isEmpty())
+        <x-ui.alert variant="warning" title="No in-kind items in your catalogue yet" class="mb-5">
+            You can still allocate Cash, or an In-Kind item marked "Other" with its own description. To pick a
+            specific in-kind item from a list next time, add one under
+            <a href="{{ route('mao.assistance.index') }}" class="font-medium underline">Assistance Catalogue</a>.
         </x-ui.alert>
     @endif
 
@@ -146,7 +148,7 @@
                                     @endif
                                 </td>
                                 <td class="px-5 py-3 text-right tabular-nums text-foreground">{{ $row->qualified_count }}</td>
-                                <td class="px-5 py-3 text-muted-foreground">{{ $row->allocation?->assistance?->name ?? '—' }}</td>
+                                <td class="px-5 py-3 text-muted-foreground">{{ $row->allocation?->display_name ?? '—' }}</td>
                                 <td class="px-5 py-3 text-center">
                                     @php
                                         $badge = match ($row->status) {
@@ -206,7 +208,7 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-bold text-foreground">{{ $allocation->association?->name ?? '-' }}</p>
-                                    <p class="truncate text-xs text-muted-foreground">{{ $allocation->assistance?->name ?? '-' }}</p>
+                                    <p class="truncate text-xs text-muted-foreground">{{ $allocation->display_name }}</p>
                                     <p class="mt-1 text-xs text-muted-foreground">
                                         {{ $allocation->allocated_at?->format('M d, Y') }}
                                         &middot; {{ $allocation->beneficiaries_count }} beneficiar{{ $allocation->beneficiaries_count === 1 ? 'y' : 'ies' }}
@@ -246,12 +248,15 @@
               x-data="{
                   associationId: '',
                   disasterId: @js((string) old('disaster_id', $filters['disaster_id'] ?: '')),
-                  assistanceId: @js((string) old('assistance_id', '')),
                   cropId: @js((string) old('crop_id', '')),
-                  newName: @js(old('new_assistance_name', '')),
-                  newType: @js(old('new_assistance_type', 'in_kind')),
-                  newDescription: @js(old('new_assistance_description', '')),
-                  newAvailable: @js((string) old('new_assistance_available', '')),
+
+                  // Sept 2026: Cash or In-Kind first; In-Kind then either an
+                  // existing catalogue item or Other with its own typed
+                  // description. No more defining a brand-new catalogue item
+                  // from this modal.
+                  assistanceType: @js(old('assistance_type', '')),
+                  inKindItem: @js(old('in_kind_item', '')),
+                  inKindDescription: @js(old('in_kind_description', '')),
 
                   beneficiaries: [],
                   selected: [],
@@ -259,14 +264,8 @@
                   beneficiaryError: '',
                   files: [],
 
-                  lookup: {
-                      types: @js($assistances->pluck('type', 'id')),
-                  },
-
-                  makingNew() { return this.assistanceId === @js($newValue); },
-                  isCash() {
-                      return this.makingNew() ? this.newType === 'cash' : this.lookup.types[this.assistanceId] === 'cash';
-                  },
+                  isCash() { return this.assistanceType === 'cash'; },
+                  isOther() { return this.assistanceType === 'in_kind' && this.inKindItem === @js($otherInKind); },
 
                   fetchBeneficiaries() {
                       this.selected = [];
@@ -327,8 +326,11 @@
                   },
 
                   ready() {
-                      if (! this.assistanceId || ! this.associationId) { return false; }
-                      if (this.makingNew() && ! this.newName.trim()) { return false; }
+                      if (! this.associationId || ! this.assistanceType) { return false; }
+                      if (this.assistanceType === 'in_kind') {
+                          if (! this.inKindItem) { return false; }
+                          if (this.isOther() && ! this.inKindDescription.trim()) { return false; }
+                      }
                       return true;
                   },
               }"
@@ -429,20 +431,27 @@
                 <p class="mt-0.5 text-xs text-muted-foreground">Specify the type of assistance and additional information.</p>
 
                 <div class="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <div class="sm:col-span-2 xl:col-span-1">
-                        <x-ui.field label="Assistance Type" name="assistance_id" required>
-                            <x-ui.select name="assistance_id" placeholder="Select assistance" required x-model="assistanceId">
-                                <option value="{{ $newValue }}">+ Create a new assistance item</option>
-                                @if ($assistances->isNotEmpty())
-                                    <optgroup label="Already in your catalogue">
-                                        @foreach ($assistances as $assistance)
-                                            <option value="{{ $assistance->id }}">
-                                                {{ $assistance->name }} ({{ $assistance->type === 'cash' ? 'Cash' : 'In-Kind' }})
-                                            </option>
-                                        @endforeach
-                                    </optgroup>
-                                @endif
+                    <x-ui.field label="Assistance Type" name="assistance_type" required>
+                        <x-ui.select name="assistance_type" placeholder="Select type" required x-model="assistanceType"
+                                     @change="inKindItem = ''; inKindDescription = ''"
+                                     :options="['cash' => 'Cash', 'in_kind' => 'In-Kind']" />
+                    </x-ui.field>
+
+                    <div x-show="assistanceType === 'in_kind'" x-cloak x-transition>
+                        <x-ui.field label="In-Kind Item" name="in_kind_item" required>
+                            <x-ui.select name="in_kind_item" placeholder="Select item" required x-model="inKindItem">
+                                @foreach ($inKindOptions as $item)
+                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                @endforeach
+                                <option value="{{ $otherInKind }}">Other (describe below)</option>
                             </x-ui.select>
+                        </x-ui.field>
+                    </div>
+
+                    <div class="sm:col-span-2 xl:col-span-3" x-show="isOther()" x-cloak x-transition>
+                        <x-ui.field label="Describe this item" name="in_kind_description" required>
+                            <x-ui.input name="in_kind_description" x-model="inKindDescription" maxlength="255" required
+                                        placeholder="e.g. Certified Rice Seed, Fuel Subsidy" />
                         </x-ui.field>
                     </div>
 
@@ -467,40 +476,6 @@
                             <x-ui.textarea name="remarks" rows="2" placeholder="e.g. For distribution at the association center."
                                            maxlength="1000">{{ old('remarks') }}</x-ui.textarea>
                         </x-ui.field>
-                    </div>
-                </div>
-
-                {{-- New assistance item, only while creating one --}}
-                <div x-show="makingNew()" x-cloak x-transition class="mt-4 rounded-xl border border-primary/30 bg-accent p-4">
-                    <p class="text-sm font-semibold text-accent-foreground">New assistance item</p>
-                    <p class="mt-0.5 text-xs text-accent-foreground/80">
-                        This is saved to your assistance catalogue as well, so next time you can just pick it.
-                    </p>
-
-                    <div class="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        <div class="sm:col-span-2">
-                            <x-ui.field label="Name" name="new_assistance_name" required>
-                                <x-ui.input name="new_assistance_name" x-model="newName" maxlength="255"
-                                            placeholder="e.g. Certified Rice Seed" />
-                            </x-ui.field>
-                        </div>
-
-                        <x-ui.field label="Type" name="new_assistance_type" required>
-                            <x-ui.select name="new_assistance_type" x-model="newType"
-                                         :options="collect($types)->mapWithKeys(fn ($t) => [$t => $t === 'cash' ? 'Cash' : 'In-Kind'])" />
-                        </x-ui.field>
-
-                        <x-ui.field label="Total Available" name="new_assistance_available" hint="Optional">
-                            <x-ui.input type="number" step="0.01" min="0" name="new_assistance_available"
-                                        value="{{ old('new_assistance_available') }}" placeholder="0.00" />
-                        </x-ui.field>
-
-                        <div class="sm:col-span-2 xl:col-span-4">
-                            <x-ui.field label="Description" name="new_assistance_description" hint="Optional">
-                                <x-ui.input name="new_assistance_description" maxlength="1000"
-                                            value="{{ old('new_assistance_description') }}" />
-                            </x-ui.field>
-                        </div>
                     </div>
                 </div>
             </div>

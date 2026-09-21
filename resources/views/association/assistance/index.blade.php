@@ -39,13 +39,11 @@
         </div>
 
         @if ($allocations->isEmpty())
-            <div class="p-4 sm:p-5">
-                <x-ui.empty title="Nothing allocated to you yet"
-                            icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21"
-                            message="When the Municipal Agriculture Office allocates cash or in-kind assistance to your association, it appears here and you record handing it to members.">
-                    <span class="text-xs text-muted-foreground">Wala pa pong naitalagang tulong sa inyong asosasyon.</span>
-                </x-ui.empty>
-            </div>
+            <x-ui.empty title="Nothing allocated to you yet"
+                        icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21"
+                        message="When the Municipal Agriculture Office allocates cash or in-kind assistance to your association, it appears here and you record handing it to members.">
+                <span class="text-xs text-muted-foreground">Wala pa pong naitalagang tulong sa inyong asosasyon.</span>
+            </x-ui.empty>
         @else
 
             {{-- ---------- PHONE ---------- --}}
@@ -64,10 +62,10 @@
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="truncate text-sm font-semibold">
-                                    {{ $allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance' }}
+                                    {{ $allocation->display_name }}
                                 </p>
                                 <p class="mt-0.5 text-xs text-muted-foreground">
-                                    {{ ucfirst($allocation->assistance?->type ?? 'in kind') }}
+                                    {{ $allocation->is_cash ? 'Cash' : 'In-Kind' }}
                                     @if ($allocation->disaster)
                                         &middot; for {{ $allocation->disaster->name }}
                                     @endif
@@ -135,10 +133,10 @@
                         <tr>
                             <td>
                                 <span class="font-medium">
-                                    {{ $allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance' }}
+                                    {{ $allocation->display_name }}
                                 </span>
                                 <span class="block text-xs text-muted-foreground">
-                                    {{ ucfirst($allocation->assistance?->type ?? 'in kind') }}
+                                    {{ $allocation->is_cash ? 'Cash' : 'In-Kind' }}
                                 </span>
                             </td>
 

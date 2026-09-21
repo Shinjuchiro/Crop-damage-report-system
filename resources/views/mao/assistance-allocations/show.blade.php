@@ -13,7 +13,7 @@
         'cancelled'   => 'bg-secondary text-muted-foreground',
     ];
 
-    $isCash = $allocation->assistance?->type === 'cash';
+    $isCash = $allocation->is_cash;
 @endphp
 
 @section('header-actions')
@@ -44,7 +44,7 @@
         </div>
 
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <div><dt class="text-muted-foreground">Assistance</dt><dd class="font-medium text-foreground">{{ $allocation->assistance?->name ?? '-' }}</dd></div>
+            <div><dt class="text-muted-foreground">Assistance</dt><dd class="font-medium text-foreground">{{ $allocation->display_name }}</dd></div>
             <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $allocation->association?->name ?? '-' }}</dd></div>
             <div><dt class="text-muted-foreground">Disaster Event</dt><dd class="font-medium text-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</dd></div>
             <div><dt class="text-muted-foreground">Crop</dt><dd class="font-medium text-foreground">{{ $allocation->crop?->name ?? 'Not crop specific' }}</dd></div>

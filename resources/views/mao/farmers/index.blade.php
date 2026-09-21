@@ -256,7 +256,7 @@
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assistance Received</p>
                         @forelse ($farmer->assistanceDistributions->sortByDesc('distributed_at') as $distribution)
                             <div class="mb-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                                <p class="font-medium text-foreground">{{ $distribution->allocation?->assistance?->name ?? 'Assistance' }}</p>
+                                <p class="font-medium text-foreground">{{ $distribution->allocation?->display_name ?? 'Assistance' }}</p>
                                 <p class="text-muted-foreground">
                                     {{ $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-' }}
                                     &middot; {{ $distribution->distributed_at?->format('M d, Y') ?? 'Not yet distributed' }}

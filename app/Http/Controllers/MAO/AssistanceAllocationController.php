@@ -244,7 +244,7 @@ class AssistanceAllocationController extends Controller
                 fputcsv($out, [
                     $row->association->name,
                     $row->qualified_count,
-                    $row->allocation?->assistance?->name ?? '-',
+                    $row->allocation?->display_name ?? '-',
                     ucwords(str_replace('_', ' ', $row->status)),
                 ]);
             }
@@ -500,17 +500,14 @@ class AssistanceAllocationController extends Controller
     }
 
     /**
-     * The value the Assistance dropdown uses for "I want to make a new one".
-     * Not an id, so it can never collide with a real row.
+     * The value the in-kind item dropdown uses for "not one of these -
+     * let me describe it". Not an id, so it can never collide with a real
+     * assistances row.
      */
-    public const NEW_ASSISTANCE = '__new__';
+    public const OTHER_IN_KIND = '__other__';
 
     public function store(Request $request)
     {
-        // Creating the assistance item on the spot rather than making the
-        // officer go to Settings, add it there, and come back.
-        $creatingNew = $request->input('assistance_id') === self::NEW_ASSISTANCE;
-
         // A disaster event is optional from either source now (Section 8's
         // rule for the farmer's own damage report applies here too: not
         // every assistance item is tied to one specific declared event - a
@@ -521,23 +518,44 @@ class AssistanceAllocationController extends Controller
         // verified/approved farmer in the association regardless of
         // disaster - see qualifiedReports() and section 29.
 
+        // Sept 2026: the modal no longer lets an officer define a brand-new
+        // catalogue item on the spot ("+ Create a new assistance item" is
+        // gone). The Assistance Type field is now Cash or In-Kind first;
+        // In-Kind then either points at an existing catalogue row or, via
+        // Other, carries its own typed description with no catalogue link
+        // at all. See the migration that made assistance_id nullable for
+        // why that link is no longer mandatory.
         $data = $request->validate([
-            'assistance_id'  => ['required', $creatingNew ? 'string' : 'exists:assistances,id'],
+            'assistance_type' => ['required', Rule::in(AssistanceController::TYPES)],
+
+            // Only meaningful (and only required) for In-Kind: either an
+            // existing assistances id, or the Other sentinel.
+            'in_kind_item' => [
+                Rule::requiredIf(fn () => $request->input('assistance_type') === 'in_kind'),
+                'nullable', 'string',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->input('assistance_type') !== 'in_kind'
+                        || $value === null || $value === self::OTHER_IN_KIND) {
+                        return;
+                    }
+
+                    if (! Assistance::where('id', $value)->where('type', 'in_kind')->exists()) {
+                        $fail('Please choose a valid in-kind item.');
+                    }
+                },
+            ],
+
+            // Required only when In-Kind + Other was chosen.
+            'in_kind_description' => [
+                Rule::requiredIf(fn () => $request->input('assistance_type') === 'in_kind'
+                    && $request->input('in_kind_item') === self::OTHER_IN_KIND),
+                'nullable', 'string', 'max:255',
+            ],
+
             'association_id' => ['required', 'exists:associations,id'],
             'disaster_id'    => ['nullable', 'exists:disasters,id'],
             'crop_id'        => ['nullable', 'exists:crops,id'],
 
-            // The new catalogue entry, only when one is being made.
-            'new_assistance_name' => [
-                Rule::requiredIf($creatingNew), 'nullable', 'string', 'max:255',
-            ],
-            'new_assistance_type' => [
-                Rule::requiredIf($creatingNew), 'nullable', Rule::in(AssistanceController::TYPES),
-            ],
-            'new_assistance_description' => ['nullable', 'string', 'max:1000'],
-            'new_assistance_available'   => ['nullable', 'numeric', 'min:0'],
-
-            'in_kind_description' => ['nullable', 'string', 'max:255'],
             'allocated_quantity'  => ['nullable', 'numeric', 'min:0'],
             'start_date'          => ['nullable', 'date'],
             'remarks'             => ['nullable', 'string', 'max:1000'],
@@ -551,46 +569,39 @@ class AssistanceAllocationController extends Controller
             'documents'   => ['nullable', 'array', 'max:5'],
             'documents.*' => ['file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ], [
-            'new_assistance_name.required' => 'Please name the new assistance item.',
-            'new_assistance_type.required' => 'Please say whether the new item is cash or in kind.',
-            'documents.*.max'              => 'Each file must be 10 MB or smaller.',
-            'documents.*.mimes'            => 'Only PDF, JPG or PNG files are accepted.',
+            'assistance_type.required'   => 'Please choose Cash or In-Kind.',
+            'in_kind_item.required'      => 'Please choose which in-kind item is being given.',
+            'in_kind_description.required' => 'Please describe what this in-kind item is.',
+            'documents.*.max'            => 'Each file must be 10 MB or smaller.',
+            'documents.*.mimes'          => 'Only PDF, JPG or PNG files are accepted.',
         ]);
 
-        $allocation = DB::transaction(function () use ($data, $creatingNew, $request) {
+        $allocation = DB::transaction(function () use ($data, $request) {
 
-            // Make the catalogue entry first, so the allocation has something
-            // real to point at. Both happen in one transaction: if the
-            // allocation fails we do not leave a stray item behind.
-            if ($creatingNew) {
-                $assistance = Assistance::create([
-                    'name'        => $data['new_assistance_name'],
-                    'type'        => $data['new_assistance_type'],
-                    'description' => $data['new_assistance_description'] ?? null,
-                    'disaster_id' => $data['disaster_id'] ?? null,
-                    'crop_id'     => $data['crop_id'] ?? null,
-                    'available_quantity_or_amount' => $data['new_assistance_available'] ?? null,
-                    'status'      => 'active',
-                ]);
+            // Cash: no catalogue link, no description - just its type.
+            // In-Kind + a real catalogue item: link to it, no free text.
+            // In-Kind + Other: no catalogue link, the typed text is all
+            // there is.
+            $assistanceId = null;
+            $inKindDescription = null;
 
-                $data['assistance_id'] = $assistance->id;
-
-                AuditLog::create([
-                    'user_id'      => Auth::id(),
-                    'action'       => 'Created assistance while allocating: ' . $assistance->name,
-                    'target_table' => 'assistances',
-                    'target_id'    => $assistance->id,
-                    'created_at'   => now(),
-                ]);
+            if ($data['assistance_type'] === 'in_kind') {
+                if (($data['in_kind_item'] ?? null) === self::OTHER_IN_KIND) {
+                    $inKindDescription = $data['in_kind_description'];
+                } else {
+                    $assistanceId = (int) $data['in_kind_item'];
+                }
             }
 
             $allocation = AssistanceAllocation::create(Arr::only($data, [
-                'assistance_id', 'association_id', 'disaster_id', 'crop_id',
-                'in_kind_description', 'allocated_quantity', 'remarks',
+                'association_id', 'disaster_id', 'crop_id', 'allocated_quantity', 'remarks',
             ]) + [
-                'allocated_by' => Auth::id(),
-                'allocated_at' => ! empty($data['start_date']) ? Carbon::parse($data['start_date']) : now(),
-                'status'       => 'allocated',
+                'assistance_id'       => $assistanceId,
+                'type'                => $data['assistance_type'],
+                'in_kind_description' => $inKindDescription,
+                'allocated_by'        => Auth::id(),
+                'allocated_at'        => ! empty($data['start_date']) ? Carbon::parse($data['start_date']) : now(),
+                'status'              => 'allocated',
             ]);
 
             // The MAO-reviewed beneficiary list. Re-checked against the same
@@ -650,9 +661,7 @@ class AssistanceAllocationController extends Controller
         $this->notifyAssociationOfAllocation($allocation);
 
         return redirect()->route('mao.assistance-allocations.show', $allocation)
-            ->with('status', $creatingNew
-                ? 'Assistance created and allocated successfully. The new item is now in your assistance list.'
-                : 'Assistance allocated successfully.');
+            ->with('status', 'Assistance allocated successfully.');
     }
 
     /**
@@ -675,7 +684,7 @@ class AssistanceAllocationController extends Controller
             $alert = NotificationBroadcast::create([
                 'title'       => 'Assistance Allocated',
                 'message'     => 'The Municipal Agriculture Office has allocated '
-                    . ($allocation->assistance?->name ?? 'assistance') . ' to your association. '
+                    . $allocation->display_name . ' to your association. '
                     . 'Please review it and distribute it to your eligible members.',
                 'category'    => 'assistance',
                 'priority'    => 'important',

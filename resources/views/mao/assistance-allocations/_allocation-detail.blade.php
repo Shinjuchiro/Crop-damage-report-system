@@ -13,14 +13,14 @@
         'completed'   => 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
         'cancelled'   => 'bg-secondary text-muted-foreground',
     ];
-    $isCash = $allocation->assistance?->type === 'cash';
+    $isCash = $allocation->is_cash;
 @endphp
 
 <div class="mb-4">
     <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}
     </p>
-    <h3 class="mt-0.5 text-lg font-semibold text-foreground">{{ $allocation->assistance?->name ?? 'Assistance' }}</h3>
+    <h3 class="mt-0.5 text-lg font-semibold text-foreground">{{ $allocation->display_name }}</h3>
     <p class="text-sm text-muted-foreground">{{ $allocation->association?->name ?? 'No association' }}</p>
     <div class="mt-2 flex flex-wrap gap-2">
         <span class="inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $statusBadges[$allocation->status] ?? $statusBadges['pending'] }}">
