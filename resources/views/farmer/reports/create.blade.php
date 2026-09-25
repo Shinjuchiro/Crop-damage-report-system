@@ -17,10 +17,11 @@
       becomes its own row in damage_report_crops, and the same for disasters.
     - Estimated damage is the FARMER'S figure. The technician records a
       separate assessed figure later and this one is never overwritten.
-    - No GPS/coordinate capture here - barangay + a written description is
-      the farmer's location, kept simple on purpose. The technician's own
-      pin, placed during their field inspection, is this system's one
-      source of an exact map coordinate for a report.
+    - Location is barangay + written directions + an OPTIONAL pin the farmer
+      can capture from their phone (section 37). The written directions stay
+      required, because a farmer with no signal must still be able to report.
+      The technician's own pin, placed during their field inspection, is a
+      separate record and never overwrites the farmer's (section 49).
 --}}
 
 @php
@@ -488,6 +489,86 @@
                         </select>
                     </div>
 
+                    {{-- =====================================================
+                         Farmer-reported location (sections 37 and 49)
+
+                         Optional. This is the farmer's own pin, kept apart
+                         from the technician's verified one, which is written
+                         to the validations table during the field
+                         inspection. Neither ever overwrites the other, which
+                         is the whole point of keeping two.
+                    ====================================================== --}}
+                    <div class="space-y-2.5 rounded-lg border border-border bg-muted/40 p-4">
+                        <div>
+                            <p class="text-sm font-medium">
+                                Pin the farm location
+                                <span class="font-normal text-muted-foreground">(optional)</span>
+                            </p>
+                            <p class="mt-0.5 text-xs text-muted-foreground">
+                                Kung nasa sakahan po kayo ngayon, pindutin ito. If you are standing at the farm,
+                                tap the button. If not, you can leave this blank.
+                            </p>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" @click="captureLocation()" x-bind:disabled="locating"
+                                    class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold
+                                           text-primary-foreground hover:brightness-110 disabled:opacity-60">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
+                                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>
+                                </svg>
+                                <span x-text="locating ? 'Finding you...' : 'Use my current location'"></span>
+                            </button>
+
+                            <button type="button" @click="clearLocation()" x-show="hasCoords()" x-cloak
+                                    class="inline-flex min-h-11 items-center rounded-lg border border-input bg-card px-4 py-2.5
+                                           text-sm font-medium text-foreground hover:bg-muted/60">
+                                Clear
+                            </button>
+                        </div>
+
+                        <p x-show="locationError" x-cloak class="text-xs text-destructive" x-text="locationError"></p>
+
+                        <p x-show="hasCoords()" x-cloak class="text-xs font-medium text-primary">
+                            Location set: <span x-text="locationLabel()"></span>
+                        </p>
+
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div class="space-y-1.5">
+                                <label for="reported_latitude" class="block text-xs font-medium text-muted-foreground">
+                                    Latitude
+                                </label>
+                                <input id="reported_latitude" type="number" name="reported_latitude"
+                                       step="0.0000001" inputmode="decimal" placeholder="14.3947"
+                                       x-model="latitude" @input="locationSource = 'manual'"
+                                       class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label for="reported_longitude" class="block text-xs font-medium text-muted-foreground">
+                                    Longitude
+                                </label>
+                                <input id="reported_longitude" type="number" name="reported_longitude"
+                                       step="0.0000001" inputmode="decimal" placeholder="120.8519"
+                                       x-model="longitude" @input="locationSource = 'manual'"
+                                       class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                            </div>
+                        </div>
+
+                        {{-- How the coordinates were obtained. The browser is
+                             asserting this, so it is a record of what the form
+                             did rather than anything the server can verify. --}}
+                        <input type="hidden" name="location_source" x-model="locationSource">
+
+                        @error('reported_latitude')
+                            <p class="text-xs text-destructive">{{ $message }}</p>
+                        @enderror
+                        @error('reported_longitude')
+                            <p class="text-xs text-destructive">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <div class="space-y-1.5">
                         <label class="block text-sm font-medium">
                             Describe how to find the farm <span class="text-destructive">*</span>
@@ -547,6 +628,23 @@
             cause: '',
             causeOther: '',
 
+            /* ---------- where the farm is (section 37) ----------
+             |
+             | Optional on purpose. A farmer standing in a flooded field on a
+             | cheap phone may have no signal and no idea of their
+             | coordinates, and being unable to report damage at all would be
+             | a far worse outcome than a report with no pin. The written
+             | directions in this same card stay required and carry the
+             | location when these are blank.
+             |
+             | Kept as strings rather than numbers so a half typed value like
+             | "14." does not become NaN while somebody is still typing. */
+            latitude: @js(old('reported_latitude', '')),
+            longitude: @js(old('reported_longitude', '')),
+            locationSource: @js(old('location_source', 'none')),
+            locating: false,
+            locationError: '',
+
             crops: [emptyCrop(), emptyCrop()],
 
             // One event row to start with, not two. Most reports link to a
@@ -579,6 +677,63 @@
 
                 // The stored labels read "Typhoon / Bagyo".
                 return this.causeList[this.cause] || 'Not chosen';
+            },
+
+            /* ---------- location ---------- */
+
+            hasCoords() {
+                return this.latitude !== '' && this.longitude !== '';
+            },
+
+            locationLabel() {
+                if (! this.hasCoords()) {
+                    return 'Not set (written directions only)';
+                }
+
+                const how = this.locationSource === 'gps' ? 'from GPS' : 'typed in';
+
+                return this.latitude + ', ' + this.longitude + ' (' + how + ')';
+            },
+
+            clearLocation() {
+                this.latitude = '';
+                this.longitude = '';
+                this.locationSource = 'none';
+                this.locationError = '';
+            },
+
+            /**
+             * Ask the phone where it is. Mirrors the technician's own capture
+             * step so both roles behave the same way, minus the map: section
+             * 37 asks the farmer for current location and manual
+             * coordinates, and leaves dropping a pin to the technician in
+             * section 48.
+             */
+            captureLocation() {
+                this.locationError = '';
+
+                if (! navigator.geolocation) {
+                    this.locationError = 'This phone cannot give a location. You can type the coordinates, or just leave them blank and rely on your written directions.';
+                    return;
+                }
+
+                this.locating = true;
+
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        this.latitude = position.coords.latitude.toFixed(7);
+                        this.longitude = position.coords.longitude.toFixed(7);
+                        this.locationSource = 'gps';
+                        this.locating = false;
+                    },
+                    error => {
+                        this.locating = false;
+                        this.locationError = error.code === error.PERMISSION_DENIED
+                            ? 'Location permission was refused. You can type the coordinates instead, or leave them blank.'
+                            : 'Your location could not be found. Try again outdoors, type the coordinates, or leave them blank.';
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
             },
 
             previews: [],
@@ -698,6 +853,10 @@
 
                 rows.push({ label: 'Total damaged area', value: this.totalArea().toFixed(2) + ' ha' });
                 rows.push({ label: 'Photos attached', value: String(this.previews.length) });
+
+                // Section 91.6: anything to do with a location gets read back
+                // before it is saved, including the fact that none was set.
+                rows.push({ label: 'Farm location', value: this.locationLabel() });
 
                 return JSON.stringify(rows);
             },

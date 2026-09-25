@@ -43,29 +43,13 @@ class DamageReportController extends Controller
     /**
      * "My Reports" page.
      */
-    public function index(Request $request)
+    public function index()
     {
         $farmer = $this->farmer();
 
-        // List + detail panel (Sept 2026, matching the pattern used
-        // everywhere else in the app): "View" loads the report inline via
-        // ?selected=<id> instead of navigating to the separate show page
-        // (which stays reachable directly). Scoped through the farmer's own
-        // relation, not DamageReport::find(), so a report id typed into the
-        // URL for someone else's report never loads - same ownership rule
-        // show() already enforces.
-        $selected = $request->filled('selected')
-            ? $farmer->damageReports()->with([
-                    'crops.crop', 'disasters', 'photos',
-                    'assignedTechnician', 'reportedBarangay',
-                    'validation.technician', 'validation.photos',
-                ])->find($request->selected)
-            : null;
-
         return view('farmer.reports.index', [
-            'farmer'   => $farmer,
-            'selected' => $selected,
-            'reports'  => $farmer->damageReports()
+            'farmer'  => $farmer,
+            'reports' => $farmer->damageReports()
                 // Load everything the list needs in one go, otherwise
                 // each card would fire its own queries (N+1 problem).
                 ->with('crops.crop', 'disasters', 'assignedTechnician', 'validation')
@@ -128,11 +112,28 @@ class DamageReportController extends Controller
                 'farm_location_description' => $data['farm_location_description'],
 
                 // If the farmer did not pick a barangay we fall back to the
-                // one on their profile. No GPS/coordinate capture here - the
-                // technician's verified location (validations table) is the
-                // system's one source of an exact pin, set during their
-                // field inspection.
+                // one on their profile.
                 'reported_barangay_id' => $data['reported_barangay_id'] ?? $farmer->barangay_id,
+
+                /* The farmer-reported location (sections 37 and 49).
+                 *
+                 * Optional, so all three stay null/'none' when it was not
+                 * given, and the written directions above carry the location
+                 * on their own. The technician's verified pin is a separate
+                 * record on the validations row and never writes back here,
+                 * which is what lets the map show both.
+                 *
+                 * location_source is derived rather than taken as submitted:
+                 * with no coordinates it is always 'none', and 'gps' is only
+                 * honoured when the browser actually claimed a fix. That
+                 * claim is still the browser's word, since nothing on the
+                 * server can tell a real reading from typed numbers, but at
+                 * least the flag cannot contradict the data next to it. */
+                'reported_latitude'  => $data['reported_latitude'] ?? null,
+                'reported_longitude' => $data['reported_longitude'] ?? null,
+                'location_source'    => ! empty($data['reported_latitude'])
+                    ? (($data['location_source'] ?? null) === 'gps' ? 'gps' : 'manual')
+                    : 'none',
 
                 'description' => $data['description'] ?? null,
 
@@ -333,6 +334,28 @@ class DamageReportController extends Controller
             'reported_barangay_id'      => ['nullable', Rule::exists('barangays', 'id')],
             'description'               => ['nullable', 'string', 'max:2000'],
 
+            /* Sections 37 and 49: the farmer's own coordinates.
+             *
+             * Optional, because a farmer on a cheap phone in a flooded field
+             * may have no signal, and blocking the report would be far worse
+             * than storing one without a pin. farm_location_description above
+             * stays required and carries the location when these are empty.
+             *
+             * Bounded to the Philippines rather than the full -90..90 and
+             * -180..180, which catches the commonest coordinate mistake there
+             * is: entering them the wrong way round. Tanza's longitude of
+             * 120.85 in the latitude box passes a global check and silently
+             * puts the pin in Kazakhstan; here it is rejected with something
+             * the farmer can act on. required_with on each side stops a
+             * latitude being saved with no longitude to go with it. */
+            'reported_latitude' => [
+                'nullable', 'required_with:reported_longitude', 'numeric', 'between:4.5,21.5',
+            ],
+            'reported_longitude' => [
+                'nullable', 'required_with:reported_latitude', 'numeric', 'between:116,127',
+            ],
+            'location_source' => ['nullable', Rule::in(['gps', 'manual', 'none'])],
+
             // Section 30: the fields the prompt says a damage report must have.
             'crops'                            => ['required', 'array', 'min:1', 'max:20'],
             'crops.*.crop_id'                  => ['required', Rule::exists('crops', 'id')->whereNull('archived_at')],
@@ -366,6 +389,11 @@ class DamageReportController extends Controller
             'photos.max'                                => 'Please upload no more than ' . self::MAX_PHOTOS . ' photos.',
             'photos.*.image'                            => 'Each file must be a photo.',
             'photos.*.max'                              => 'Each photo must be 5 MB or smaller.',
+
+            'reported_latitude.required_with'  => 'Please give both the latitude and the longitude, or leave both blank.',
+            'reported_longitude.required_with' => 'Please give both the latitude and the longitude, or leave both blank.',
+            'reported_latitude.between'        => 'That latitude is outside the Philippines. Check that the latitude and longitude are not swapped.',
+            'reported_longitude.between'       => 'That longitude is outside the Philippines. Check that the latitude and longitude are not swapped.',
         ]);
 
         // Three checks the normal rules cannot do on their own.

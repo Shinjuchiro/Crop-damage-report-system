@@ -76,6 +76,10 @@ class DamageReport extends Model
         'farmer_id', 'damage_cause', 'damage_cause_other',
         'assigned_technician_id', 'assigned_at', 'farm_location_description',
         'reported_barangay_id',
+        // The farmer's own coordinates, set once when the report is filed.
+        // The technician's verified pin lives on the validations row and
+        // never touches these, so both locations survive (section 49).
+        'reported_latitude', 'reported_longitude', 'location_source',
         'description', 'status', 'approved_by', 'approved_at',
     ];
 
