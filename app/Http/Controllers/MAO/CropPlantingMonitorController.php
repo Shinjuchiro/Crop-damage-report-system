@@ -16,14 +16,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Monitoring of what farmers have planted. Sept 2026: dropped the Edit pair
- * every other MAO list had grown - MAO must not rewrite a farmer-submitted
- * planting record, only view it, same rule already applied everywhere else
- * farmer-submitted data is shown. Archive/restore remain: they never touch
- * which farmer the record belongs to, and never replay the Active/Inactive
- * history - Farmer::sweepInactive()/recordQualifyingActivity() only ever
- * look at current state going forward, so archiving a past record leaves a
- * farmer's already-computed status exactly as it was.
+ * Monitoring of what farmers have planted, plus (Sept 2026) the Edit and
+ * Archive pair every other MAO list already has. Editing here is meant for
+ * correcting a farmer's mistake (wrong crop, date or area) - it never
+ * touches which farmer the record belongs to, and it never replays the
+ * Active/Inactive history: Farmer::sweepInactive()/recordQualifyingActivity()
+ * only ever look at current state going forward, so archiving or editing a
+ * past record leaves a farmer's already-computed status exactly as it was.
  *
  * One row per planted crop, since a single submission can carry several crops.
  */
@@ -115,6 +114,15 @@ class CropPlantingMonitorController extends Controller
             'archivedBy',
         ];
     }
+
+    /*
+     * edit(), update() and their validated() helper were removed in Sept 2026,
+     * together with the routes and the edit view. MAO must not rewrite a
+     * farmer-submitted planting record: it can view, archive or restore one,
+     * the same rule already applied to every other farmer-submitted record.
+     * The methods outlived their routes and were left reachable by a stale
+     * link on the detail page, so they are gone rather than merely unrouted.
+     */
 
     /**
      * Take the record out of the active monitoring list without losing it -

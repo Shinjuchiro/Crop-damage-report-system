@@ -12,7 +12,6 @@
            class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
             Back to Monitoring
         </a>
-
         @if ($plantingRecord->is_archived)
             <form method="POST" action="{{ route('mao.crop-planting.restore', $plantingRecord) }}"
                   data-confirm="Restore this planting record to the active monitoring list?"

@@ -140,7 +140,18 @@
                                 <div x-show="menu" x-cloak x-transition
                                      class="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-lg">
                                     @if (in_array($alert->status, ['scheduled', 'draft', 'failed'], true))
-                                        <form method="POST" action="{{ route('mao.notifications.send', $alert) }}">
+                                        {{-- Sections 70 and 91.11: an alert is never sent on the
+                                             first click. Urgent and critical alerts also go out as
+                                             SMS, which costs the office money, so those get the
+                                             stronger wording and the danger tone. --}}
+                                        <form method="POST" action="{{ route('mao.notifications.send', $alert) }}"
+                                              data-confirm="{{ $alert->sends_sms
+                                                  ? 'This sends the alert immediately. Its priority is ' . $alert->priority_label . ', so it also goes out as SMS to every recipient.'
+                                                  : 'This sends the alert immediately as an in-app notification. No SMS will be sent.' }}"
+                                              data-confirm-title="Send this alert now?"
+                                              data-confirm-detail="{{ $alert->title }} ({{ $alert->audience_label }})"
+                                              data-confirm-action="{{ $alert->sends_sms ? 'Send Alert & SMS' : 'Send Alert' }}"
+                                              data-confirm-tone="{{ $alert->sends_sms ? 'danger' : 'default' }}">
                                             @csrf @method('PUT')
                                             <button class="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted/60">
                                                 Send now
@@ -149,7 +160,11 @@
                                     @endif
 
                                     @if ($alert->status !== 'archived')
-                                        <form method="POST" action="{{ route('mao.notifications.archive', $alert) }}">
+                                        <form method="POST" action="{{ route('mao.notifications.archive', $alert) }}"
+                                              data-confirm="This alert will be removed from the active list. It stays on record for audit purposes and nothing is deleted."
+                                              data-confirm-title="Archive this alert?"
+                                              data-confirm-detail="{{ $alert->title }}"
+                                              data-confirm-action="Confirm Archive">
                                             @csrf @method('PUT')
                                             <button class="block w-full border-t border-border px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted/60">
                                                 Archive

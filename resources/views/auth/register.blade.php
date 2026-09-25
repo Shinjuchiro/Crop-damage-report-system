@@ -797,7 +797,38 @@
                 if (!this.agreed) {
                     event.preventDefault();
                     this.stepError = 'Please confirm that your information is correct before submitting.';
+                    return;
                 }
+
+                /* Sections 18 and 91.2: step 4 is the review screen, but the
+                   registration still must not be submitted on the first click.
+                   Hand it to the same dialog every other action in the system
+                   uses.
+
+                   Done here rather than with a data-confirm attribute on the
+                   form, because the listener in resources/js/app.js is
+                   registered on the capture phase. The attribute would fire
+                   ahead of this handler on steps 1 to 3 and ask the person to
+                   confirm a registration they are still filling in.
+
+                   form.submit() does not raise another submit event, so the
+                   confirmed submission passes straight through rather than
+                   looping back into this handler. */
+                event.preventDefault();
+
+                const form = event.target;
+
+                window.dispatchEvent(new CustomEvent('confirm-request', {
+                    detail: {
+                        title:   'Submit your registration?',
+                        message: 'Are you sure you want to submit your registration? Please make sure all information is correct before continuing.',
+                        detail:  'Your account will be reviewed by the Municipal Agriculture Office before it becomes active.',
+                        action:  'Confirm & Submit',
+                        tone:    'default',
+                        review:  [],
+                        proceed: () => form.submit(),
+                    },
+                }));
             },
         };
     }
