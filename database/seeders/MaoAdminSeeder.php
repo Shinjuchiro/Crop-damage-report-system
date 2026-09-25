@@ -17,24 +17,25 @@ class MaoAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        $user = User::firstOrCreate(
-            ['email' => 'mao@tanza.gov.ph'],
-            [
-                'username' => 'mao_admin',
-                'password' => Hash::make('MAOTanza123!'), // CHANGE THIS after first login
-                'phone_number' => '09000000000',
-                'status' => 'active',
-                'preferred_language' => 'en',
-            ]
-        );
+        if (User::where('email', 'mao@tanza.gov.ph')->exists()) {
+            return;
+        }
+
+        $user = new User([
+            'username' => 'mao_admin',
+            'email' => 'mao@tanza.gov.ph',
+            'password' => Hash::make('MAOTanza123!'), // CHANGE THIS after first login
+            'phone_number' => '09000000000',
+            'status' => 'active',
+            'preferred_language' => 'en',
+        ]);
 
         // `role` is not mass assignable (see User), so it cannot ride along in
-        // the array above and has to be set here. Without this the one account
-        // that administers the whole system would be created with no role at
-        // all and could not reach a single MAO page.
-        if ($user->role !== 'mao') {
-            $user->role = 'mao';
-            $user->save();
-        }
+        // the array above. It has to be set before save(), not after: the
+        // column is a NOT NULL enum with no default, so an INSERT that leaves
+        // it out fails outright and this account never gets created.
+        $user->role = 'mao';
+
+        $user->save();
     }
 }
