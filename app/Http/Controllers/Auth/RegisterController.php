@@ -45,15 +45,19 @@ class RegisterController extends Controller
         }
 
         $farmer = DB::transaction(function () use ($data, $certificatePath) {
-            $user = User::create([
+            $user = new User([
                 'username'           => $data['username'],
                 'email'              => $data['email'],
                 'password'           => $data['password'], // auto-hashed by the model cast
                 'phone_number'       => $data['phone_number'],
-                'role'               => 'farmer',
                 'status'             => 'pending', // MAO must approve before full access
                 'preferred_language' => 'en',
             ]);
+
+            // Set outside the array on purpose: `role` is not mass assignable,
+            // so nothing arriving in a request can ever reach it. See User.
+            $user->role = 'farmer';
+            $user->save();
 
             $farmer = Farmer::create([
                 'user_id'                   => $user->id,

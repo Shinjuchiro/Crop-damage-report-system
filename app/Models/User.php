@@ -13,8 +13,23 @@ class User extends Authenticatable
 
     protected $table = 'users';
 
+    /**
+     * `role` is deliberately NOT in this list.
+     *
+     * Everything here can be written in bulk from an array, which is what
+     * User::create($array) and $user->update($array) do. That is safe only
+     * for as long as no such array is ever built straight out of a request.
+     * `role` decides whether an account is a farmer or the MAO super admin,
+     * so leaving it fillable means one future $request->all() anywhere in the
+     * app turns an extra form field into a privilege escalation.
+     *
+     * The three places that legitimately set it (farmer registration, and
+     * MAO creating a technician or an association account) assign it as a
+     * plain property instead, which bypasses this list by design and reads
+     * as the deliberate act it is.
+     */
     protected $fillable = [
-        'username', 'full_name', 'email', 'password', 'phone_number', 'role',
+        'username', 'full_name', 'email', 'password', 'phone_number',
         'status', 'preferred_language', 'google_id', 'profile_photo_path',
     ];
 

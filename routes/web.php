@@ -65,7 +65,15 @@ Route::middleware('guest')->group(function () {
 
     // ONLY farmers self-register
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
-    Route::post('/register', [RegisterController::class, 'store']);
+
+    // The throttle here is coarse on purpose: it keys on the IP address, and
+    // bootstrap/app.php has to trust every proxy for Railway's HTTPS
+    // termination, so a determined caller can change it per request. There is
+    // no stable identifier to key on before validation has run, unlike login
+    // and the password-reset screens, which key on the account being targeted.
+    // It stops casual signup spam and should not be counted as more than that.
+    Route::post('/register', [RegisterController::class, 'store'])
+        ->middleware('throttle:10,1');
 
     // Google login - farmers only (enforced inside the controller)
     Route::get('/auth/google/redirect', [GoogleController::class, 'redirect'])->name('google.redirect');

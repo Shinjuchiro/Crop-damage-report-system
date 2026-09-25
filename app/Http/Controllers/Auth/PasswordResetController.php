@@ -10,6 +10,8 @@ use App\Services\SemaphoreSmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
@@ -49,22 +51,23 @@ class PasswordResetController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        // Password::sendResetLink() first saves the token to
-        // password_reset_tokens (that part is durable and rarely fails),
-        // then tries to actually mail it - a broken or misconfigured mail
-        // provider (wrong SMTP host, a scheme it doesn't support, a
-        // provider-side block, etc.) throws from deep inside that second
-        // step. A farmer must never see a raw 500 page here just because
-        // outbound mail is misbehaving - see docs/BUILD-STATUS.md's mail
-        // caveat and the Sept 2026 SMTP troubleshooting. Log it for MAO/dev
-        // to notice and fix, but always fall through to the same neutral
-        // "check your email" message either way.
-        try {
-            $status = Password::sendResetLink($request->only('email'));
-        } catch (\Throwable $e) {
-            Log::error('Password reset link could not be emailed: ' . $e->getMessage());
-            $status = null;
+        /* Same reasoning as sendOtp(): keyed on the address being mailed
+         * rather than on a spoofable IP, so nobody can use this screen to
+         * bury one person's inbox in reset links. Counted before the lookup
+         * so the behaviour gives nothing away about who has an account. */
+        $linkKey = 'reset-link|' . Str::lower((string) $request->input('email'));
+
+        if (RateLimiter::tooManyAttempts($linkKey, 3)) {
+            $minutes = max(1, (int) ceil(RateLimiter::availableIn($linkKey) / 60));
+
+            return back()->withErrors([
+                'email' => "Too many reset links have been requested for that address. Please try again in {$minutes} minute(s).",
+            ])->withInput();
         }
+
+        RateLimiter::hit($linkKey, 900); // 15 minutes
+
+        $status = Password::sendResetLink($request->only('email'));
 
         if ($status === Password::RESET_LINK_SENT) {
             if ($user = User::where('email', $request->email)->first()) {
@@ -136,7 +139,34 @@ class PasswordResetController extends Controller
         $request->validate(['phone_number' => ['required', 'string', 'max:20']]);
 
         $normalized = $this->normalizePhone($request->phone_number);
-        $user       = $this->findByPhone($normalized);
+
+        /* Three codes per quarter hour for any one number.
+         *
+         * The route already carries throttle:5,1, but that keys on
+         * $request->ip(), and bootstrap/app.php trusts every proxy because
+         * Railway terminates HTTPS at its edge, so the caller picks their own
+         * X-Forwarded-For and the route limit can be walked around with one
+         * header. Every send past that point is a real Semaphore text charged
+         * to the office, aimed at somebody else's phone. Keying on the number
+         * being texted is what actually caps that, since it is the one thing
+         * the sender cannot rotate while still reaching the victim.
+         *
+         * Counted before we look the number up, so the limit is identical for
+         * a registered and an unregistered number and this stays consistent
+         * with decision 22: never confirm or deny who has an account. */
+        $otpKey = 'otp-send|' . $normalized;
+
+        if (RateLimiter::tooManyAttempts($otpKey, 3)) {
+            $minutes = max(1, (int) ceil(RateLimiter::availableIn($otpKey) / 60));
+
+            return back()->withErrors([
+                'phone_number' => "Too many codes have been requested for that number. Please try again in {$minutes} minute(s).",
+            ])->withInput();
+        }
+
+        RateLimiter::hit($otpKey, 900); // 15 minutes
+
+        $user = $this->findByPhone($normalized);
 
         if ($user) {
             $code = PasswordResetOtp::generateFor($user);

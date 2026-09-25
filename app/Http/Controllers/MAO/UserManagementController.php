@@ -65,15 +65,19 @@ class UserManagementController extends Controller
             'password'     => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
         ]);
 
-        $user = User::create([
+        $user = new User([
             'username'     => $data['username'],
             'full_name'    => $data['full_name'],
             'email'        => $data['email'],
             'password'     => $data['password'],
             'phone_number' => $data['phone_number'],
-            'role'         => 'technician',
             'status'       => 'active', // MAO-created accounts are active immediately
         ]);
+
+        // Set outside the array on purpose: `role` is not mass assignable,
+        // so nothing arriving in a request can ever reach it. See User.
+        $user->role = 'technician';
+        $user->save();
 
         $this->log('Created technician account: ' . $data['full_name'], $user->id);
 
@@ -101,15 +105,19 @@ class UserManagementController extends Controller
         ]);
 
         $created = DB::transaction(function () use ($data) {
-            $user = User::create([
+            $user = new User([
                 'username'     => $data['username'],
                 'full_name'    => $data['full_name'],
                 'email'        => $data['email'],
                 'password'     => $data['password'],
                 'phone_number' => $data['phone_number'],
-                'role'         => 'association',
                 'status'       => 'active',
             ]);
+
+            // Set outside the array on purpose: `role` is not mass assignable,
+            // so nothing arriving in a request can ever reach it. See User.
+            $user->role = 'association';
+            $user->save();
 
             AssociationOfficer::create([
                 'user_id'        => $user->id,
