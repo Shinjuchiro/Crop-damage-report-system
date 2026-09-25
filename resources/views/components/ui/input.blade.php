@@ -13,8 +13,17 @@
 @php
     $invalid = $name && $errors->has($name);
 
+    /*
+     | Below sm the text is 16px and the box is 44px.
+     |
+     | Safari on iOS zooms the whole page whenever a focused field has text
+     | smaller than 16px, and leaves it scrolled sideways afterwards, which
+     | was the most visible mobile problem in this app. 44px is also the
+     | smallest comfortable touch target. From sm up these revert to the
+     | original 40px and 14px, so no desktop layout changes.
+     */
     $heights = [
-        'default' => 'h-10 text-sm',
+        'default' => 'h-11 text-base sm:h-10 sm:text-sm',
         // Use size="lg" on anything a farmer or technician fills in on a phone.
         'lg'      => 'h-12 text-base',
     ];

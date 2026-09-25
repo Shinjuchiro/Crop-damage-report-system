@@ -20,6 +20,31 @@
         review: [],
         proceed: null,
 
+        /*
+         | Stop the page behind the dialog scrolling while it is open.
+         |
+         | On a touch screen, dragging anywhere on the dim backdrop scrolls
+         | whatever is underneath, so the person is left somewhere else
+         | entirely once the dialog closes.
+         |
+         | The count lives on window rather than in this component, because
+         | this dialog routinely opens on top of an x-ui.dialog. Without it,
+         | whichever closed first would unlock the body while the other was
+         | still open.
+         */
+        lock() {
+            window.__openDialogCount = (window.__openDialogCount || 0) + 1;
+            document.body.style.overflow = 'hidden';
+        },
+
+        unlock() {
+            window.__openDialogCount = Math.max(0, (window.__openDialogCount || 1) - 1);
+
+            if (! window.__openDialogCount) {
+                document.body.style.overflow = '';
+            }
+        },
+
         show(detail) {
             this.title   = detail.title;
             this.message = detail.message;
@@ -28,21 +53,37 @@
             this.tone    = detail.tone;
             this.review  = detail.review || [];
             this.proceed = detail.proceed;
-            this.open    = true;
+
+            // Guarded so a second request while one is already showing does
+            // not lock twice and leave the page stuck after it closes.
+            if (! this.open) {
+                this.open = true;
+                this.lock();
+            }
 
             this.$nextTick(() => this.$refs.cancel && this.$refs.cancel.focus());
         },
 
         cancel() {
+            if (! this.open) {
+                return;
+            }
+
             this.open    = false;
             this.proceed = null;
+            this.unlock();
         },
 
         confirm() {
+            if (! this.open) {
+                return;
+            }
+
             const run = this.proceed;
 
             this.open    = false;
             this.proceed = null;
+            this.unlock();
 
             if (run) {
                 run();

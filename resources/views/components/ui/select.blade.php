@@ -20,8 +20,11 @@
     $invalid = $name && $errors->has($name);
     $current = (string) ($selected ?? ($name ? old($name) : ''));
 
+    // 16px text and a 44px box below sm, so iOS does not zoom the page on
+    // focus, and the control clears the touch target minimum. Unchanged from
+    // sm up. Same reasoning as x-ui.input.
     $heights = [
-        'default' => 'h-10 text-sm',
+        'default' => 'h-11 text-base sm:h-10 sm:text-sm',
         'lg'      => 'h-12 text-base',
     ];
 

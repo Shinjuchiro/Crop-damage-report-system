@@ -37,12 +37,52 @@
     ];
 @endphp
 
+{{--
+    lock/unlock keep the page behind this dialog from scrolling while it is
+    open, so dragging on the backdrop on a phone does not move whatever is
+    underneath. The counter is shared on window with the global confirmation
+    dialog, which often opens on top of this one: without it, whichever
+    closed first would unlock the body while the other was still showing.
+    Opening and closing each go through one method, so the count cannot drift
+    out of step with what is actually on screen.
+--}}
 <div x-data="{
         open: false,
-        close() { this.open = false; },
+
+        lock() {
+            window.__openDialogCount = (window.__openDialogCount || 0) + 1;
+            document.body.style.overflow = 'hidden';
+        },
+
+        unlock() {
+            window.__openDialogCount = Math.max(0, (window.__openDialogCount || 1) - 1);
+
+            if (! window.__openDialogCount) {
+                document.body.style.overflow = '';
+            }
+        },
+
+        show() {
+            if (this.open) {
+                return;
+            }
+
+            this.open = true;
+            this.lock();
+            this.$nextTick(() => this.$refs.panel && this.$refs.panel.focus());
+        },
+
+        close() {
+            if (! this.open) {
+                return;
+            }
+
+            this.open = false;
+            this.unlock();
+        },
      }"
-     @open-dialog.window="if ($event.detail === '{{ $name }}') { open = true; $nextTick(() => $refs.panel.focus()); }"
-     @close-dialog.window="if ($event.detail === '{{ $name }}') open = false"
+     @open-dialog.window="if ($event.detail === '{{ $name }}') show()"
+     @close-dialog.window="if ($event.detail === '{{ $name }}') close()"
      @keydown.escape.window="open && close()"
      x-cloak>
 
