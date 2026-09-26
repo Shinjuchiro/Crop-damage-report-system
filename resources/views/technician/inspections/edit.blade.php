@@ -236,10 +236,23 @@
                                         <span class="text-sm font-semibold"
                                               x-text="shots.{{ $key }} ? 'Retake Photo' : 'Take Photo'"></span>
 
-                                        {{-- capture="environment" opens the rear
-                                             camera straight away, which is how
-                                             these will actually be taken. --}}
-                                        <input type="file" name="{{ $field }}" accept="image/*" capture="environment"
+                                        {{-- No capture attribute, deliberately.
+
+                                             capture="environment" would send
+                                             the phone straight to the camera
+                                             and drop the gallery and file
+                                             options. Section 43 does ask for
+                                             live camera documentation, and
+                                             the camera is still the first
+                                             thing offered, but a technician
+                                             inspecting a farm with no signal
+                                             has to photograph it on their
+                                             normal camera app and attach it
+                                             once they are back in coverage.
+                                             Camera-only would leave them no
+                                             way to file the inspection at
+                                             all. --}}
+                                        <input type="file" name="{{ $field }}" accept="image/*"
                                                x-ref="{{ $key }}" @change="onShot('{{ $key }}', $event)" class="hidden">
                                     </label>
                                 </div>
@@ -262,7 +275,7 @@
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
                                  stroke-linecap="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                             Add more photos
-                            <input type="file" name="photos[]" multiple accept="image/*" capture="environment"
+                            <input type="file" name="photos[]" multiple accept="image/*"
                                    x-ref="photos" @change="onPhotos($event)" class="hidden">
                         </label>
 

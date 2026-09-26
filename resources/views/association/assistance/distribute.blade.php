@@ -247,7 +247,12 @@
                         <span class="text-sm font-semibold">Add photos of the handover</span>
                         <span class="text-xs text-muted-foreground">Hanggang 6 na larawan</span>
 
-                        <input type="file" name="photos[]" multiple accept="image/*" capture="environment"
+                        {{-- No capture attribute: it would send the phone
+                             straight to the camera and remove the gallery and
+                             file options, which this label's own "Add photos"
+                             promises. Camera is still the first thing the
+                             phone offers. --}}
+                        <input type="file" name="photos[]" multiple accept="image/*"
                                x-ref="photos" @change="onPhotos($event)" class="hidden">
                     </label>
 

@@ -420,8 +420,17 @@
                        description="Mga larawan ng pinsala. Up to 10 photos, 5 MB each.">
 
                 <div class="space-y-4">
-                    {{-- capture="environment" opens the rear camera straight away
-                         on a phone, which is how most of these will be taken. --}}
+                    {{-- No capture attribute here, deliberately.
+
+                         capture="environment" sends a phone straight to the
+                         rear camera and removes the gallery and file options
+                         altogether, which contradicted this label's own
+                         promise to "take OR choose". Without it the phone
+                         shows its usual sheet, where Camera sits next to
+                         Gallery and Files, so taking a photo is one tap
+                         further in and nothing is lost. It matters because a
+                         farmer may well have photographed the damage days
+                         earlier, or when the water was still high. --}}
                     <label class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl
                                   border-2 border-dashed border-input px-4 py-8 text-center
                                   transition-colors hover:border-primary hover:bg-accent">
@@ -433,7 +442,7 @@
                         <span class="text-sm font-semibold text-foreground">Take or choose photos</span>
                         <span class="text-xs text-muted-foreground">Kumuha o pumili ng larawan</span>
 
-                        <input type="file" name="photos[]" multiple accept="image/*" capture="environment"
+                        <input type="file" name="photos[]" multiple accept="image/*"
                                x-ref="photos" @change="onPhotos($event)" class="hidden">
                     </label>
 
