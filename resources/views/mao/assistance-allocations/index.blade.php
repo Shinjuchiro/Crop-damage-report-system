@@ -22,16 +22,18 @@
         </x-ui.alert>
     @endif
 
-    {{-- List + detail. Side by side from lg up; on a phone only one half
-         shows at a time - the working screen, or (once a row's View is
-         followed) the detail panel full-screen with its own Back link. --}}
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- ===================== STAT CARDS =====================
 
-    {{-- LIST (the whole working screen: stats, filters, overview table,
-         recent activity and the Allocate Assistance modal) --}}
-    <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+         Deliberately above the list/detail split below, so they run the full
+         width of the page the way they do on Validation Monitoring and every
+         other MAO screen that has both stat cards and a detail panel.
 
-    {{-- ===================== STAT CARDS ===================== --}}
+         They used to sit inside the left column of that split. That squeezed
+         them into about two thirds of the width and, because the panel is
+         lg:items-start, stranded the detail panel at the top right beside
+         them as a tall empty box, with the list it belongs to starting far
+         below it.
+    --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-ui.stat label="Total Verified Farmers" :value="number_format($stats['total_verified_farmers'])"
                    :hint="'Awaiting MAO decision · from ' . number_format($stats['verified_from_associations']) . ' association' . ($stats['verified_from_associations'] === 1 ? '' : 's')"
@@ -50,6 +52,15 @@
                    hint="With an allocation for this selection"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM4 12.5a2 2 0 100-4 2 2 0 000 4zM20 12.5a2 2 0 100-4 2 2 0 000 4z" />
     </div>
+
+    {{-- List + detail. Side by side from lg up; on a phone only one half
+         shows at a time - the working screen, or (once a row's View is
+         followed) the detail panel full-screen with its own Back link. --}}
+    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+
+    {{-- LIST (filters, overview table, recent activity and the Allocate
+         Assistance modal) --}}
+    <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
 
     {{-- ===================== FILTERS + ACTIONS ===================== --}}
     <div class="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
