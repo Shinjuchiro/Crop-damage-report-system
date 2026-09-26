@@ -160,8 +160,8 @@
     </div>
 
     {{-- Archive confirmation --}}
-    <div x-show="archiving" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+    <div x-show="archiving" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+        <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
             <h3 class="mb-2 text-lg font-semibold text-foreground">Archive this crop?</h3>
             <p class="mb-5 text-sm text-muted-foreground">
                 <strong x-text="archiving?.name"></strong> will stop appearing as a choice on new forms. Existing

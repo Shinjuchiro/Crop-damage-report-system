@@ -221,8 +221,8 @@
                                     </div>
                                 </div>
 
-                                <div x-show="confirmingDisasters" x-cloak class="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4">
-                                    <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+                                <div x-show="confirmingDisasters" x-cloak class="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+                                    <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
                                         <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm Disaster Event Changes</h3>
                                         <p class="mb-4 text-sm text-muted-foreground">This report will now be linked to:</p>
                                         <ul class="mb-4 space-y-1 text-sm text-foreground" x-show="disasterIds.length">
@@ -348,8 +348,8 @@
                             </button>
                         </div>
 
-                        <div x-show="decision" x-cloak class="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4">
-                            <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+                        <div x-show="decision" x-cloak class="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+                            <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
                                 <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm <span x-text="decision"></span></h3>
                                 <p class="mb-4 text-sm text-muted-foreground">
                                     You are about to mark report <strong>{{ $damageReport->reference }}</strong> for
@@ -409,8 +409,8 @@
     {{-- Assign technician (Section 9: moved here from Validation Monitoring,
          which now only shows completed inspections). Same backend as before -
          posts to the existing mao.validations.assign route. --}}
-    <div x-show="assigning" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-        <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+    <div x-show="assigning" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+        <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
             <h3 class="mb-2 text-lg font-semibold text-foreground">Assign a technician</h3>
             <p class="mb-4 text-sm text-muted-foreground">
                 Report <strong x-text="assigning?.code"></strong> for

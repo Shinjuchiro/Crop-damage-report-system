@@ -102,8 +102,8 @@
 
         {{-- Approve confirmation --}}
         <div x-show="confirmAction === 'approve'" x-cloak
-             class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-            <div class="w-full max-w-md rounded-xl bg-card p-6">
+             class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+            <div class="my-auto w-full max-w-md rounded-xl bg-card p-6">
                 <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm Approval</h3>
                 <p class="mb-5 text-sm text-muted-foreground">
                     Are you sure you want to approve <strong>{{ $farmer->full_name }}</strong>?
@@ -126,8 +126,8 @@
 
         {{-- Reject confirmation --}}
         <div x-show="confirmAction === 'reject'" x-cloak
-             class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-            <div class="w-full max-w-md rounded-xl bg-card p-6">
+             class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+            <div class="my-auto w-full max-w-md rounded-xl bg-card p-6">
                 <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm Rejection</h3>
                 <p class="mb-4 text-sm text-muted-foreground">
                     Are you sure you want to reject this registration?

@@ -240,8 +240,8 @@
             </div>
 
             {{-- Proposal 91.3-style review: show what changed before it is saved. --}}
-            <div x-show="confirmingDisasters" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+            <div x-show="confirmingDisasters" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+                <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
                     <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm Disaster Event Changes</h3>
                     <p class="mb-4 text-sm text-muted-foreground">
                         This report will now be linked to:
@@ -464,8 +464,8 @@
         </div>
 
         {{-- Confirmation --}}
-        <div x-show="decision" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-            <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+        <div x-show="decision" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+            <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
                 <h3 class="mb-2 text-lg font-semibold text-foreground">
                     Confirm <span x-text="decision"></span>
                 </h3>

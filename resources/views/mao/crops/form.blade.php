@@ -61,8 +61,8 @@
         </div>
 
         {{-- Review before saving --}}
-        <div x-show="confirm" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-            <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+        <div x-show="confirm" x-cloak class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+            <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
                 <h3 class="mb-1 text-lg font-semibold text-foreground">
                     {{ $crop ? 'Review Changes' : 'Confirm New Crop' }}
                 </h3>
