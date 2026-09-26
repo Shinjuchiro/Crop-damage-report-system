@@ -209,16 +209,37 @@ class NotificationBroadcast extends Model
                 ->pluck('users.id')
                 ->all(),
 
+            /*
+             | The association's own officer accounts, and nobody else.
+             |
+             | This used to include every farmer whose association_id matched,
+             | as well as anyone listed in association_officers, with no check
+             | on what role those accounts actually had. Two things went wrong
+             | with that.
+             |
+             | Every sender of this audience writes to an officer: "allocated
+             | to your association, please distribute it to your eligible
+             | members" is not an instruction an ordinary member can act on,
+             | and "<name> submitted damage report DR-0004" told every member
+             | of an association, by name, who had filed a report.
+             |
+             | And association_officers.user_id is a plain foreign key to
+             | users with no role constraint, so any account sitting in that
+             | table received association mail regardless of its role. That is
+             | how a technician ended up reading an association's
+             | notifications.
+             |
+             | Farmers still receive everything addressed to them directly
+             | (specific_farmer, all_farmers, affected_farmers); this only
+             | stops them receiving officer instructions about their
+             | association.
+             */
             'specific_association' => DB::table('users')
                 ->where('users.status', 'active')
-                ->where(function ($query) {
-                    $query->whereIn('users.id', DB::table('farmers')
-                            ->where('association_id', $this->target_id)
-                            ->select('user_id'))
-                        ->orWhereIn('users.id', DB::table('association_officers')
-                            ->where('association_id', $this->target_id)
-                            ->select('user_id'));
-                })
+                ->where('users.role', 'association')
+                ->whereIn('users.id', DB::table('association_officers')
+                    ->where('association_id', $this->target_id)
+                    ->select('user_id'))
                 ->pluck('users.id')
                 ->all(),
 

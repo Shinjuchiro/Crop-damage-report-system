@@ -143,10 +143,12 @@ class MembershipApplicationController extends Controller
      * 'normal' priority is deliberate: section 68 reserves SMS for Urgent
      * and Critical matters, and a routine membership update is neither.
      * Reuses the same NotificationBroadcast pipeline as notifyApproved()
-     * above - 'specific_association' already resolves to every member
-     * farmer and officer of that association (see
-     * NotificationBroadcast::recipientIds()), so both the association's
-     * officers and its existing members see this in their notification bell.
+     * above. 'specific_association' reaches that association's officer
+     * accounts only (see NotificationBroadcast::recipientIds()). It used to
+     * reach every member farmer too, which meant ordinary members were sent
+     * instructions only an officer could act on, and in the damage-report
+     * case were told by name which of their co-members had filed a report.
+     * The approved farmer is told separately, by notifyApproved().
      */
     private function notifyAssociationOfNewMember(Farmer $farmer): void
     {

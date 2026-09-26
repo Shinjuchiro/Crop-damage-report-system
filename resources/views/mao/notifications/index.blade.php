@@ -280,7 +280,7 @@
                                     'all_farmers'          => ['All Farmers', 'Every verified farmer account'],
                                     'affected_farmers'     => ['Affected Farmers', 'Farmers with at least one damage report'],
                                     'all_associations'     => ['All Associations', 'Every association officer'],
-                                    'specific_association' => ['Specific Association', 'Its members and officers'],
+                                    'specific_association' => ['Specific Association', 'Its officer accounts only'],
                                     'specific_farmer'      => ['Specific Farmer', 'One farmer only'],
                                     'all_technicians'      => ['All Technicians', 'Every active technician'],
                                     'specific_technician'  => ['Specific Technician', 'One technician only'],
