@@ -51,12 +51,14 @@
 @endphp
 
 <div x-data="inspectionForm({
-        {{-- Farmer damage reports no longer collect GPS coordinates (barangay
-             + a written description only), so there is never a farmer pin to
-             start from here - the technician's own pin, set below, is this
-             report's first and only coordinate. --}}
-        reportedLat: null,
-        reportedLng: null,
+        {{-- The farmer's own pin, when they gave one (section 37). It is a
+             starting point to correct, never an answer: the technician still
+             has to capture or move the pin, and whatever they save is written
+             to the validations row, leaving the farmer's coordinates
+             untouched (section 49). Reports filed before the farmer form
+             collected coordinates simply have none, and this stays null. --}}
+        reportedLat: {{ $report->reported_latitude !== null ? (float) $report->reported_latitude : 'null' }},
+        reportedLng: {{ $report->reported_longitude !== null ? (float) $report->reported_longitude : 'null' }},
         farmerEstimate: {{ $farmerEstimate }},
         notesGap: {{ $notesGap }},
         initialDisasterIds: {!! json_encode($report->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!},
@@ -68,6 +70,14 @@
             <ul class="mt-1 list-inside list-disc space-y-0.5">
                 @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
             </ul>
+        </x-ui.alert>
+
+        {{-- Severity, percentage, notes, the pin and the disaster boxes all
+             come back now. Photos cannot: no browser lets a site refill a
+             file input, so the shots have to be taken again. Better said
+             here than discovered at the end of the wizard. --}}
+        <x-ui.alert variant="warning" title="Your answers were kept" class="mb-4">
+            The photos need to be taken again, as your phone will not let the page hold on to them.
         </x-ui.alert>
     @endif
 
@@ -715,22 +725,33 @@
             stepError: '',
             wide: window.matchMedia('(min-width: 1024px)').matches,
 
-            /* ---------- the answers ---------- */
-            severity: '',
-            percent: 50,
-            notes: '',
+            /* ---------- the answers ----------
+             |
+             | Seeded from old() so a rejected submission does not wipe the
+             | lot. This form is the worst place in the system to lose work:
+             | a technician is standing in a field, often on one bar, and a
+             | reset used to cost them the severity, the percentage, the
+             | notes and the verified pin, with both photos needing to be
+             | retaken as well. The photos still cannot be restored, since no
+             | browser lets a site refill a file input, and the banner near
+             | the top of the form says so.
+             */
+            severity: @js(old('severity', '')),
+            percent: @js(old('assessed_damage_percent', 50)),
+            notes: @js(old('notes', '')),
 
             // Object URLs for the two named shots, so the technician can see
             // what they just took without waiting for an upload.
             shots: { wide: null, closeup: null },
             previews: [],
 
-            // Start from the farmer's coordinates when they gave any. It is a
-            // starting point to correct, not an answer: the technician still
-            // has to capture or move the pin.
-            latitude:  config.reportedLat !== null ? String(config.reportedLat) : '',
-            longitude: config.reportedLng !== null ? String(config.reportedLng) : '',
-            source:    config.reportedLat !== null ? 'farmer' : 'none',
+            // A pin the technician already set and lost to a failed
+            // submission wins; failing that, the farmer's coordinates when
+            // they gave any, as a starting point to correct rather than an
+            // answer; failing that, nothing.
+            latitude:  @js(old('latitude')) ?? (config.reportedLat !== null ? String(config.reportedLat) : ''),
+            longitude: @js(old('longitude')) ?? (config.reportedLng !== null ? String(config.reportedLng) : ''),
+            source:    @js(old('latitude')) ? 'manual' : (config.reportedLat !== null ? 'farmer' : 'none'),
 
             locating: false,
             locationError: '',
@@ -740,9 +761,16 @@
             farmerEstimate: config.farmerEstimate,
             notesGap: config.notesGap,
 
-            // Checkbox values come through as strings, so this array is
-            // kept as strings too rather than mixing types with x-model.
-            disasterIds: config.initialDisasterIds,
+            /* Checkbox values come through as strings, so this array is kept
+             | as strings too rather than mixing types with x-model.
+             |
+             | Keyed on whether this is a re-show after an error, not on
+             | whether old('disasters') is present: unchecking every box
+             | submits nothing at all, so a plain fallback would silently tick
+             | them all back on, which is exactly the case the note in the
+             | controller cares about ("uncheck one the farmer got wrong"). */
+            hadErrors: @js($errors->any()),
+            disasterIds: @js($errors->any()) ? @js(old('disasters', [])) : config.initialDisasterIds,
             disasterLabels: config.disasterLabels,
 
             init() {

@@ -6,6 +6,26 @@
 
 @section('content')
 
+@php
+    /*
+     | What the farmer typed last time, when validation sent them back.
+     |
+     | Without this every crop row resets to blank, which for an elderly
+     | farmer who has just entered three crops with their dates and areas is
+     | the difference between correcting one field and starting over.
+     */
+    $oldRows = collect(old('crops', []))
+        ->filter(fn ($crop) => filled($crop['crop_id'] ?? null))
+        ->map(fn ($crop) => [
+            'key'           => uniqid('r', true),
+            'crop_id'       => (string) ($crop['crop_id'] ?? ''),
+            'crop_specify'  => $crop['crop_specify'] ?? '',
+            'date_planted'  => $crop['date_planted'] ?? '',
+            'area_hectares' => $crop['area_hectares'] ?? '',
+        ])
+        ->values();
+@endphp
+
 {{--
     Proposal sections 24 to 27.
 
@@ -176,7 +196,9 @@
 
             // Opens with Crop 1 required and Crop 2 optional, matching the
             // prototype. Neither the form nor the database stops at two.
-            rows: [emptyRow(), emptyRow()],
+            // On a failed submission it reopens with whatever was typed,
+            // rather than blank: see the $oldRows note at the top of the file.
+            rows: @js($oldRows).length ? @js($oldRows) : [emptyRow(), emptyRow()],
 
             addRow() {
                 this.rows.push(emptyRow());

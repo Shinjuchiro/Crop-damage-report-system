@@ -41,6 +41,39 @@
 
     // Weather causes are the only ones the office ever declares an event for.
     $weatherCauses = \App\Models\DamageReport::WEATHER_CAUSES;
+
+    /*
+     | What the farmer typed last time, when validation sent them back.
+     |
+     | Without this the whole form resets: six figures per crop, the cause,
+     | the declared event, all of it, over a connection that made getting
+     | here slow in the first place. The photos genuinely cannot come back
+     | (no browser lets a site refill a file input, for good reasons), so the
+     | card in section 4 says so when there are errors.
+     |
+     | damage_touched records whether that row's percentage was ever actually
+     | set, so a repopulated row does not come back looking answered when it
+     | was not.
+     */
+    $oldCrops = collect(old('crops', []))
+        ->filter(fn ($crop) => filled($crop['crop_id'] ?? null))
+        ->map(fn ($crop) => [
+            'key'                      => uniqid('c', true),
+            'crop_id'                  => (string) ($crop['crop_id'] ?? ''),
+            'crop_specify'             => $crop['crop_specify'] ?? '',
+            'damaged_area_hectares'    => $crop['damaged_area_hectares'] ?? '',
+            'date_planted'             => $crop['date_planted'] ?? '',
+            'estimated_damage_percent' => $crop['estimated_damage_percent'] ?? '',
+            'production_cost'          => $crop['production_cost'] ?? '',
+            'farmgate_price_per_kg'    => $crop['farmgate_price_per_kg'] ?? '',
+            'damageTouched'            => filled($crop['estimated_damage_percent'] ?? null),
+        ])
+        ->values();
+
+    $oldDisasters = collect(old('disasters', []))
+        ->filter(fn ($id) => filled($id))
+        ->map(fn ($id) => ['key' => uniqid('d', true), 'id' => (string) $id])
+        ->values();
 @endphp
 
 <div
@@ -191,20 +224,31 @@
                                         </span>
                                     </label>
 
+                                    {{-- The name is only attached once the farmer
+                                         has actually moved this. An untouched row
+                                         therefore submits nothing for the field and
+                                         the server's own required rule rejects it,
+                                         rather than silently recording a number
+                                         nobody chose. --}}
                                     <div class="flex items-center gap-4">
-                                        <input type="range" :name="`crops[${index}][estimated_damage_percent]`"
-                                               x-model="row.estimated_damage_percent"
+                                        <input type="range"
+                                               :name="row.damageTouched ? `crops[${index}][estimated_damage_percent]` : null"
+                                               :value="row.estimated_damage_percent || 50"
+                                               @input="row.estimated_damage_percent = $event.target.value; row.damageTouched = true"
                                                min="1" max="100" step="1"
                                                class="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-secondary
                                                       accent-[var(--primary)]">
-                                        <span class="w-16 shrink-0 rounded-md bg-accent px-2 py-1.5 text-center
-                                                     text-base font-bold text-accent-foreground"
-                                              x-text="row.estimated_damage_percent + '%'"></span>
+                                        <span class="w-16 shrink-0 rounded-md px-2 py-1.5 text-center text-base font-bold"
+                                              :class="row.damageTouched
+                                                  ? 'bg-accent text-accent-foreground'
+                                                  : 'bg-muted text-muted-foreground'"
+                                              x-text="row.damageTouched ? row.estimated_damage_percent + '%' : '--'"></span>
                                     </div>
 
-                                    <p class="text-xs text-muted-foreground">
-                                        A technician will visit and record their own assessment. Yours is kept as it is.
-                                    </p>
+                                    <p class="text-xs" :class="row.damageTouched ? 'text-muted-foreground' : 'text-destructive'"
+                                       x-text="row.damageTouched
+                                           ? 'A technician will visit and record their own assessment. Yours is kept as it is.'
+                                           : 'Slide to set your estimate. Igalaw po ang slider para itakda ang tantiya.'"></p>
                                 </div>
 
                                 <div class="space-y-1.5">
@@ -339,8 +383,13 @@
                             Pakisabi po kung ano ang sanhi
                         </span>
                     </label>
+                    {{-- No value= here: x-model owns this field, and Alpine
+                         writes its own state into the DOM on init, so an
+                         old() value set this way was blanked a moment later
+                         and never survived a failed submission. It is seeded
+                         through causeOther in the x-data instead. --}}
                     <input id="damage_cause_other" type="text" name="damage_cause_other" maxlength="120"
-                           x-model="causeOther" value="{{ old('damage_cause_other') }}"
+                           x-model="causeOther"
                            placeholder="e.g. Hailstorm, landslide, saltwater intrusion"
                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
                 </div>
@@ -420,6 +469,19 @@
                        description="Mga larawan ng pinsala. Up to 10 photos, 5 MB each.">
 
                 <div class="space-y-4">
+                    {{-- No browser lets a site refill a file input, so photos
+                         cannot be brought back after a validation failure the
+                         way the typed answers now are. Saying so beats leaving
+                         the farmer to notice the empty grid themselves. --}}
+                    <div x-show="hadErrors" x-cloak
+                         class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800
+                                dark:border-amber-900 dark:bg-amber-950/60">
+                        Your answers were kept, but photos have to be attached again.
+                        <span class="block text-xs">Kailangan pong ilakip muli ang mga larawan.</span>
+                    </div>
+
+                    <p x-show="photoNotice" x-cloak class="text-xs text-destructive" x-text="photoNotice"></p>
+
                     {{-- No capture attribute here, deliberately.
 
                          capture="environment" sends a phone straight to the
@@ -607,12 +669,25 @@
             </x-ui.card>
 
             {{-- Submit --}}
-            <div class="flex flex-col-reverse gap-3 pb-4 sm:flex-row sm:justify-end">
-                <x-ui.button size="lg" variant="outline" :href="route('farmer.dashboard')">Cancel</x-ui.button>
-                {{-- Never disabled any more. A farmer can always file, whatever
-                     ruined the crop and whether or not the office has declared
-                     an event for it. --}}
-                <x-ui.button size="lg" type="submit">Review &amp; Submit Report</x-ui.button>
+            <div class="space-y-2 pb-4">
+                {{-- Said plainly rather than leaving a dead button with no
+                     explanation. The only thing that can hold up a submission
+                     is an unset damage estimate: a farmer can always file,
+                     whatever ruined the crop and whether or not the office has
+                     declared an event for it. --}}
+                <p x-show="unsetDamageRows() > 0" x-cloak
+                   class="text-right text-sm text-destructive">
+                    <span x-text="unsetDamageRows() === 1
+                        ? 'One crop still needs your damage estimate.'
+                        : unsetDamageRows() + ' crops still need your damage estimate.'"></span>
+                </p>
+
+                <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <x-ui.button size="lg" variant="outline" :href="route('farmer.dashboard')">Cancel</x-ui.button>
+                    <x-ui.button size="lg" type="submit" x-bind:disabled="unsetDamageRows() > 0">
+                        Review &amp; Submit Report
+                    </x-ui.button>
+                </div>
             </div>
         </div>
     </form>
@@ -634,8 +709,8 @@
             weatherCauses,
             causesWithEvents,
 
-            cause: '',
-            causeOther: '',
+            cause: @js(old('damage_cause', '')),
+            causeOther: @js(old('damage_cause_other', '')),
 
             /* ---------- where the farm is (section 37) ----------
              |
@@ -654,12 +729,18 @@
             locating: false,
             locationError: '',
 
-            crops: [emptyCrop(), emptyCrop()],
+            // Whatever survived a failed submission, or two blank rows on a
+            // first visit. See the $oldCrops note at the top of this file.
+            crops: @js($oldCrops).length ? @js($oldCrops) : [emptyCrop(), emptyCrop()],
 
             // One event row to start with, not two. Most reports link to a
             // single event, and the second empty dropdown just looked like
             // something else that had to be filled in.
-            disasters: [emptyDisaster()],
+            disasters: @js($oldDisasters).length ? @js($oldDisasters) : [emptyDisaster()],
+
+            // True only while re-showing a form that failed validation, so
+            // the photo card can say that photos need attaching again.
+            hadErrors: @js($errors->any()),
 
             /* ---------- cause ---------- */
 
@@ -686,6 +767,17 @@
 
                 // The stored labels read "Typhoon / Bagyo".
                 return this.causeList[this.cause] || 'Not chosen';
+            },
+
+            /**
+             * Rows that name a crop but whose damage estimate was never set.
+             *
+             * Rows with no crop chosen are ignored, because the controller
+             * filters those out before validating, so an untouched spare row
+             * is not something to stop the farmer over.
+             */
+            unsetDamageRows() {
+                return this.crops.filter(row => row.crop_id && ! row.damageTouched).length;
             },
 
             /* ---------- location ---------- */
@@ -789,8 +881,49 @@
                The previews and the file input are kept in step by rebuilding
                the input's FileList through a DataTransfer, which is the only
                way to remove one file from a multiple input. */
+            photoLimit: 10,
+            photoNotice: '',
+
+            /**
+             * Capped here, not just on the server.
+             *
+             * The server rule is max:10, but it can only complain once the
+             * whole multipart body has arrived. Picking twenty photos on a
+             * rural connection meant several minutes of uploading before
+             * being told no, so the extras are dropped before anything
+             * leaves the phone.
+             */
             onPhotos(event) {
                 this.previews.forEach(preview => URL.revokeObjectURL(preview.url));
+
+                const chosen = Array.from(event.target.files);
+
+                if (chosen.length > this.photoLimit) {
+                    this.photoNotice = 'Only the first ' + this.photoLimit + ' photos were kept. '
+                        + 'Hanggang ' + this.photoLimit + ' na larawan lamang.';
+
+                    /* The input itself still holds every file that was picked,
+                       and that is what gets posted, so trimming the previews
+                       alone would change nothing. DataTransfer is how a
+                       FileList is rebuilt, but it is missing on some older
+                       Android browsers, so a failure here falls back to
+                       telling the farmer to choose again rather than throwing
+                       and taking the whole preview grid down with it. */
+                    try {
+                        const keep = new DataTransfer();
+                        chosen.slice(0, this.photoLimit).forEach(file => keep.items.add(file));
+                        event.target.files = keep.files;
+                    } catch (e) {
+                        event.target.value = '';
+                        this.previews = [];
+                        this.photoNotice = 'Please choose no more than ' + this.photoLimit + ' photos. '
+                            + 'Pumili po ng hindi hihigit sa ' + this.photoLimit + ' na larawan.';
+
+                        return;
+                    }
+                } else {
+                    this.photoNotice = '';
+                }
 
                 this.previews = Array.from(event.target.files).map(file => ({
                     key: file.name + file.size + file.lastModified,
@@ -835,7 +968,11 @@
                     });
                     rows.push({
                         label: label + ' your damage estimate',
-                        value: (row.estimated_damage_percent || 0) + '%',
+                        // Should never read "Not set" now that submission is
+                        // blocked until every crop has one, but it says so
+                        // plainly rather than printing a number as if it were
+                        // an answer.
+                        value: row.damageTouched ? row.estimated_damage_percent + '%' : 'Not set',
                     });
                     rows.push({
                         label: label + ' production cost',
@@ -879,7 +1016,20 @@
             crop_specify: '',
             damaged_area_hectares: '',
             date_planted: '',
-            estimated_damage_percent: 50,
+
+            /* Starts empty, not at 50.
+             |
+             | This used to default to 50, and because a range input always
+             | reports a value, the required attribute could never fail and
+             | the server rule accepted it. A farmer whose field was
+             | completely flattened could submit a sworn 50% estimate they
+             | never made, and that figure drives the damage cost and the
+             | technician's disagreement check. damageTouched records whether
+             | they actually set it; until they do, the row submits no value
+             | at all and the server's own required rule catches it. */
+            estimated_damage_percent: '',
+            damageTouched: false,
+
             production_cost: '',
             farmgate_price_per_kg: '',
         };
