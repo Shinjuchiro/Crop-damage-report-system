@@ -14,9 +14,20 @@
 
     Below sm the table becomes cards, because an officer checking a member on
     a phone should not have to scroll sideways.
+
+    List and detail sit side by side from lg up, the same arrangement the MAO
+    screens use. Picking a member adds ?selected=<id> rather than navigating
+    away, so the list, the filters and the page number all stay put. On a
+    phone the panel takes over the screen and carries its own "Back to list"
+    link, so nothing is lost on a small display.
 --}}
 
 <div class="space-y-4">
+
+    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+
+    {{-- LIST --}}
+    <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
 
     <x-ui.card :padded="false">
         <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
@@ -54,7 +65,7 @@
             <ul class="divide-y divide-border sm:hidden">
                 @foreach ($members as $member)
                     <li>
-                        <a href="{{ route('association.members.show', $member) }}"
+                        <a href="{{ request()->fullUrlWithQuery(['selected' => $member->id]) }}"
                            class="block px-4 py-4 transition active:bg-muted">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
@@ -129,7 +140,7 @@
 
                             <td class="whitespace-nowrap text-right">
                                 <x-ui.button size="sm" variant="outline"
-                                             :href="route('association.members.show', $member)">
+                                             :href="request()->fullUrlWithQuery(['selected' => $member->id])">
                                     View
                                 </x-ui.button>
                             </td>
@@ -143,5 +154,20 @@
             <x-slot:footer>{{ $members->links() }}</x-slot:footer>
         @endif
     </x-ui.card>
+
+    </div>{{-- /LIST --}}
+
+    {{-- DETAIL --}}
+    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-4 lg:mt-0"
+                        empty-text="Select a member from the list to view their details.">
+        @if ($selected)
+            @include('association.members._member-detail', [
+                'member'      => $selected,
+                'association' => $association,
+            ])
+        @endif
+    </x-ui.detail-panel>
+
+    </div>{{-- /lg:grid --}}
 </div>
 @endsection

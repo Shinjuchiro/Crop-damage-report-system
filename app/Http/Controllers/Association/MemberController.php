@@ -51,9 +51,38 @@ class MemberController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        /*
+         | The member shown in the right-hand panel, when a row has been
+         | picked with ?selected=<id>.
+         |
+         | The ownership check is the important line here and is the same one
+         | show() makes. Without it, editing the number in the query string
+         | would pull up a farmer from another association, which is exactly
+         | the leak the rest of this controller is careful to avoid. It runs
+         | against the id before anything is loaded or rendered.
+         */
+        $selected = null;
+
+        if ($request->filled('selected')) {
+            $candidate = Farmer::find($request->query('selected'));
+
+            if ($candidate) {
+                $this->assertBelongsToAssociation($candidate->association_id);
+
+                $candidate->refreshActivityStatus();
+                $selected = $candidate->load(self::detailRelations());
+            }
+        }
+
         return view('association.members.index', [
             'association' => $association,
             'members'     => $members,
+            'selected'    => $selected,
+
+            // Where "Back to list" goes on a phone, where the panel takes
+            // over the screen: this same page with the selection dropped but
+            // every filter and the page number kept.
+            'backUrl'     => $request->fullUrlWithoutQuery('selected'),
             'filters'     => $request->only(['status', 'affected', 'barangay', 'q']),
 
             // Only barangays this association actually has members in.
@@ -62,6 +91,27 @@ class MemberController extends Controller
                 ->orderBy('name')
                 ->get(),
         ]);
+    }
+
+    /**
+     * Everything the member detail needs, in one place.
+     *
+     * Shared by index() for the panel and show() for the full page, so the
+     * two can never drift into loading different things and leaving one of
+     * them firing N+1 queries.
+     */
+    public static function detailRelations(): array
+    {
+        return [
+            'user', 'barangay', 'association', 'mainCrops.crop',
+            'plantingRecords.crops.crop',
+            'damageReports.crops.crop',
+            'damageReports.disasters',
+            'damageReports.validation',
+            'damageReports.reportedBarangay',
+            'assistanceDistributions.allocation.assistance',
+            'assistanceDistributions.damageReport',
+        ];
     }
 
     /**
@@ -75,16 +125,8 @@ class MemberController extends Controller
 
         $member->refreshActivityStatus();
 
-        $member->load([
-            'user', 'barangay', 'association', 'mainCrops.crop',
-            'plantingRecords.crops.crop',
-            'damageReports.crops.crop',
-            'damageReports.disasters',
-            'damageReports.validation',
-            'damageReports.reportedBarangay',
-            'assistanceDistributions.allocation.assistance',
-            'assistanceDistributions.damageReport',
-        ]);
+        // Same relations the panel loads: see detailRelations() above.
+        $member->load(self::detailRelations());
 
         return view('association.members.show', [
             'association' => $this->association(),
