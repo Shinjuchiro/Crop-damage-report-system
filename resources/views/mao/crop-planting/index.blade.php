@@ -13,11 +13,15 @@
 
     {{-- Summary --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-ui.stat label="Planting Submissions" :value="number_format($summary['records'])" />
-        <x-ui.stat label="Submitted This Month" :value="number_format($summary['this_month'])" />
+        <x-ui.stat label="Planting Submissions" :value="number_format($summary['records'])"
+                   icon="M12 21v-8m0 0C12 9 9 6 5 6c0 4 3 7 7 7zm0 0c0-4 3-7 7-7 0 4-3 7-7 7z" />
+        <x-ui.stat label="Submitted This Month" :value="number_format($summary['this_month'])"
+                   icon="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0119 21H5a1.5 1.5 0 01-1.5-1.5v-13A1.5 1.5 0 015 5z" />
         <x-ui.stat label="Farmers Reporting" :value="number_format($summary['farmers'])"
-                     hint="Farmers with at least one record" />
-        <x-ui.stat label="Total Area Planted" :value="number_format($summary['area_planted'], 2)" suffix="ha" />
+                     hint="Farmers with at least one record"
+                     icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
+        <x-ui.stat label="Total Area Planted" :value="number_format($summary['area_planted'], 2)" suffix="ha"
+                   icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
 
     {{-- List + detail. Side by side from lg up; on a phone only one half

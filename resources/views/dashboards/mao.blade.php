@@ -48,22 +48,26 @@
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-ui.stat label="Total Affected Farmers"
                      :value="number_format($headline['affected_farmers'])"
-                     :hint="'Farmers with a damage report, ' . strtolower($headline['period_label'])" />
+                     :hint="'Farmers with a damage report, ' . strtolower($headline['period_label'])"
+                     icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z" />
 
         <x-ui.stat label="Active Reports"
                      :value="number_format($headline['active_reports'])"
                      :suffix="strtolower($headline['period_label'])"
-                     hint="Not yet verified or closed" />
+                     hint="Not yet verified or closed"
+                     icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
 
         <x-ui.stat label="Validated Reports"
                      :value="$headline['validated_rate'] . '%'"
                      :suffix="strtolower($headline['period_label'])"
-                     hint="Share of reports a technician has verified" />
+                     hint="Share of reports a technician has verified"
+                     icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
 
         <x-ui.stat label="Assistance Distributed"
                      :value="$headline['assistance_rate'] . '%'"
                      suffix="of affected farmers"
-                     hint="Farmers who confirmed they received assistance" />
+                     hint="Farmers who confirmed they received assistance"
+                     icon="M20 7.5l-8-4.5-8 4.5m16 0v9l-8 4.5-8-4.5v-9m16 0l-8 4.5m0 0l-8-4.5m8 4.5V21" />
     </div>
 
     {{-- ===================== DAMAGE MAP ===================== --}}
@@ -73,7 +77,7 @@
     <div class="mb-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div class="flex flex-col gap-1 border-b border-border px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h2 class="text-base font-semibold text-foreground">Crop Damage by Association</h2>
+                <h2 class="text-base font-semibold uppercase tracking-wide text-foreground">Crop Damage by Association</h2>
                 <p class="text-xs text-muted-foreground">
                     Each circle is one association. Bigger and darker means more reports from its members.
                 </p>
@@ -109,8 +113,8 @@
     <div class="grid gap-5 lg:grid-cols-2">
 
         {{-- Reports summary --}}
-        <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h2 class="text-base font-semibold text-foreground">Reports Summary</h2>
+        <div class="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 class="text-base font-semibold uppercase tracking-wide text-foreground">Reports Summary</h2>
             <p class="mt-0.5 text-xs text-muted-foreground">
                 Damage reports submitted by farmers against inspections completed by technicians, last 5 months.
             </p>
@@ -127,8 +131,20 @@
                     </span>
                 </div>
 
-                <div class="mt-3 h-64">
-                    <canvas id="reportsSummaryChart"
+                {{--
+                    relative + min-w-0 + max-w-full is what keeps this chart
+                    inside the card on a phone. Chart.js writes an inline pixel
+                    width onto the canvas from whatever it measures the wrapper
+                    to be, and a canvas that ends up even slightly too wide
+                    pushes the card past the screen edge, which is the sideways
+                    scroll that showed up on the MAO dashboard in mobile view.
+                    min-w-0 lets the wrapper shrink with its column instead of
+                    holding the canvas's own width, and max-width:100% caps the
+                    inline width Chart.js writes so a transient overshoot during
+                    its first resize can never widen the page.
+                --}}
+                <div class="relative mt-3 h-64 min-w-0">
+                    <canvas id="reportsSummaryChart" class="max-w-full"
                             data-labels="{{ json_encode($monthly->pluck('label')) }}"
                             data-submitted="{{ json_encode($monthly->pluck('submitted')) }}"
                             data-validated="{{ json_encode($monthly->pluck('validated')) }}"></canvas>
@@ -142,8 +158,8 @@
         </div>
 
         {{-- Damage by severity --}}
-        <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h2 class="text-base font-semibold text-foreground">Damage by Severity</h2>
+        <div class="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 class="text-base font-semibold uppercase tracking-wide text-foreground">Damage by Severity</h2>
             <p class="mt-0.5 text-xs text-muted-foreground">
                 Severity assessed by technicians during field inspection.
             </p>
@@ -151,7 +167,7 @@
             @if ($severityTotal > 0)
                 <div class="mt-4 flex flex-col items-center gap-6 sm:flex-row sm:justify-center">
                     <div class="relative h-52 w-52 shrink-0">
-                        <canvas id="severityChart"
+                        <canvas id="severityChart" class="max-w-full"
                                 data-labels="{{ json_encode($severity->pluck('label')) }}"
                                 data-values="{{ json_encode($severity->pluck('total')) }}"
                                 data-colors="{{ json_encode($severity->pluck('color')) }}"></canvas>

@@ -128,7 +128,7 @@
 
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm xl:col-span-2">
             <div class="border-b border-border px-6 py-4">
-                <h2 class="text-base font-semibold text-foreground">Association Allocation Overview</h2>
+                <h2 class="text-base font-semibold uppercase tracking-wide text-foreground">Association Allocation Overview</h2>
                 <p class="mt-0.5 text-xs text-muted-foreground">
                     @if ($selectedDisaster)
                         For {{ $selectedDisaster->name }}
@@ -206,7 +206,7 @@
 
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div class="flex items-center justify-between border-b border-border px-6 py-4">
-                <h2 class="text-base font-semibold text-foreground">Recent Allocations</h2>
+                <h2 class="text-base font-semibold uppercase tracking-wide text-foreground">Recent Allocations</h2>
                 <a href="{{ route('mao.assistance-allocations.history') }}" class="text-sm font-medium text-primary hover:underline">
                     View All
                 </a>

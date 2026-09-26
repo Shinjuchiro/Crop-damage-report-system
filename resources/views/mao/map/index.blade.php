@@ -10,12 +10,16 @@
     {{-- Coverage --}}
     <div class="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-ui.stat label="Damage Reports" :value="number_format($coverage['reports'])"
-                     hint="Matching the current filters" />
+                     hint="Matching the current filters"
+                     icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
         <x-ui.stat label="Associations Affected" :value="number_format($coverage['associations'])"
-                     :suffix="'of ' . $coverage['total_assoc']" />
-        <x-ui.stat label="Total Damaged Area" :value="number_format($coverage['area'], 2)" suffix="ha" />
+                     :suffix="'of ' . $coverage['total_assoc']"
+                     icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM4 12.5a2 2 0 100-4 2 2 0 000 4zM20 12.5a2 2 0 100-4 2 2 0 000 4z" />
+        <x-ui.stat label="Total Damaged Area" :value="number_format($coverage['area'], 2)" suffix="ha"
+                   icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
         <x-ui.stat label="Verified Pins" :value="number_format($coverage['pinned'])"
-                     hint="Locations a technician confirmed on site" />
+                     hint="Locations a technician confirmed on site"
+                     icon="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11zM12 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
     </div>
 
     @if ($coverage['unplaced'] > 0)
@@ -134,7 +138,7 @@
 
         <div class="flex flex-col gap-3 border-b border-border px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <h2 class="text-base font-semibold text-foreground">Crop Damage by Association</h2>
+                <h2 class="text-base font-semibold uppercase tracking-wide text-foreground">Crop Damage by Association</h2>
                 <p class="text-xs text-muted-foreground">
                     Each circle is one association, placed at its location. Bigger means more reports from its members.
                 </p>

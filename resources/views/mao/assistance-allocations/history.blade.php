@@ -21,7 +21,7 @@
 
     {{-- Summary --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-3">
-        <div class="flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
+        <div class="min-w-0 flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
             <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
                 <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"
                      stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -34,7 +34,7 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
+        <div class="min-w-0 flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
             <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white">
                 <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"
                      stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -47,7 +47,7 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
+        <div class="min-w-0 flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
             <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-white">
                 <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"
                      stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">

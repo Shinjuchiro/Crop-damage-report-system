@@ -23,11 +23,16 @@
 
     {{-- Summary --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <x-ui.stat label="Total Reports" :value="number_format($summary['total'])" />
-        <x-ui.stat label="Pending" :value="number_format($summary['pending'])" hint="Not yet assigned" />
-        <x-ui.stat label="Under Verification" :value="number_format($summary['under_verification'])" />
-        <x-ui.stat label="Verified" :value="number_format($summary['verified'])" />
-        <x-ui.stat label="Total Affected Area" :value="number_format($summary['affected_area'], 2)" suffix="ha" />
+        <x-ui.stat label="Total Reports" :value="number_format($summary['total'])"
+                   icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
+        <x-ui.stat label="Pending" :value="number_format($summary['pending'])" hint="Not yet assigned"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2" />
+        <x-ui.stat label="Under Verification" :value="number_format($summary['under_verification'])"
+                   icon="M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15zM21 21l-5.2-5.2" />
+        <x-ui.stat label="Verified" :value="number_format($summary['verified'])"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
+        <x-ui.stat label="Total Affected Area" :value="number_format($summary['affected_area'], 2)" suffix="ha"
+                   icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
 
     {{-- List + detail. Side by side from lg up; on a phone only one half

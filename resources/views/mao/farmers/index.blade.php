@@ -30,12 +30,17 @@
 
     {{-- Summary --}}
     <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        <x-ui.stat label="Total Farmers" :value="number_format($summary['total'])" />
-        <x-ui.stat label="Verified" :value="number_format($summary['verified'])" />
+        <x-ui.stat label="Total Farmers" :value="number_format($summary['total'])"
+                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
+        <x-ui.stat label="Verified" :value="number_format($summary['verified'])"
+                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6" />
         <x-ui.stat label="Pending" :value="number_format($summary['pending'])"
+                     icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2"
                      :href="route('mao.membership-applications.index', ['status' => 'pending'])" />
-        <x-ui.stat label="Active" :value="number_format($summary['active'])" hint="With recent activity" />
-        <x-ui.stat label="Inactive" :value="number_format($summary['inactive'])" />
+        <x-ui.stat label="Active" :value="number_format($summary['active'])" hint="With recent activity"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
+        <x-ui.stat label="Inactive" :value="number_format($summary['inactive'])"
+                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM17 11h5" />
     </div>
 
     {{-- List + detail. Side by side from lg up; on a phone only one half

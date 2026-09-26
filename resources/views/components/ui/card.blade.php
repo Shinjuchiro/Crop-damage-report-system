@@ -48,8 +48,17 @@
     @if ($title || $description || isset($actions))
         <div class="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-5 sm:py-4">
             <div class="min-w-0">
+                {{--
+                    Card titles are set in capitals, the way the section
+                    headings on the detail pages already are, so the eye can
+                    find the start of a panel quickly on a long dashboard.
+                    uppercase is a CSS transform, so the title is still written
+                    and read by screen readers in ordinary sentence case.
+                    tracking-wide replaces tracking-tight because capitals need
+                    a little more room between letters to stay readable.
+                --}}
                 @if ($title)
-                    <h3 class="text-base font-semibold leading-tight tracking-tight">{{ $title }}</h3>
+                    <h3 class="text-base font-semibold uppercase leading-tight tracking-wide">{{ $title }}</h3>
                 @endif
 
                 @if ($description)

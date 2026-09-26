@@ -88,8 +88,12 @@
                     Nothing submitted in the last 6 months yet.
                 </p>
             @else
-                <div class="h-52">
-                    <canvas id="monthlyBar" aria-label="Inspections completed per month"></canvas>
+                {{-- Same guard as the MAO dashboard chart: min-w-0 lets the
+                     wrapper shrink with its column and max-width:100% caps the
+                     inline pixel width Chart.js writes onto the canvas, so a
+                     wide bar chart can never push the card past the screen. --}}
+                <div class="relative h-52 min-w-0">
+                    <canvas id="monthlyBar" class="max-w-full" aria-label="Inspections completed per month"></canvas>
                 </div>
             @endif
         </x-ui.card>

@@ -95,7 +95,7 @@
 
     {{-- Farmer + farm --}}
     <div class="grid gap-6 lg:grid-cols-2">
-        <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div class="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm">
             <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-green-800">Farmer Information</h3>
             <dl class="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
@@ -112,7 +112,7 @@
             </dl>
         </div>
 
-        <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div class="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm">
             <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-green-800">Farm</h3>
             <dl class="grid gap-4 text-sm sm:grid-cols-2">
                 <div>

@@ -43,14 +43,17 @@
 
         <x-ui.stat label="Active Members" :value="number_format($summary['active_members'])"
                    tone="primary" hint="Active in the last 3 months"
+                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6"
                    :href="route('association.members.index', ['status' => 'active'])" />
 
         <x-ui.stat label="Inactive Members" :value="number_format($summary['inactive_members'])"
                    hint="No planting activity for 3 months"
+                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM17 11h5"
                    :href="route('association.members.index', ['status' => 'inactive'])" />
 
         <x-ui.stat label="Affected Members" :value="number_format($summary['affected_members'])"
                    tone="warning" hint="Have filed a damage report"
+                   icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z"
                    :href="route('association.members.index', ['affected' => 'yes'])" />
     </div>
 
@@ -62,10 +65,12 @@
 
         <x-ui.stat label="Awaiting Verification" :value="number_format($summary['pending_reports'])"
                    tone="warning" hint="Not yet inspected"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2"
                    :href="route('association.reports.index', ['status' => 'pending'])" />
 
         <x-ui.stat label="Verified Reports" :value="number_format($summary['verified_reports'])"
                    tone="primary" hint="Eligible for assistance"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"
                    :href="route('association.reports.index', ['status' => 'verified'])" />
 
         <x-ui.stat label="Awaiting Confirmation"

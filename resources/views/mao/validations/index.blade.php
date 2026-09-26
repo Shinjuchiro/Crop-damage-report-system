@@ -33,10 +33,14 @@
          Damage Monitoring, which is also where a technician gets assigned in
          the first place. --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-ui.stat label="Completed Inspections" :value="number_format($summary['completed'])" hint="Technician has submitted" />
-        <x-ui.stat label="Verified" :value="number_format($summary['verified'])" hint="Awaiting MAO decision" />
-        <x-ui.stat label="Approved" :value="number_format($summary['approved'])" />
-        <x-ui.stat label="Rejected" :value="number_format($summary['rejected'])" />
+        <x-ui.stat label="Completed Inspections" :value="number_format($summary['completed'])" hint="Technician has submitted"
+                   icon="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4" />
+        <x-ui.stat label="Verified" :value="number_format($summary['verified'])" hint="Awaiting MAO decision"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
+        <x-ui.stat label="Approved" :value="number_format($summary['approved'])"
+                   icon="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <x-ui.stat label="Rejected" :value="number_format($summary['rejected'])"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6" />
     </div>
 
     {{-- List + detail. Side by side from lg up; on a phone only one half

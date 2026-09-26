@@ -21,8 +21,10 @@
 
     <div class="stagger grid gap-4 sm:grid-cols-2">
         <x-ui.stat label="Assigned Reports Shown" :value="number_format($coverage['total'])"
-                   hint="With a technician-verified location" />
-        <x-ui.stat label="Technician-Verified Pins" :value="number_format($coverage['total'])" tone="primary" />
+                   hint="With a technician-verified location"
+                   icon="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4" />
+        <x-ui.stat label="Technician-Verified Pins" :value="number_format($coverage['total'])" tone="primary"
+                   icon="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11zM12 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
     </div>
 
     <x-ui.card>
@@ -46,7 +48,7 @@
     <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div class="flex flex-col gap-3 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h2 class="text-base font-semibold text-foreground">Your Reports on the Map</h2>
+                <h2 class="text-base font-semibold uppercase tracking-wide text-foreground">Your Reports on the Map</h2>
                 <p class="text-xs text-muted-foreground">Tap a pin for the farmer, crop and status, then open the full report.</p>
             </div>
         </div>
