@@ -57,9 +57,11 @@ class InspectionController extends Controller
     /**
      * The full farmer-submitted report, read only (section 40).
      */
-    public function show(DamageReport $report)
+    public function show(Request $request, DamageReport $report)
     {
         $this->authorizeAssignment($report);
+
+        [$backUrl, $backLabel] = $this->backToList($request, $report);
 
         return view('technician.reports.show', [
             'report' => $report->load([
@@ -67,7 +69,70 @@ class InspectionController extends Controller
                 'crops.crop', 'disasters', 'photos',
                 'reportedBarangay', 'validation.photos',
             ]),
+            'backUrl'   => $backUrl,
+            'backLabel' => $backLabel,
         ]);
+    }
+
+    /**
+     * Where the "Back" button at the top of the report details page goes.
+     *
+     * It used to be hard coded to the dashboard, so a technician who opened
+     * a report from Assigned Reports, Validation or Inspection History was
+     * dropped on the dashboard afterwards and had to find their way back to
+     * the list, losing their filters and their page number on the way.
+     *
+     * The referring page decides instead. Only this module's own list pages
+     * are accepted, matched on path against the named routes, so a link in
+     * from anywhere else (a notification, another site, a pasted URL) can
+     * never point the button somewhere unexpected. What is returned is the
+     * full referring URL rather than route(), so ?status=, ?barangay= and
+     * ?page= all survive the round trip and the technician lands back on
+     * the same filtered page they left.
+     *
+     * Remembering it in the session covers the one case the referrer
+     * cannot: refresh this page and the referrer becomes this page itself,
+     * so without the memory the button would drop back to the dashboard the
+     * moment anyone reloaded. It is scoped to the report being viewed, so
+     * opening a different report from somewhere else never inherits a stale
+     * destination.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function backToList(Request $request, DamageReport $report): array
+    {
+        $pages = [
+            'technician.reports.index'    => 'Back to Assigned Reports',
+            'technician.validation.index' => 'Back to Validation',
+            'technician.history.index'    => 'Back to Inspection History',
+            'technician.damage.index'     => 'Back to Damage Reports',
+            'technician.archive.index'    => 'Back to Archive',
+            'technician.map.index'        => 'Back to Map',
+            'technician.dashboard'        => 'Back to Dashboard',
+        ];
+
+        $previous = url()->previous();
+        $path     = rtrim((string) strtok($previous, '?'), '/');
+
+        foreach ($pages as $name => $label) {
+            if ($path === rtrim(route($name), '/')) {
+                $request->session()->put('technician.report_back', [
+                    'report' => $report->id,
+                    'url'    => $previous,
+                    'label'  => $label,
+                ]);
+
+                return [$previous, $label];
+            }
+        }
+
+        $remembered = $request->session()->get('technician.report_back');
+
+        if (is_array($remembered) && ($remembered['report'] ?? null) === $report->id) {
+            return [(string) $remembered['url'], (string) $remembered['label']];
+        }
+
+        return [route('technician.dashboard'), 'Back to Dashboard'];
     }
 
     /**

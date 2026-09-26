@@ -5,7 +5,14 @@
 @section('subheading', 'Submitted by ' . ($report->farmer?->full_name ?? 'a farmer') . ' on ' . $report->created_at?->format('F d, Y'))
 
 @section('header-actions')
-    <x-ui.button variant="outline" :href="route('technician.dashboard')">Back to assignments</x-ui.button>
+    {{-- Goes back to the list the technician actually came from, with their
+         filters and page number intact. InspectionController::backToList()
+         works out which one that is; the fallbacks here are only for safety
+         if this view is ever rendered from somewhere that does not pass
+         them. --}}
+    <x-ui.button variant="outline" :href="$backUrl ?? route('technician.dashboard')">
+        {{ $backLabel ?? 'Back to Dashboard' }}
+    </x-ui.button>
 @endsection
 
 @section('content')
