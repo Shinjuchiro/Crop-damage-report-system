@@ -263,6 +263,26 @@
 .animate-pop-in  { animation: pop-in 0.18s ease-out backwards; }
 .animate-fade-in { animation: fade-in 0.2s ease-out backwards; }
 
+/* A field the person has to go back and fix.
+ *
+ * The registration wizard adds this when a step is left incomplete, so the
+ * box itself goes red and stays red. It used to rely on reportValidity(),
+ * the browser's own tooltip bubble, which looks different in every browser,
+ * disappears after a second or two, and is easy to miss entirely on a phone
+ * held at arm's length in the sun.
+ *
+ * !important because the element already carries Tailwind's border-input
+ * from its base class; both are single class selectors, so without this the
+ * winner would depend on stylesheet order rather than intent. */
+.field-invalid {
+    border-color: var(--destructive) !important;
+}
+
+.field-invalid:focus {
+    outline: 2px solid var(--destructive);
+    outline-offset: 1px;
+}
+
 /* Put .stagger on a grid and its children fade in one after another */
 .stagger > * { animation: fade-up 0.35s ease-out backwards; }
 .stagger > *:nth-child(1) { animation-delay: 0s; }

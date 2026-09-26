@@ -36,7 +36,30 @@
         4 => 'Review',
     ];
 
-    $inputClass = 'w-full rounded-lg border border-input px-3.5 py-2.5 text-sm text-foreground placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20';
+    /*
+     | Field styling, error aware.
+     |
+     | Call it with the field's name and it turns the box red when the server
+     | rejected that field: $inputClass('first_name'). Called with nothing it
+     | is the plain style, for the handful of inputs the server never names.
+     |
+     | The list of errors at the top of the form stays, because this is a four
+     | step wizard and a red box on a step the farmer is not looking at cannot
+     | be seen. But the box itself going red is what they actually notice.
+     |
+     | text-base below sm: iOS zooms the whole page whenever a focused field
+     | has text under 16px, and leaves it scrolled sideways afterwards. The
+     | shared x-ui components were fixed for this already; this form carries
+     | its own class string and was missed.
+     */
+    $inputClass = function (?string $name = null) use ($errors) {
+        $base = 'w-full rounded-lg border px-3.5 py-2.5 text-base sm:text-sm text-foreground '
+              . 'placeholder-slate-400 focus:outline-none focus:ring-2 ';
+
+        return $base . ($name && $errors->has($name)
+            ? 'border-destructive bg-destructive/5 focus:border-destructive focus:ring-destructive/25'
+            : 'border-input focus:border-primary focus:ring-ring/20');
+    };
     $labelClass = 'mb-1.5 block text-sm font-medium text-foreground';
 @endphp
 
@@ -180,40 +203,58 @@
                         <div>
                             <label class="{{ $labelClass }}">First Name <span class="text-red-500">*</span></label>
                             <input type="text" name="first_name" x-model="f.first_name" required
-                                   placeholder="Please enter your first name" class="{{ $inputClass }}">
+                                   placeholder="Please enter your first name" class="{{ $inputClass('first_name') }}">
+                            @error('first_name')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="{{ $labelClass }}">Middle Name</label>
                             <input type="text" name="middle_name" x-model="f.middle_name"
-                                   placeholder="Optional" class="{{ $inputClass }}">
+                                   placeholder="Optional" class="{{ $inputClass('middle_name') }}">
+                            @error('middle_name')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="{{ $labelClass }}">Last Name <span class="text-red-500">*</span></label>
                             <input type="text" name="last_name" x-model="f.last_name" required
-                                   placeholder="Please enter your last name" class="{{ $inputClass }}">
+                                   placeholder="Please enter your last name" class="{{ $inputClass('last_name') }}">
+                            @error('last_name')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="{{ $labelClass }}">Date of Birth <span class="text-red-500">*</span></label>
                             <input type="date" name="date_of_birth" x-model="f.date_of_birth" required
-                                   max="{{ now()->subDay()->toDateString() }}" class="{{ $inputClass }}">
+                                   max="{{ now()->subDay()->toDateString() }}" class="{{ $inputClass('date_of_birth') }}">
+                            @error('date_of_birth')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="{{ $labelClass }}">Sex <span class="text-red-500">*</span></label>
-                            <select name="sex" x-model="f.sex" required class="{{ $inputClass }}">
+                            <select name="sex" x-model="f.sex" required class="{{ $inputClass('sex') }}">
                                 <option value="">Select</option>
                                 <option value="male">Male</option>
                                 <option value="female">Female</option>
                             </select>
+                            @error('sex')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="{{ $labelClass }}">Phone Number <span class="text-red-500">*</span></label>
                             <input type="text" name="phone_number" x-model="f.phone_number" required
-                                   placeholder="09XXXXXXXXX" class="{{ $inputClass }}">
+                                   placeholder="09XXXXXXXXX" class="{{ $inputClass('phone_number') }}">
+                            @error('phone_number')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -235,20 +276,29 @@
                         <div>
                             <label class="{{ $labelClass }}">Username <span class="text-red-500">*</span></label>
                             <input type="text" name="username" x-model="f.username" required
-                                   placeholder="Choose a username" class="{{ $inputClass }}">
+                                   placeholder="Choose a username" class="{{ $inputClass('username') }}">
+                            @error('username')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="{{ $labelClass }}">Email Address <span class="text-red-500">*</span></label>
                             <input type="email" name="email" x-model="f.email" required
-                                   placeholder="Please enter your email" class="{{ $inputClass }}">
+                                   placeholder="Please enter your email" class="{{ $inputClass('email') }}">
+                            @error('email')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div x-data="{ show: false }">
                             <label class="{{ $labelClass }}">Password <span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <input :type="show ? 'text' : 'password'" name="password" x-model="f.password" required
-                                       placeholder="Create password" class="{{ $inputClass }} pr-11">
+                                       placeholder="Create password" class="{{ $inputClass('password') }} pr-11">
+                                @error('password')
+                                    <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                                @enderror
                                 <button type="button" @click="show = !show"
                                         class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-muted-foreground hover:text-muted-foreground">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
@@ -267,7 +317,7 @@
                             <div class="relative">
                                 <input :type="show ? 'text' : 'password'" name="password_confirmation"
                                        x-model="f.password_confirmation" required
-                                       placeholder="Confirm your password" class="{{ $inputClass }} pr-11">
+                                       placeholder="Confirm your password" class="{{ $inputClass('password') }} pr-11">
                                 <button type="button" @click="show = !show"
                                         class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-muted-foreground hover:text-muted-foreground">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
@@ -302,27 +352,36 @@
                             <div class="sm:col-span-2 xl:col-span-3">
                                 <label class="{{ $labelClass }}">Complete Address <span class="text-red-500">*</span></label>
                                 <textarea name="address" x-model="f.address" rows="2" required
-                                          placeholder="Purok / Street, Barangay" class="{{ $inputClass }}"></textarea>
+                                          placeholder="Purok / Street, Barangay" class="{{ $inputClass('address') }}"></textarea>
+                                @error('address')
+                                    <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                                @enderror
                             </div>
 
                             <div>
                                 <label class="{{ $labelClass }}">Barangay <span class="text-red-500">*</span></label>
-                                <select name="barangay_id" x-model="f.barangay_id" required class="{{ $inputClass }}">
+                                <select name="barangay_id" x-model="f.barangay_id" required class="{{ $inputClass('barangay_id') }}">
                                     <option value="">Select Barangay</option>
                                     @foreach ($barangays as $barangay)
                                         <option value="{{ $barangay->id }}">{{ $barangay->name }}</option>
                                     @endforeach
                                 </select>
+                                @error('barangay_id')
+                                    <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                                @enderror
                             </div>
 
                             <div>
                                 <label class="{{ $labelClass }}">Farmers' Association <span class="text-red-500">*</span></label>
-                                <select name="association_id" x-model="f.association_id" required class="{{ $inputClass }}">
+                                <select name="association_id" x-model="f.association_id" required class="{{ $inputClass('association_id') }}">
                                     <option value="">Select Association</option>
                                     @foreach ($associations as $association)
                                         <option value="{{ $association->id }}">{{ $association->name }}</option>
                                     @endforeach
                                 </select>
+                                @error('association_id')
+                                    <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
                     </div>
@@ -369,7 +428,12 @@
                             <label class="{{ $labelClass }}">
                                 Barangay Certificate <span class="text-red-500">*</span>
                             </label>
-                            <label class="flex h-28 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-input bg-secondary px-4 text-center transition hover:border-primary hover:bg-accent/40">
+                            {{-- data-upload-box is what validateStep reddens when
+                                 no certificate has been chosen. The real file
+                                 input is hidden inside this label, so it cannot
+                                 be marked itself and would never be seen. --}}
+                            <label data-upload-box
+                                   class="flex h-28 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-input bg-secondary px-4 text-center transition hover:border-primary hover:bg-accent/40">
                                 <span class="text-xs text-muted-foreground"
                                       x-text="documentName || 'Upload Barangay Certificate'"></span>
                                 <span class="mt-1 text-2xl leading-none text-muted-foreground">+</span>
@@ -410,18 +474,27 @@
                                 <label class="{{ $labelClass }}">Land Owner Full Name <span class="text-red-500">*</span></label>
                                 <input type="text" name="landowner_name" x-model="f.landowner_name"
                                        :required="f.ownership_type === 'tenant'"
-                                       placeholder="Enter the land owner's name" class="{{ $inputClass }}">
+                                       placeholder="Enter the land owner's name" class="{{ $inputClass('landowner_name') }}">
+                                @error('landowner_name')
+                                    <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                                @enderror
                             </div>
                             <div>
                                 <label class="{{ $labelClass }}">Land Owner Contact Number</label>
                                 <input type="text" name="landowner_contact" x-model="f.landowner_contact"
-                                       placeholder="09XXXXXXXXX" class="{{ $inputClass }}">
+                                       placeholder="09XXXXXXXXX" class="{{ $inputClass('landowner_contact') }}">
+                                @error('landowner_contact')
+                                    <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                                @enderror
                             </div>
                             <div class="sm:col-span-2 xl:col-span-3">
                                 <label class="{{ $labelClass }}">Land Owner Location <span class="text-red-500">*</span></label>
                                 <input type="text" name="landowner_location" x-model="f.landowner_location"
                                        :required="f.ownership_type === 'tenant'"
-                                       placeholder="Barangay, Municipality" class="{{ $inputClass }}">
+                                       placeholder="Barangay, Municipality" class="{{ $inputClass('landowner_location') }}">
+                                @error('landowner_location')
+                                    <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
                     </div>
@@ -444,7 +517,10 @@
                             <label class="{{ $labelClass }}">Farm size (ha)</label>
                             <input type="number" step="0.01" min="0" name="farm_size_hectares"
                                    x-model="f.farm_size_hectares"
-                                   placeholder="Enter farm size" class="{{ $inputClass }}">
+                                   placeholder="Enter farm size" class="{{ $inputClass('farm_size_hectares') }}">
+                            @error('farm_size_hectares')
+                                <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <label class="{{ $labelClass }}">Main crop type <span class="text-red-500">*</span></label>
@@ -452,7 +528,7 @@
                         <template x-for="(crop, index) in crops" :key="index">
                             <div class="mb-3 grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
                                 <select :name="`crops[${index}][crop_id]`" x-model="crop.crop_id" required
-                                        class="{{ $inputClass }}">
+                                        class="{{ $inputClass() }}">
                                     <option value="">Select crop type</option>
                                     @foreach ($crops as $cropOption)
                                         <option value="{{ $cropOption->id }}">{{ $cropOption->name }}</option>
@@ -461,7 +537,7 @@
 
                                 <input type="text" :name="`crops[${index}][crop_specify]`" x-model="crop.crop_specify"
                                        x-show="isHvcc(crop.crop_id)" x-cloak
-                                       placeholder="Specify crop (e.g. Ampalaya)" class="{{ $inputClass }}">
+                                       placeholder="Specify crop (e.g. Ampalaya)" class="{{ $inputClass() }}">
 
                                 <button type="button" x-show="crops.length > 1" @click="removeCrop(index)"
                                         class="rounded-lg border border-red-200 px-3.5 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50">
@@ -632,6 +708,24 @@
     function farmerRegistration() {
         return {
             step: {{ $startStep }},
+
+            init() {
+                /* Clear a box's red the moment the farmer starts fixing it,
+                   rather than leaving it red until they press Next again and
+                   wonder whether it worked.
+
+                   One delegated listener on the form beats an @input on each
+                   of the twenty fields, and it catches the server-rendered
+                   red borders too, not only the ones this wizard adds.
+                   Capture phase so it still fires for change events on
+                   selects, which do not bubble in every browser. */
+                ['input', 'change'].forEach(evt => {
+                    this.$el.addEventListener(evt, event => {
+                        event.target?.classList?.remove('field-invalid');
+                        event.target?.closest?.('[data-upload-box]')?.classList.remove('field-invalid');
+                    }, true);
+                });
+            },
             stepError: '',
             agreed: false,
             documentName: '',
@@ -705,21 +799,61 @@
             },
 
             /* ---------- step navigation ---------- */
+
+            /** Turn one box red and take the farmer to it. */
+            markInvalid(field, message) {
+                if (! field) {
+                    this.stepError = message;
+                    return false;
+                }
+
+                field.classList.add('field-invalid');
+                this.stepError = message;
+
+                field.focus({ preventScroll: true });
+                field.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+                return false;
+            },
+
+            clearMarks(container) {
+                (container || document).querySelectorAll('.field-invalid')
+                    .forEach(el => el.classList.remove('field-invalid'));
+            },
+
             validateStep() {
                 this.stepError = '';
 
                 const container = this.$refs['step' + this.step];
                 if (container) {
-                    const fields = container.querySelectorAll('input, select, textarea');
+                    this.clearMarks(container);
 
+                    const fields = container.querySelectorAll('input, select, textarea');
+                    let firstBad = null;
+
+                    /* Every empty or wrong box on this step goes red, not just
+                       the first one, so the farmer can see the whole job rather
+                       than fixing one and being sent back for the next.
+
+                       This used to call reportValidity(), which shows the
+                       browser's own tooltip. That bubble looks different in
+                       every browser, vanishes after a second or two, and points
+                       at a box the farmer may already have scrolled past. */
                     for (const field of fields) {
                         if (field.disabled || field.offsetParent === null) continue;
 
-                        if (!field.checkValidity()) {
-                            field.reportValidity();
-                            this.stepError = 'Please complete the highlighted field before continuing.';
-                            return false;
+                        if (! field.checkValidity()) {
+                            field.classList.add('field-invalid');
+                            if (! firstBad) firstBad = field;
                         }
+                    }
+
+                    if (firstBad) {
+                        const count = container.querySelectorAll('.field-invalid').length;
+
+                        return this.markInvalid(firstBad, count === 1
+                            ? 'Please complete the field marked in red.'
+                            : 'Please complete the ' + count + ' fields marked in red.');
                     }
                 }
 
@@ -732,13 +866,19 @@
                     // the only real fix is making sure this kind of error never reaches
                     // the server in the first place.
                     if (this.f.password.length < 8 || !/[A-Za-z]/.test(this.f.password) || !/[0-9]/.test(this.f.password)) {
-                        this.stepError = 'Password must be at least 8 characters and include both letters and numbers.';
-                        return false;
+                        return this.markInvalid(
+                            container?.querySelector('[name="password"]'),
+                            'Password must be at least 8 characters and include both letters and numbers.');
                     }
 
                     if (this.f.password !== this.f.password_confirmation) {
-                        this.stepError = 'The password and its confirmation do not match.';
-                        return false;
+                        // Both boxes go red: it is the pair that disagrees, and
+                        // the farmer cannot tell which one they mistyped.
+                        container?.querySelector('[name="password"]')?.classList.add('field-invalid');
+
+                        return this.markInvalid(
+                            container?.querySelector('[name="password_confirmation"]'),
+                            'The password and its confirmation do not match.');
                     }
                 }
 
@@ -749,13 +889,20 @@
                     // skipped, required or not. documentName is only ever set by that
                     // input's own @change handler, so it doubles as "is a file chosen".
                     if (this.f.ownership_type === 'land_owner' && !this.documentName) {
+                        // The input itself is hidden, so redden the styled box
+                        // the farmer can actually see and tap.
+                        const dropZone = container?.querySelector('[data-upload-box]');
+                        dropZone?.classList.add('field-invalid');
+                        dropZone?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
                         this.stepError = 'Please upload your Barangay Certificate before continuing.';
                         return false;
                     }
 
                     if (!this.crops.some(crop => crop.crop_id)) {
-                        this.stepError = 'Please select at least one main crop.';
-                        return false;
+                        return this.markInvalid(
+                            container?.querySelector('[name^="crops"], select'),
+                            'Please select at least one main crop.');
                     }
                 }
 
