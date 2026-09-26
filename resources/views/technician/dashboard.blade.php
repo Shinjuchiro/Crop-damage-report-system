@@ -152,79 +152,15 @@
                  technician screens mobile first, but an eight column table
                  puts the Action button around 670px in, so the one control
                  that matters could only be reached by scrolling the card
-                 sideways. Same card treatment as
-                 technician/reports/index.blade.php so the two pages behave
-                 the same way.
+                 sideways.
+
+                 The card itself lives in technician/partials/report-card,
+                 shared with technician/reports/index.blade.php so the two
+                 lists cannot drift apart again.
             --}}
-            <ul class="divide-y divide-border sm:hidden">
+            <ul class="space-y-3 p-4 sm:hidden">
                 @foreach ($reports as $report)
-                    @php
-                        $cardAssessed = $report->validation?->assessed_damage_percent;
-                        $cardEstimate = $report->crops->avg('estimated_damage_percent');
-                        $cardShown    = $cardAssessed ?? $cardEstimate;
-
-                        $cardHref = $report->status === 'under_verification'
-                            ? route('technician.inspection.edit', $report)
-                            : route('technician.reports.show', $report);
-                    @endphp
-
-                    <li>
-                        <a href="{{ $cardHref }}" class="block px-4 py-4 transition active:bg-muted">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold">{{ $report->reference }}</p>
-                                    <p class="truncate text-sm">{{ $report->farmer?->full_name ?? 'Unknown' }}</p>
-                                    <p class="truncate text-xs text-muted-foreground">
-                                        {{ $report->farmer?->association?->name ?? 'No association' }}
-                                    </p>
-                                </div>
-                                <x-ui.status :value="$report->status" />
-                            </div>
-
-                            <dl class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                <div>
-                                    <dt class="inline font-medium">Barangay:</dt>
-                                    <dd class="inline">{{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? '-' }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="inline font-medium">Submitted:</dt>
-                                    <dd class="inline">{{ $report->created_at?->format('M d, Y') }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="inline font-medium">Damage:</dt>
-                                    <dd class="inline">
-                                        @if ($cardShown === null)
-                                            -
-                                        @else
-                                            {{ round($cardShown) }}% ({{ $cardAssessed !== null ? 'you assessed' : 'farmer estimate' }})
-                                        @endif
-                                    </dd>
-                                </div>
-                                @if ($report->photos_count)
-                                    <div>
-                                        <dt class="inline font-medium">Photos:</dt>
-                                        <dd class="inline">{{ $report->photos_count }}</dd>
-                                    </div>
-                                @endif
-                            </dl>
-
-                            <div class="mt-2 flex flex-wrap gap-1">
-                                @foreach ($report->crops as $crop)
-                                    <x-ui.badge variant="primary">{{ $crop->crop_specify ?: $crop->crop?->name }}</x-ui.badge>
-                                @endforeach
-                            </div>
-
-                            <p class="mt-2.5 text-sm font-semibold text-primary">
-                                @if ($report->status === 'assigned')
-                                    View Details
-                                @elseif ($report->status === 'under_verification')
-                                    Continue inspection
-                                @else
-                                    View
-                                @endif
-                            </p>
-                        </a>
-                    </li>
+                    <li>@include('technician.partials.report-card', ['report' => $report])</li>
                 @endforeach
             </ul>
 
