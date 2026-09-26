@@ -18,7 +18,32 @@
     'padded'      => true,
 ])
 
-<div {{ $attributes->class('rounded-xl border border-border bg-card text-card-foreground shadow-sm') }}>
+{{--
+    min-w-0 is load bearing, not decoration.
+
+    A card is very often a grid or flex item, and those default to
+    min-width: auto, which means they refuse to shrink below their
+    min-content width. Any long unbroken run of text inside, a farmer's
+    association name being the usual culprit, then forces the card wider than
+    its own column. Because nothing in the app clips horizontal overflow at
+    the body, that one card makes the whole page scroll sideways, and the
+    first thing a person sees is a page shifted off to the right with the
+    left edge cut off.
+
+    truncate cannot save it on its own: white-space: nowrap still reports the
+    full string as the min-content width, so the card is already too wide
+    before the ellipsis ever gets a chance to apply. min-width: 0 is what lets
+    the card shrink so truncate can do its job.
+
+    Measured on a phone-width viewport: a card holding "Tres Cruses Agrarian
+    Reform Beneficiaries Farmers Association, Inc." rendered 466px wide in a
+    351px column and pushed the document to 478px. With this class it is
+    351px and the document is 375px.
+
+    Harmless everywhere else: for a normal block level element min-width: auto
+    already resolves to 0, so this only changes behaviour where it needs to.
+--}}
+<div {{ $attributes->class('min-w-0 rounded-xl border border-border bg-card text-card-foreground shadow-sm') }}>
 
     @if ($title || $description || isset($actions))
         <div class="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-5 sm:py-4">
