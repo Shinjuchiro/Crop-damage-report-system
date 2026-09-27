@@ -151,6 +151,14 @@
                     <span class="mt-2 inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $statusBadges[$report->status] ?? $statusBadges['pending'] }}">
                         {{ ucwords(str_replace('_', ' ', $report->status)) }}
                     </span>
+
+                    {{-- Validation Monitoring has no page of its own: what is
+                         being inspected IS a damage report, so the full record
+                         lives on that report's page, inspection included. The
+                         label says so rather than pretending otherwise. --}}
+                    <x-ui.open-full-page class="block"
+                                         label="Open the full damage report"
+                                         :href="route('mao.damage-reports.show', $report)" />
                 </div>
 
                 <div class="space-y-5 border-t border-border pt-4 text-sm">

@@ -164,6 +164,7 @@
             @include('association.members._member-detail', [
                 'member'      => $selected,
                 'association' => $association,
+                'inPanel'     => true,
             ])
         @endif
     </x-ui.detail-panel>

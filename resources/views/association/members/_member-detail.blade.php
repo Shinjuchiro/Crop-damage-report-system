@@ -12,11 +12,23 @@
 
     Expects: $member (eager loaded, see MemberController::detailRelations())
              $association
+             $inPanel  optional, default false. True only when this is
+                       rendered inside the right-hand panel, which is the
+                       one context where "Open full page" makes sense: on
+                       the full page itself the link would point at the page
+                       you are already reading.
 
     Entirely read only. Nothing here can be edited by an officer, and the
     password is never shown anywhere (section 20).
 --}}
+@php $inPanel = $inPanel ?? false; @endphp
+
 <div class="space-y-4">
+
+    @if ($inPanel)
+        <x-ui.open-full-page class="!mt-0"
+                             :href="route('association.members.show', $member)" />
+    @endif
 
     {{-- Status strip --}}
     <x-ui.card>

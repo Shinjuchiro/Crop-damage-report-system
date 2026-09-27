@@ -43,19 +43,43 @@ class DamageReportController extends Controller
     /**
      * "My Reports" page.
      */
-    public function index()
+    public function index(Request $request)
     {
         $farmer = $this->farmer();
 
+        $reports = $farmer->damageReports()
+            // Load everything the list needs in one go, otherwise
+            // each card would fire its own queries (N+1 problem).
+            ->with('crops.crop', 'disasters', 'assignedTechnician', 'validation')
+            ->withCount('photos')
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        /*
+         | The report shown in the right-hand panel when a row is picked
+         | with ?selected=<id>.
+         |
+         | The important part is that the lookup starts from THIS farmer's
+         | own reports, not from DamageReport::find(). Typing another
+         | farmer's id into the query string then simply finds nothing,
+         | rather than finding somebody else's report and rendering it.
+         */
+        $selected = $request->filled('selected')
+            ? $farmer->damageReports()
+                ->with('crops.crop', 'disasters', 'photos', 'assignedTechnician',
+                       'validation.photos', 'reportedBarangay')
+                ->find($request->query('selected'))
+            : null;
+
         return view('farmer.reports.index', [
-            'farmer'  => $farmer,
-            'reports' => $farmer->damageReports()
-                // Load everything the list needs in one go, otherwise
-                // each card would fire its own queries (N+1 problem).
-                ->with('crops.crop', 'disasters', 'assignedTechnician', 'validation')
-                ->withCount('photos')
-                ->latest()
-                ->paginate(10),
+            'farmer'   => $farmer,
+            'reports'  => $reports,
+            'selected' => $selected,
+
+            // "Back to list" on a phone: this page with the selection
+            // dropped and the page number kept.
+            'backUrl'  => $request->fullUrlWithoutQuery('selected'),
         ]);
     }
 

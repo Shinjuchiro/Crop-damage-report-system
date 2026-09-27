@@ -35,24 +35,29 @@ class PlantingController extends Controller
     {
         $farmer = $this->farmer();
 
-        // List + detail panel (Sept 2026, matching the pattern used
-        // everywhere else in the app): "View" loads the record inline via
-        // ?selected=<id> instead of navigating to the separate show page
-        // (which stays reachable directly - store()/update() still redirect
-        // to it after saving).
+        $records = $farmer->plantingRecords()
+            ->with('crops.crop')       // eager load so the table does not run extra queries
+            ->withCount('crops')
+            ->latest('date_submitted')
+            ->latest('id')             // tie breaker if two were submitted the same day
+            ->paginate(10)
+            ->withQueryString();
+
+        /*
+         | The record shown in the right-hand panel when a row is picked
+         | with ?selected=<id>. Looked up through $farmer->plantingRecords()
+         | rather than by id alone, so another farmer's id in the query
+         | string finds nothing instead of finding their record.
+         */
         $selected = $request->filled('selected')
-            ? $farmer->plantingRecords()->with('crops.crop')->find($request->selected)
+            ? $farmer->plantingRecords()->with('crops.crop')->find($request->query('selected'))
             : null;
 
         return view('farmer.planting.index', [
             'farmer'   => $farmer,
+            'records'  => $records,
             'selected' => $selected,
-            'records'  => $farmer->plantingRecords()
-                ->with('crops.crop')       // eager load so the table does not run extra queries
-                ->withCount('crops')
-                ->latest('date_submitted')
-                ->latest('id')             // tie breaker if two were submitted the same day
-                ->paginate(10),
+            'backUrl'  => $request->fullUrlWithoutQuery('selected'),
         ]);
     }
 

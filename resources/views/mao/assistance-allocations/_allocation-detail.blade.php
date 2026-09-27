@@ -30,10 +30,7 @@
             {{ $isCash ? 'Cash' : 'In-Kind' }}
         </span>
     </div>
-    <a href="{{ route('mao.assistance-allocations.show', $allocation) }}"
-       class="mt-3 inline-block text-xs font-medium text-sky-700 underline hover:text-sky-900">
-        Open full page
-    </a>
+    <x-ui.open-full-page :href="route('mao.assistance-allocations.show', $allocation)" />
 </div>
 
 <div class="space-y-4 border-t border-border pt-4 text-sm">

@@ -145,6 +145,9 @@
                         <p class="text-sm text-muted-foreground">
                             {{ $farmer->association?->name ?? 'No association' }} &middot; {{ $farmer->barangay?->name ?? 'No barangay' }}
                         </p>
+
+                        <x-ui.open-full-page class="block"
+                                             :href="route('mao.crop-planting.show', $plantingRecord)" />
                     </div>
                 </div>
 

@@ -4,6 +4,75 @@
 @section('heading', 'Welcome back, ' . auth()->user()->display_name . '!')
 @section('subheading', 'Field Inspection and Validation Management')
 
+@php
+    /* The filter panel is open when ?filters=1 is on the URL, and always
+       when a filter is actually applied, so a technician who has narrowed
+       the page can still see what they narrowed it by.
+
+       Computed up here, above every @section, on purpose: Blade captures
+       sections in the order they appear in the file, so a variable the
+       header-actions block uses has to exist before that block is reached.
+       Defining it down in the content section would leave it undefined at
+       the moment the button is rendered. */
+    $showFilters = request()->boolean('filters') || $barangay || $filter;
+@endphp
+
+{{--
+    PERIOD + FILTER, ON THE HEADING LINE
+
+    These used to be the first thing inside @section('content'), which put
+    them on a row of their own underneath the heading and left a band of
+    empty space beside "Welcome back". header-actions is the slot the layout
+    already reserves on the right of the heading row (layouts/app.blade.php),
+    so they now sit level with the page title, the way every other page in
+    the system puts its page actions.
+
+    The layout yields this section twice, once for the desktop heading row
+    and once for a phone row of its own. That rules out Alpine for the
+    filter toggle: x-data cannot live in @section('content') and still
+    reach a button rendered outside it, and two copies of an element with
+    the same id would be invalid anyway. So the panel is opened with a real
+    query parameter instead, which suits this page: the period select and
+    both filters are already GET filters that reload the page, and now the
+    panel's own state survives that reload rather than snapping shut.
+--}}
+@section('header-actions')
+    <div class="flex flex-wrap items-center justify-end gap-2">
+
+        <form method="GET" action="{{ route('technician.dashboard') }}">
+            @if ($filter) <input type="hidden" name="status" value="{{ $filter }}"> @endif
+            @if ($barangay) <input type="hidden" name="barangay" value="{{ $barangay }}"> @endif
+            @if ($showFilters) <input type="hidden" name="filters" value="1"> @endif
+
+            <select name="period" onchange="this.form.submit()"
+                    aria-label="Period"
+                    class="h-9 rounded-md border border-input bg-card px-3 text-sm font-medium shadow-sm">
+                @foreach ($periods as $key => $label)
+                    <option value="{{ $key }}" @selected($period === $key)>{{ $label }}</option>
+                @endforeach
+            </select>
+        </form>
+
+        <x-ui.button size="sm"
+                     :variant="($barangay || $filter) ? 'default' : 'outline'"
+                     :href="$showFilters
+                                ? request()->fullUrlWithoutQuery('filters')
+                                : request()->fullUrlWithQuery(['filters' => 1])">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="M3 5h18l-7 8v6l-4 2v-8L3 5z"/>
+            </svg>
+            Filter
+            @if ($barangay || $filter)
+                <span class="ml-1 rounded-full bg-primary-foreground/25 px-1.5 text-[11px] leading-4">
+                    {{ collect([$barangay, $filter])->filter()->count() }}
+                </span>
+            @endif
+        </x-ui.button>
+    </div>
+@endsection
+
+
 @section('content')
 
 {{--
@@ -18,46 +87,13 @@
     hardcoded number on this page, which matters because the panel WILL ask.
 --}}
 
-<div x-data="{ showFilters: {{ ($barangay || $filter) ? 'true' : 'false' }} }" class="space-y-4">
+<div class="space-y-4">
 
-    {{-- =================================================================
-         PERIOD + FILTER (top right in the mockup)
-         Both are real GET filters. The period reloads the page rather than
-         hiding rows in the browser, so the tiles and the donut change with
-         it and cannot disagree with the table.
-    ================================================================== --}}
-    <div class="flex flex-wrap items-center justify-end gap-2">
-
-        <form method="GET" action="{{ route('technician.dashboard') }}">
-            @if ($filter) <input type="hidden" name="status" value="{{ $filter }}"> @endif
-            @if ($barangay) <input type="hidden" name="barangay" value="{{ $barangay }}"> @endif
-
-            <select name="period" onchange="this.form.submit()"
-                    class="h-9 rounded-md border border-input bg-card px-3 text-sm font-medium shadow-sm">
-                @foreach ($periods as $key => $label)
-                    <option value="{{ $key }}" @selected($period === $key)>{{ $label }}</option>
-                @endforeach
-            </select>
-        </form>
-
-        <x-ui.button size="sm" @click="showFilters = ! showFilters"
-                     :variant="($barangay || $filter) ? 'default' : 'outline'">
-            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                 stroke-linejoin="round" viewBox="0 0 24 24">
-                <path d="M3 5h18l-7 8v6l-4 2v-8L3 5z"/>
-            </svg>
-            Filter
-            @if ($barangay || $filter)
-                <span class="ml-1 rounded-full bg-primary-foreground/25 px-1.5 text-[11px] leading-4">
-                    {{ collect([$barangay, $filter])->filter()->count() }}
-                </span>
-            @endif
-        </x-ui.button>
-    </div>
-
-    {{-- The filter panel. Hidden until the Filter button is pressed so it
-         does not eat a third of a phone screen for people who never use it. --}}
-    <x-ui.card x-show="showFilters" x-cloak x-transition>
+    {{-- The filter panel. Closed until the Filter button on the heading row
+         is pressed, so it does not eat a third of a phone screen for people
+         who never use it. --}}
+    @if ($showFilters)
+    <x-ui.card>
         <form method="GET" action="{{ route('technician.dashboard') }}"
               class="flex flex-wrap items-end justify-end gap-3">
 
@@ -88,8 +124,16 @@
             </div>
 
             <x-ui.button type="submit">Apply</x-ui.button>
+
+            @if ($barangay || $filter)
+                <x-ui.button variant="outline"
+                             :href="route('technician.dashboard', ['period' => $period])">
+                    Clear
+                </x-ui.button>
+            @endif
         </form>
     </x-ui.card>
+    @endif
 
     {{-- =================================================================
          THE TILES

@@ -143,6 +143,13 @@
                                 {{ ucfirst($selected->status) }}
                             </span>
                         </div>
+
+                        {{-- No "Open full page" here on purpose. The MAO
+                             assistance routes are a Route::resource with
+                             ->except(['show']), so mao.assistance.show does
+                             not exist and linking to it would throw. The
+                             catalogue item has no page of its own; this
+                             panel is the whole record. --}}
                     </div>
                 </div>
 

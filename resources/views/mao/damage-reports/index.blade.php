@@ -180,6 +180,9 @@
                         {{ ucwords(str_replace('_', ' ', $damageReport->status)) }}
                     </span>
 
+                    <x-ui.open-full-page class="block"
+                                         :href="route('mao.damage-reports.show', $damageReport)" />
+
                     <div class="mt-4 space-y-4 border-t border-border pt-4 text-sm">
                         {{-- Cause + declared event --}}
                         <div>
