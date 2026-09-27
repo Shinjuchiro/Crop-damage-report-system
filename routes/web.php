@@ -199,8 +199,20 @@ Route::middleware(['auth', 'active', 'role:technician'])
         Route::get('/validation', [TechnicianAssignmentController::class, 'validation'])
             ->name('validation.index');
 
+        /* The inspection briefing: what the farmer recorded planting set
+           against what they are reporting damaged, and the one place
+           Start Inspection lives. Declared after /validation so the word
+           "validation" is never read as a report id. */
+        Route::get('/validation/{report}', [TechnicianInspectionController::class, 'briefing'])
+            ->name('validation.show');
+
         Route::get('/history', [TechnicianAssignmentController::class, 'history'])
             ->name('history.index');
+
+        /* One completed inspection end to end: planting record, then the
+           farmer's damage report, then what the technician assessed. */
+        Route::get('/history/{validation}', [TechnicianAssignmentController::class, 'historyShow'])
+            ->name('history.show');
 
         /* ---------- Field inspection ----------
            The technician works ON an existing damage report, so every route

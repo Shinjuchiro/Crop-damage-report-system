@@ -180,23 +180,12 @@
             </div>
         </div>
 
-        {{-- The action, right at the bottom where a thumb rests --}}
-        @if ($report->status === 'assigned')
-            <form method="POST" action="{{ route('technician.inspection.start', $report) }}" class="mt-4"
-                  data-confirm="You are about to begin the field inspection for this damage report. Please make sure you are at the reported farm location."
-                  data-confirm-title="Start Inspection?"
-                  data-confirm-action="Start Inspection">
-                @csrf
-                <x-ui.button size="lg" type="submit" class="w-full">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                         stroke-linejoin="round" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z"/></svg>
-                    Start Inspection
-                </x-ui.button>
-            </form>
-        @elseif ($report->status === 'under_verification')
-            <x-ui.button size="lg" class="mt-4 w-full"
-                         :href="route('technician.inspection.edit', $report)">
-                Continue Inspection
+        {{-- Read only page: the action lives in Validation. See the note
+             further down this file. --}}
+        @if (in_array($report->status, ['assigned', 'under_verification'], true))
+            <x-ui.button size="lg" variant="outline" class="mt-4 w-full"
+                         :href="route('technician.validation.show', $report)">
+                {{ $report->status === 'assigned' ? 'Open in Validation' : 'Continue in Validation' }}
             </x-ui.button>
         @endif
     </div>
@@ -425,40 +414,46 @@
     </div>
 
     {{-- =================================================================
-         DESKTOP CTA (section 41)
-         The phone has its own Start Inspection button up in the card, so
-         this block is laptop only.
+         WHERE THE WORK HAPPENS
+
+         This page is read only (technician module revision, Sept 2026).
+         Assigned Reports is for reviewing what the farmer submitted and
+         nothing else; recording an inspection belongs to Validation, which
+         is the one place Start Inspection now lives. Having the button on
+         both pages meant a technician could start an inspection without
+         ever seeing the planted-against-damaged comparison, which is the
+         whole point of the Validation briefing.
     ================================================================== --}}
-    @if ($report->status === 'assigned')
+    @if (in_array($report->status, ['assigned', 'under_verification'], true))
         <x-ui.card class="hidden lg:block">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
-                    <p class="text-base font-semibold">Ready to inspect this farm?</p>
+                    <p class="text-base font-semibold">
+                        @if ($report->status === 'assigned')
+                            Ready to inspect this farm?
+                        @else
+                            Your inspection is in progress
+                        @endif
+                    </p>
                     <p class="mt-0.5 text-sm text-muted-foreground">
-                        Make sure you are at the reported farm location before starting.
-                        <span class="block">Siguraduhin pong nasa sakahan na kayo bago simulan.</span>
+                        @if ($report->status === 'assigned')
+                            Open this report in Validation first. It shows what the farmer recorded
+                            planting against what they are reporting damaged, so you know what to
+                            look at before you go.
+                            <span class="block">Tingnan po muna sa Validation bago simulan.</span>
+                        @else
+                            Carry on from Validation, where your inspection was started.
+                        @endif
                     </p>
                 </div>
 
-                <form method="POST" action="{{ route('technician.inspection.start', $report) }}" class="shrink-0"
-                      data-confirm="You are about to begin the field inspection for this damage report. Please make sure you are at the reported farm location."
-                      data-confirm-title="Start Inspection?"
-                      data-confirm-action="Start Inspection">
-                    @csrf
-                    <x-ui.button size="lg" type="submit" class="w-full sm:w-auto">Start Inspection</x-ui.button>
-                </form>
-            </div>
-        </x-ui.card>
-
-    @elseif ($report->status === 'under_verification')
-        <x-ui.card class="hidden lg:block">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-sm text-muted-foreground">
-                    Your inspection is in progress and has not been submitted yet.
-                </p>
                 <x-ui.button size="lg" class="shrink-0"
-                             :href="route('technician.inspection.edit', $report)">
-                    Continue Inspection
+                             :href="route('technician.validation.show', $report)">
+                    @if ($report->status === 'assigned')
+                        Open in Validation
+                    @else
+                        Continue in Validation
+                    @endif
                 </x-ui.button>
             </div>
         </x-ui.card>

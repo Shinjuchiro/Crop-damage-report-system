@@ -36,11 +36,13 @@
 @php
     $showPlantingMatch = $showPlantingMatch ?? false;
 
-    /* An inspection that has been started goes back to where it was left
-       off; anything else opens read only. Same rule the table uses. */
-    $cardHref = $report->status === 'under_verification'
-        ? route('technician.inspection.edit', $report)
-        : route('technician.reports.show', $report);
+    /* Always the read only report (technician module revision, Sept 2026).
+       Both pages that use this card, the dashboard queue and Assigned
+       Reports, are for reviewing what the farmer submitted. Recording an
+       inspection belongs to Validation, which is where Start Inspection and
+       Continue Inspection now live, so a card here never jumps straight
+       into the inspection form. */
+    $cardHref = route('technician.reports.show', $report);
 
     /* Section 45: the technician's assessed figure once the inspection is
        in, the farmer's estimate before that, and never the two confused
@@ -62,11 +64,7 @@
         default                          => 'bg-slate-300 dark:bg-slate-600',
     };
 
-    $cardAction = match ($report->status) {
-        'assigned'           => 'View Details',
-        'under_verification' => 'Continue Inspection',
-        default              => 'View Details',
-    };
+    $cardAction = 'View Details';
 @endphp
 
 <a href="{{ $cardHref }}"

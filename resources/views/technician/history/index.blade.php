@@ -47,7 +47,7 @@
             <ul class="divide-y divide-border sm:hidden">
                 @foreach ($inspections as $inspection)
                     <li>
-                        <a href="{{ route('technician.reports.show', $inspection->damageReport) }}"
+                        <a href="{{ route('technician.history.show', $inspection) }}"
                            class="block px-4 py-4 transition active:bg-muted">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
@@ -122,12 +122,13 @@
                             </td>
 
                             <td class="whitespace-nowrap text-right">
-                                @if ($report)
-                                    <x-ui.button size="sm" variant="outline"
-                                                 :href="route('technician.reports.show', $report)">
-                                        View
-                                    </x-ui.button>
-                                @endif
+                                {{-- Opens the whole chain: what was planted,
+                                     what the farmer reported, what you
+                                     assessed. --}}
+                                <x-ui.button size="sm" variant="outline"
+                                             :href="route('technician.history.show', $inspection)">
+                                    View
+                                </x-ui.button>
                             </td>
                         </tr>
                     @endforeach

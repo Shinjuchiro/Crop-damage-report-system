@@ -133,17 +133,16 @@
 
                             <td><x-ui.status :value="$report->status" /></td>
 
+                            {{-- One action, always the same one. This page is
+                                 read only (technician module revision, Sept
+                                 2026): reviewing what the farmer submitted is
+                                 all it does, and recording an inspection is
+                                 Validation's job. --}}
                             <td class="whitespace-nowrap text-right">
-                                @if ($report->status === 'under_verification')
-                                    <x-ui.button size="sm" :href="route('technician.inspection.edit', $report)">
-                                        Continue
-                                    </x-ui.button>
-                                @else
-                                    <x-ui.button size="sm" variant="view"
-                                                 :href="route('technician.reports.show', $report)">
-                                        View Details
-                                    </x-ui.button>
-                                @endif
+                                <x-ui.button size="sm" variant="view"
+                                             :href="route('technician.reports.show', $report)">
+                                    View Details
+                                </x-ui.button>
                             </td>
                         </tr>
                     @endforeach

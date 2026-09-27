@@ -10,6 +10,7 @@ use App\Models\Disaster;
 use App\Models\NotificationBroadcast;
 use App\Models\Validation;
 use App\Models\ValidationPhoto;
+use App\Services\PlantingComparison;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -71,6 +72,40 @@ class InspectionController extends Controller
             ]),
             'backUrl'   => $backUrl,
             'backLabel' => $backLabel,
+        ]);
+    }
+
+    /**
+     * THE INSPECTION BRIEFING  (Validation -> View Details)
+     *
+     * What a technician reads in the truck before they get out of it.
+     *
+     * The point of this page is the planted-against-damaged comparison:
+     * every crop on the damage report lined up against what the farmer
+     * actually recorded planting, with the gaps called out. A technician
+     * who has seen that walks onto the farm knowing which figure to measure
+     * first. Start Inspection sits at the bottom of it, and this is the
+     * only page in the module that carries that button, so nobody can begin
+     * an inspection without the comparison having been put in front of
+     * them (technician module revision, Sept 2026).
+     *
+     * Nothing here judges the report. Proposal section 62: the cross-check
+     * is a signal, never an eligibility test, and a crop with no planting
+     * record on file is still fully available to inspect.
+     */
+    public function briefing(DamageReport $report)
+    {
+        $this->authorizeAssignment($report);
+
+        $report->load([
+            'farmer.barangay', 'farmer.association', 'farmer.user',
+            'crops.crop', 'disasters', 'photos',
+            'reportedBarangay', 'validation',
+        ]);
+
+        return view('technician.validation.show', [
+            'report'     => $report,
+            'comparison' => PlantingComparison::build($report),
         ]);
     }
 

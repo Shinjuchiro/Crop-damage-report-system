@@ -8,119 +8,114 @@
 @section('content')
 
 {{--
-    Only open work appears here: not started, or started and not yet
-    submitted. Anything finished drops off this page and turns up in
-    Inspection History instead.
+    VALIDATION: THE WORK QUEUE  (technician module revision, Sept 2026)
 
-    Started inspections are listed first, because a half finished inspection
-    is the thing most worth closing out.
+    Rebuilt from a grid of identical cards into a dispatch list, because
+    the grid answered the wrong question. Three cards of equal weight, each
+    with the same stack of icon-and-text rows, tell a technician what is
+    assigned to them. They do not tell them what to do next, which is the
+    only thing this page is for.
+
+    So the list is ordered the way the work is: anything already started
+    sits at the top under its own heading, because a half finished
+    inspection is the thing most worth closing out, and it is the one state
+    where the office is waiting on you. Everything else is numbered in the
+    order the controller returns, oldest assignment first, and carries how
+    long it has been sitting. That figure changes colour as it ages, which
+    is the closest this page comes to nagging.
+
+    Only open work appears here. Anything submitted drops off and turns up
+    in Inspection History instead.
+
+    View Details goes to the briefing, not straight to the form: the
+    planted-against-damaged comparison is what a technician should read
+    before they start.
 --}}
+
+@php
+    $started    = $reports->getCollection()->filter(fn ($r) => $r->status === 'under_verification');
+    $notStarted = $reports->getCollection()->filter(fn ($r) => $r->status !== 'under_verification');
+@endphp
 
 <div class="space-y-4">
 
-    {{-- No shared list card to merge into here - each report below is its
-         own card in a grid, not rows in one table, so the filter bar keeps
-         a card of its own. --}}
-    <x-ui.card>
-        <x-ui.filter-bar :fields="['q', 'barangay']">
-            <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
-                        placeholder="Farmer name or DR-0001" class="sm:w-52" />
+    <x-ui.card :padded="false">
 
-            <x-ui.select name="barangay" placeholder="All barangays" onchange="this.form.submit()"
-                         :options="$barangays->pluck('name', 'id')"
-                         :selected="$filters['barangay'] ?? null" class="sm:w-52" />
-        </x-ui.filter-bar>
-    </x-ui.card>
+        {{-- Filters live in the card header rather than a card of their own.
+             One floating filter card above a grid of cards was three
+             stacked boxes doing one job. --}}
+        <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
+            <x-ui.filter-bar :fields="['q', 'barangay']">
+                <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
+                            placeholder="Farmer name or DR-0001" class="sm:w-52" />
 
-    @if ($reports->isEmpty())
-        <x-ui.card>
+                <x-ui.select name="barangay" placeholder="All barangays" onchange="this.form.submit()"
+                             :options="$barangays->pluck('name', 'id')"
+                             :selected="$filters['barangay'] ?? null" class="sm:w-52" />
+            </x-ui.filter-bar>
+        </div>
+
+        @if ($reports->isEmpty())
             <x-ui.empty title="You are all caught up"
                         icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"
                         message="Nothing assigned to you is waiting for an inspection. Anything you have already submitted is in Inspection History.">
                 <span class="text-xs text-muted-foreground">Wala pong naghihintay na pagsusuri.</span>
                 <x-ui.button variant="outline" :href="route('technician.history.index')">Inspection History</x-ui.button>
             </x-ui.empty>
-        </x-ui.card>
-    @else
+        @else
 
-        {{-- Cards rather than a table, on every screen size.
-             This is a to-do list, not a report, and each entry needs its own
-             action button. Cards make that obvious and work the same on a
-             phone in the field as on a laptop at the office. --}}
-        <div class="stagger grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            @foreach ($reports as $report)
-                @php $started = $report->status === 'under_verification'; @endphp
+            {{-- The count line. Plain sentence, no tiles: two numbers do not
+                 need three boxes and a chart to be understood. --}}
+            <p class="border-b border-border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground sm:px-5">
+                @if ($started->isNotEmpty())
+                    <span class="font-semibold text-foreground">{{ $started->count() }}</span>
+                    in progress,
+                @endif
+                <span class="font-semibold text-foreground">{{ $notStarted->count() }}</span>
+                not started on this page.
+            </p>
 
-                <x-ui.card>
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="text-sm font-semibold">{{ $report->reference }}</p>
-                            <p class="truncate text-base font-medium">
-                                {{ $report->farmer?->full_name ?? 'Unknown farmer' }}
-                            </p>
-                            <p class="truncate text-xs text-muted-foreground">
-                                {{ $report->farmer?->association?->name ?? 'No association' }}
-                            </p>
-                        </div>
-                        <x-ui.status :value="$report->status" />
-                    </div>
+            {{-- ======================= IN PROGRESS ======================= --}}
+            @if ($started->isNotEmpty())
+                <p class="flex items-center gap-2 border-b border-border px-4 py-2 text-[11px]
+                          font-bold uppercase tracking-wider text-primary sm:px-5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true"></span>
+                    Started, not yet submitted
+                </p>
 
-                    <dl class="mt-3 space-y-2 text-sm">
-                        <div class="flex items-start gap-2">
-                            <dt class="sr-only">Barangay</dt>
-                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" fill="none"
-                                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                                 stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 21s7-5.7 7-11a7 7 0 10-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>
-                            </svg>
-                            <dd class="min-w-0">
-                                {{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Location not set' }}
-                            </dd>
-                        </div>
+                <ul class="divide-y divide-border">
+                    @foreach ($started as $report)
+                        @include('technician.validation._queue-row', [
+                            'report'   => $report,
+                            'position' => null,
+                        ])
+                    @endforeach
+                </ul>
+            @endif
 
-                        <div class="flex items-start gap-2">
-                            <dt class="sr-only">Crops</dt>
-                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" fill="none"
-                                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                                 stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14z"/>
-                            </svg>
-                            <dd class="min-w-0">{{ $report->crops->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)->join(', ') ?: 'Not set' }}</dd>
-                        </div>
+            {{-- ======================= NOT STARTED ======================= --}}
+            @if ($notStarted->isNotEmpty())
+                @if ($started->isNotEmpty())
+                    <p class="border-y border-border px-4 py-2 text-[11px] font-bold uppercase
+                              tracking-wider text-muted-foreground sm:px-5">
+                        Waiting for you
+                    </p>
+                @endif
 
-                        <div class="flex items-start gap-2">
-                            <dt class="sr-only">Assigned</dt>
-                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" fill="none"
-                                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                                 stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                                <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
-                            </svg>
-                            <dd class="min-w-0">
-                                Assigned {{ $report->assigned_at?->diffForHumans() ?? 'recently' }}
-                            </dd>
-                        </div>
-                    </dl>
-
-                    <div class="mt-4">
-                        @if ($started)
-                            <x-ui.button size="lg" class="w-full"
-                                         :href="route('technician.inspection.edit', $report)">
-                                Continue Inspection
-                            </x-ui.button>
-                        @else
-                            <x-ui.button size="lg" variant="outline" class="w-full"
-                                         :href="route('technician.reports.show', $report)">
-                                View Report Details
-                            </x-ui.button>
-                        @endif
-                    </div>
-                </x-ui.card>
-            @endforeach
-        </div>
+                <ul class="divide-y divide-border">
+                    @foreach ($notStarted as $report)
+                        @include('technician.validation._queue-row', [
+                            'report'   => $report,
+                            'position' => $loop->iteration,
+                        ])
+                    @endforeach
+                </ul>
+            @endif
+        @endif
 
         @if ($reports->hasPages())
-            <div>{{ $reports->links() }}</div>
+            <x-slot:footer>{{ $reports->links() }}</x-slot:footer>
         @endif
-    @endif
+    </x-ui.card>
 </div>
 @endsection

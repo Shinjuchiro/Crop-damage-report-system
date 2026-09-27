@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Technician;
 
 use App\Http\Controllers\Controller;
 use App\Models\Barangay;
+use App\Models\CropPlantingRecord;
 use App\Models\CropPlantingRecordCrop;
 use App\Models\DamageReport;
 use App\Models\Validation;
+use App\Services\PlantingComparison;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -122,6 +124,62 @@ class AssignmentController extends Controller
      * relationships the tables need eager loaded so we are not firing one
      * query per row.
      */
+    /**
+     * ONE COMPLETED INSPECTION, END TO END
+     *
+     * Inspection History answers "what did I do", and a row on its own
+     * does not answer it properly. This page puts the three stages in the
+     * order they happened: what the farmer recorded planting, what they
+     * then reported damaged, and what this technician found when they went
+     * out and looked.
+     *
+     * The same planted-against-damaged comparison the technician saw on
+     * the Validation briefing is rebuilt here, so the record shows what
+     * they were working from at the time, not just the conclusion.
+     *
+     * Only this technician's own inspections. A validation belonging to
+     * somebody else is a 403, not an empty page, because the id being
+     * guessable in the URL is exactly the case this guards.
+     */
+    public function historyShow(Validation $validation)
+    {
+        abort_unless($validation->technician_id === Auth::id(), 403);
+        abort_if($validation->validated_at === null, 404);
+
+        $validation->load([
+            'photos',
+            'technician',
+            'damageReport.farmer.barangay',
+            'damageReport.farmer.association',
+            'damageReport.reportedBarangay',
+            'damageReport.crops.crop',
+            'damageReport.disasters',
+            'damageReport.photos',
+        ]);
+
+        $report = $validation->damageReport;
+
+        /*
+         | The farmer's planting records that could relate to this report:
+         | filed before the report, not archived. Shown in full as the
+         | first stage of the chain, separately from the crop by crop
+         | comparison underneath it.
+         */
+        $planting = CropPlantingRecord::where('farmer_id', $report->farmer_id)
+            ->whereNull('archived_at')
+            ->whereDate('date_submitted', '<=', $report->created_at)
+            ->with('crops.crop')
+            ->orderByDesc('date_submitted')
+            ->get();
+
+        return view('technician.history.show', [
+            'validation' => $validation,
+            'report'     => $report,
+            'planting'   => $planting,
+            'comparison' => PlantingComparison::build($report),
+        ]);
+    }
+
     private function baseQuery(Request $request)
     {
         return DamageReport::where('assigned_technician_id', Auth::id())

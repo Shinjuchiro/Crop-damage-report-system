@@ -393,9 +393,13 @@
              not have to read the table to work out where to start. --}}
         <x-ui.card title="Quick Access Inspection" description="Simulan agad">
             @if ($nextUp)
+                {{-- A job not yet started goes to the Validation briefing,
+                     not to the read only report: the briefing is where the
+                     planted-against-damaged comparison and Start Inspection
+                     live. A job already started resumes in the form. --}}
                 <a href="{{ $nextUp->status === 'under_verification'
                         ? route('technician.inspection.edit', $nextUp)
-                        : route('technician.reports.show', $nextUp) }}"
+                        : route('technician.validation.show', $nextUp) }}"
                    class="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-input
                           px-4 py-6 text-center transition hover:border-primary hover:bg-accent">
 
