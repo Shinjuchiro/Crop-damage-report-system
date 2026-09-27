@@ -39,7 +39,7 @@
         @endif
     </div>
 
-    <x-ui.open-full-page class="block" :href="route('farmer.reports.show', $report)" />
+    <x-ui.open-full-page :href="route('farmer.reports.show', $report)" />
 </div>
 
 <div class="space-y-4 border-t border-border pt-4 text-sm">

@@ -25,8 +25,18 @@
     'label' => 'Open full page',
 ])
 
+{{--
+    flex w-fit, not inline-flex: this link always wants a line of its own,
+    and several panels place it straight after an inline status badge, where
+    inline-flex would leave it sitting on the same line as the badge.
+    Passing class="block" from the call site does NOT fix that - the
+    override and the component's own display class both end up in one class
+    attribute, and which one wins is decided by the order of the two rules
+    in the compiled stylesheet, not by the element. So the component owns
+    its own display. w-fit keeps the underline to the width of the words.
+--}}
 <a href="{{ $href }}" {{ $attributes->class(
-        'mt-3 inline-flex items-center gap-1 text-xs font-medium text-sky-700 underline '
+        'mt-3 flex w-fit items-center gap-1 text-xs font-medium text-sky-700 underline '
         . 'hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300'
     ) }}>
     {{ $label }}

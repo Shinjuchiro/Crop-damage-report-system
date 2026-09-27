@@ -31,11 +31,17 @@ class DisasterController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // List + detail panel (Sept 2026, matching every other MAO list):
-        // "View" loads the event inline in the right-hand panel via
-        // ?selected=<id> instead of the row just carrying Edit/Archive.
+        /*
+         | The event shown in the right-hand panel when a row is picked with
+         | ?selected=<id>. Same omission the Associations page had: the view
+         | referenced $selected and nothing passed it, so the page threw
+         | "Undefined variable $selected" before rendering. withCount matches
+         | the list so the panel adds no extra queries.
+         */
         $selected = $request->filled('selected')
-            ? Disaster::withCount('damageReports')->find($request->selected)
+            ? Disaster::active()
+                ->withCount('damageReports')
+                ->find($request->query('selected'))
             : null;
 
         return view('mao.disasters.index', [

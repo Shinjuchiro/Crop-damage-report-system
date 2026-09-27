@@ -156,8 +156,7 @@
                          being inspected IS a damage report, so the full record
                          lives on that report's page, inspection included. The
                          label says so rather than pretending otherwise. --}}
-                    <x-ui.open-full-page class="block"
-                                         label="Open the full damage report"
+                    <x-ui.open-full-page label="Open the full damage report"
                                          :href="route('mao.damage-reports.show', $report)" />
                 </div>
 

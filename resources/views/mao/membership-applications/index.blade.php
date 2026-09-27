@@ -128,8 +128,7 @@
                     <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $farmer->full_name }}</h3>
                     <span class="mt-2 inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $badge }}">{{ $label }}</span>
 
-                    <x-ui.open-full-page class="block"
-                                         :href="route('mao.membership-applications.show', $farmer)" />
+                    <x-ui.open-full-page :href="route('mao.membership-applications.show', $farmer)" />
                 </div>
 
                 <div class="space-y-4 border-t border-border pt-4 text-sm">

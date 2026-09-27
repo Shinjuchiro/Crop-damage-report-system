@@ -157,8 +157,7 @@
                         </span>
                     </div>
 
-                    <x-ui.open-full-page class="block"
-                                         :href="route('mao.farmers.show', $farmer)" />
+                    <x-ui.open-full-page :href="route('mao.farmers.show', $farmer)" />
                     @if ($accountStatus === 'pending')
                         <a href="{{ route('mao.membership-applications.show', $farmer) }}"
                            class="mt-3 inline-block rounded-lg bg-green-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-900">

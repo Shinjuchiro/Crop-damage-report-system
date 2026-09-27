@@ -26,7 +26,7 @@
         &middot; filed {{ $record->date_submitted?->format('F d, Y') ?? 'date not set' }}
     </p>
 
-    <x-ui.open-full-page class="block" :href="route('farmer.planting.show', $record)" />
+    <x-ui.open-full-page :href="route('farmer.planting.show', $record)" />
 </div>
 
 <div class="space-y-4 border-t border-border pt-4 text-sm">

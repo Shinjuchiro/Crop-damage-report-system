@@ -18,9 +18,24 @@
 </style>
 </head>
 <body>
+    {{--
+        Shared by two exports, because MonthlyReportBuilder returns the same
+        shape either way: the MAO's whole-municipality report, and an
+        association's own report scoped to its members
+        (Association\ReportController::downloadPdf passes $association).
+        Only this heading differs, so only this heading is conditional.
+    --}}
+    @php $forAssociation = $association ?? null; @endphp
+
     <h1>Monthly Report: {{ $data['period_label'] }}</h1>
     <p class="muted">
-        Crop Damage Reporting and Assistance Allocation System &mdash; Municipal Agriculture Office, Tanza, Cavite.<br>
+        @if ($forAssociation)
+            {{ $forAssociation->name }}<br>
+            Crop Damage Reporting and Assistance Allocation System &mdash; Tanza, Cavite.
+            Figures cover this association's members only.<br>
+        @else
+            Crop Damage Reporting and Assistance Allocation System &mdash; Municipal Agriculture Office, Tanza, Cavite.<br>
+        @endif
         Generated {{ $data['generated_at']->format('F j, Y g:i A') }}.
     </p>
 

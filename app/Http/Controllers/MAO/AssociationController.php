@@ -32,16 +32,27 @@ class AssociationController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // List + detail panel (Sept 2026, matching every other MAO list):
-        // "View" loads the association inline in the right-hand panel via
-        // ?selected=<id> instead of the row just carrying Members/Edit/Archive.
+        /*
+         | The association shown in the right-hand panel when a row is
+         | picked with ?selected=<id>.
+         |
+         | This was missing: the view has referenced $selected since the
+         | detail panel was added to it, and with nothing passed the page
+         | died on "Undefined variable $selected" before it rendered a
+         | single row. The same counts the list needs are loaded here, so
+         | the panel does not fire three more queries of its own.
+         */
         $selected = $request->filled('selected')
-            ? Association::with('barangay')
+            ? Association::active()
+                ->with('barangay')
                 ->withCount(['farmers', 'officers', 'assistanceAllocations'])
-                ->find($request->selected)
+                ->find($request->query('selected'))
             : null;
 
-        return view('mao.associations.index', compact('associations', 'selected'));
+        return view('mao.associations.index', [
+            'associations' => $associations,
+            'selected'     => $selected,
+        ]);
     }
 
     public function create()
