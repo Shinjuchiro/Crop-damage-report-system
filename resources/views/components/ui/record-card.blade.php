@@ -101,13 +101,42 @@
          the height of the name next to it. Given the whole width the same
          name takes two lines and nothing sits empty.
 
-         A rule between rows and one down the middle of a pair, so a label
-         belongs to the value under it and to nothing else. min-w-0 on every
-         cell so a long word wraps inside its own column instead of widening
-         the card, which is the fault this component exists to fix. --}}
+         Three short figures go on one line rather than two and a stray: a
+         planting record is crop, date planted and area, which is one fact
+         in three parts, and splitting it left the area sitting alone under
+         a half-empty row.
+
+         A rule between rows and one between columns, so a label belongs to
+         the value under it and to nothing else. min-w-0 on every cell so a
+         long word wraps inside its own column instead of widening the card,
+         which is the fault this component exists to fix. --}}
     @php
-        $fieldRows   = [];
-        $pendingCell = null;
+        /*
+            Short figures are gathered into a run and the run is then broken
+            into rows: an odd run leads with a row of three so nothing is
+            left over on its own, an even one is all pairs. A long value
+            interrupts the run and takes a row to itself.
+        */
+        $fieldRows  = [];
+        $shortRun   = [];
+
+        $flushRun = function () use (&$fieldRows, &$shortRun) {
+            $n = count($shortRun);
+
+            if ($n === 0) {
+                return;
+            }
+
+            if ($n % 2 === 1 && $n >= 3) {
+                $fieldRows[] = array_splice($shortRun, 0, 3);
+            }
+
+            while (count($shortRun) > 0) {
+                $fieldRows[] = array_splice($shortRun, 0, min(2, count($shortRun)));
+            }
+
+            $shortRun = [];
+        };
 
         foreach ($fields as $fieldLabel => $fieldValue) {
             $text = trim((string) ($fieldValue === null || $fieldValue === '' ? '-' : $fieldValue));
@@ -116,30 +145,25 @@
             // 24 characters is about what half of a 360px card holds on one
             // line at this size. Past that the value is going to wrap.
             if (mb_strlen($text) > 24) {
-                if ($pendingCell !== null) {
-                    $fieldRows[] = [$pendingCell];
-                    $pendingCell = null;
-                }
+                $flushRun();
                 $fieldRows[] = [$cell];
-            } elseif ($pendingCell === null) {
-                $pendingCell = $cell;
             } else {
-                $fieldRows[] = [$pendingCell, $cell];
-                $pendingCell = null;
+                $shortRun[] = $cell;
             }
         }
 
-        if ($pendingCell !== null) {
-            $fieldRows[] = [$pendingCell];
-        }
+        $flushRun();
     @endphp
 
     @if (count($fieldRows))
         <dl class="mt-3 divide-y divide-border border-t border-border">
             @foreach ($fieldRows as $fieldRow)
-                <div class="flex gap-3 py-3">
+                {{-- Three to a row is tight on a 360px phone, so that row
+                     closes up its gaps to buy each column a few more px. --}}
+                <div class="flex py-3 {{ count($fieldRow) === 3 ? 'gap-2' : 'gap-3' }}">
                     @foreach ($fieldRow as $i => [$cellLabel, $cellValue])
-                        <div class="min-w-0 flex-1 {{ $i === 1 ? 'border-l border-border pl-3' : '' }}">
+                        <div class="min-w-0 flex-1
+                                    {{ $i > 0 ? 'border-l border-border ' . (count($fieldRow) === 3 ? 'pl-2' : 'pl-3') : '' }}">
                             <dt class="text-[11px] leading-tight text-muted-foreground">{{ $cellLabel }}</dt>
                             <dd class="text-sm font-semibold leading-tight text-foreground">{{ $cellValue }}</dd>
                         </div>

@@ -19,46 +19,26 @@
 @section('content')
 <div x-data="{ action: null }">
 
-    {{-- Summary --}}
-    <div class="mb-5 grid gap-4 sm:grid-cols-3">
-        <div class="min-w-0 flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
-            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"
-                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-                </svg>
-            </span>
-            <div>
-                <p class="text-sm font-medium text-foreground">Pending</p>
-                <p class="text-3xl font-bold text-foreground">{{ number_format($summary['pending']) }}</p>
-            </div>
-        </div>
+    {{-- Summary
 
-        <div class="min-w-0 flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
-            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white">
-                <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"
-                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>
-                </svg>
-            </span>
-            <div>
-                <p class="text-sm font-medium text-foreground">Approved</p>
-                <p class="text-3xl font-bold text-foreground">{{ number_format($summary['approved']) }}</p>
-            </div>
-        </div>
+         These three were written by hand: a 64px solid tile and a 30px
+         number in a tall box each. On a phone that was three full-width
+         slabs, mostly empty, before the list even began, and they were the
+         last figures in the system not using the shared card.
 
-        <div class="min-w-0 flex items-center gap-5 rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
-            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-white">
-                <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"
-                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                    <path d="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3l4.5-2.2L12 18l4.5-2.2L21 18v3"/>
-                </svg>
-            </span>
-            <div>
-                <p class="text-sm font-medium text-foreground">Released</p>
-                <p class="text-3xl font-bold text-foreground">{{ number_format($summary['released']) }}</p>
-            </div>
-        </div>
+         They are that card now, so they sit in a line: two across on a
+         phone, three from sm up. The colours still tell them apart, amber
+         for what is waiting, grey for what is settled but not yet handed
+         out, green for what has reached a farmer. --}}
+    <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <x-ui.stat label="Pending" :value="number_format($summary['pending'])" tone="warning"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2" />
+
+        <x-ui.stat label="Approved" :value="number_format($summary['approved'])"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
+
+        <x-ui.stat label="Released" :value="number_format($summary['released'])" tone="primary"
+                   icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3l4.5-2.2L12 18l4.5-2.2L21 18v3" />
     </div>
 
     {{-- List + detail. Side by side from lg up; on a phone only one half

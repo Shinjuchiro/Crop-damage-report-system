@@ -55,7 +55,7 @@
                      Archive stays on the table and in the detail panel: it is
                      a deliberate action and does not belong on a card whose
                      whole surface is a link. --}}
-                <ul class="space-y-3 sm:hidden">
+                <ul class="space-y-3 p-4 sm:hidden">
                     @forelse ($applications as $application)
                         @php
                             $cardStatus = $application->user?->status ?? 'pending';

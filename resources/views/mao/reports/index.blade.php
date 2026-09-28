@@ -36,7 +36,7 @@
         {{-- ---------- PHONE: one card per generated report ----------
              323px of this four-column table sat off-screen, the View link
              included. --}}
-        <ul class="space-y-3 sm:hidden">
+        <ul class="space-y-3 p-4 sm:hidden">
             @forelse ($history as $entry)
                 <li>
                     <x-ui.record-card :href="route('mao.reports.show', ['year' => $entry->year, 'month' => $entry->month])"

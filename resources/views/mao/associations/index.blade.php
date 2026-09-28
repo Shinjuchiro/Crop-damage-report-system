@@ -45,7 +45,7 @@
                 {{-- Table --}}
                 <div class="overflow-hidden rounded-xl border border-border">
                     {{-- ---------- PHONE: one card per association ---------- --}}
-                <ul class="space-y-3 sm:hidden">
+                <ul class="space-y-3 p-4 sm:hidden">
                     @forelse ($associations as $association)
                         <li>
                             <x-ui.record-card :href="$viewUrl($association->id)"

@@ -51,7 +51,7 @@
                 {{-- Table --}}
                 <div class="overflow-hidden rounded-xl border border-border">
                     {{-- ---------- PHONE: one card per event ---------- --}}
-                <ul class="space-y-3 sm:hidden">
+                <ul class="space-y-3 p-4 sm:hidden">
                     @forelse ($disasters as $disaster)
                         <li>
                             <x-ui.record-card :href="$viewUrl($disaster->id)"
