@@ -44,7 +44,28 @@
 
                 {{-- Table --}}
                 <div class="overflow-hidden rounded-xl border border-border">
-                    <div class="overflow-x-auto">
+                    {{-- ---------- PHONE: one card per association ---------- --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($associations as $association)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($association->id)"
+                                              :title="$association->name"
+                                              :subtitle="$association->barangay?->name
+                                                    ?? ($association->location ?: 'Office barangay not set')"
+                                              :fields="[
+                                                  'Registered farmers' => $association->farmers_count,
+                                                  'Officers'           => $association->officers_count,
+                                                  'Allocations'        => $association->assistance_allocations_count,
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No associations yet</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr>

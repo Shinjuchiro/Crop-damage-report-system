@@ -37,7 +37,34 @@
                                  :selected="request('association_id')" class="sm:w-56" />
                 </x-ui.filter-bar>
 
-                <div class="overflow-x-auto">
+                {{-- ---------- PHONE: one card per dispute ----------
+                     529px of this table is off-screen on a phone. Cards
+                     below sm, table from sm up. --}}
+                <ul class="space-y-3 p-4 sm:hidden">
+                    @forelse ($disputes as $distribution)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($distribution->id)"
+                                              :eyebrow="'DIST-' . str_pad($distribution->id, 3, '0', STR_PAD_LEFT)"
+                                              :title="$distribution->farmer?->full_name ?? 'Unknown'"
+                                              :subtitle="$distribution->allocation?->association?->name ?? 'No association'"
+                                              status="not_received"
+                                              :fields="[
+                                                  'Assistance'     => $distribution->allocation?->display_name ?? $distribution->in_kind_description ?? '-',
+                                                  'Quantity'       => $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-',
+                                                  'Distributed on' => $distribution->distributed_at?->format('M d, Y'),
+                                                  'Reported'       => $distribution->receipt_confirmed_at?->format('M d, Y'),
+                                              ]"
+                                              action="Review dispute" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">Nothing disputed</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                {{-- ---------- TABLET AND UP ---------- --}}
+                <div class="hidden overflow-x-auto sm:block">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                             <tr>

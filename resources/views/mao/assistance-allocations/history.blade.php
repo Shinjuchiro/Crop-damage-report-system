@@ -99,7 +99,34 @@
                 </form>
 
                 {{-- Table --}}
-                <div class="overflow-x-auto">
+                {{-- ---------- PHONE: one card per allocation ----------
+                     503px of this nine-column table is off-screen on a
+                     phone. Cards below sm, table from sm up. --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($allocations as $allocation)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($allocation->id)"
+                                              :eyebrow="'AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT)"
+                                              :title="$allocation->display_name"
+                                              :subtitle="$allocation->association?->name ?? 'No association'"
+                                              :status="$allocation->status"
+                                              :fields="[
+                                                  'Disaster'      => $allocation->disaster?->name ?? 'Not tied to an event',
+                                                  'Quantity'      => $allocation->allocated_quantity !== null
+                                                        ? number_format($allocation->allocated_quantity, 2) : '-',
+                                                  'Beneficiaries' => $allocation->beneficiaries_count,
+                                                  'Allocated on'  => $allocation->allocated_at?->format('M d, Y'),
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No allocations yet</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                {{-- ---------- TABLET AND UP ---------- --}}
+                <div class="hidden overflow-x-auto sm:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

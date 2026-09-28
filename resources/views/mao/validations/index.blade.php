@@ -69,7 +69,38 @@
                 </form>
 
                 {{-- Table --}}
-                <div class="overflow-x-auto">
+                {{-- ---------- PHONE: one card per inspection ----------
+                     368px of this table sits off-screen on a phone, Action
+                     column included. Cards below sm, table from sm up. --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($reports as $report)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($report->id)"
+                                              :eyebrow="$report->reference"
+                                              :title="$report->farmer?->full_name ?? 'Unknown'"
+                                              :subtitle="($report->farmer?->barangay?->name ?? 'No barangay') . ' · ' . ($report->farmer?->association?->name ?? 'No association')"
+                                              :status="$report->status"
+                                              :fields="[
+                                                  'Technician'   => $report->assignedTechnician?->full_name ?: ($report->assignedTechnician?->username ?? '-'),
+                                                  'Inspected on' => $report->validation?->validated_at?->format('M d, Y'),
+                                                  'Severity'     => $report->validation?->severity ? ucfirst($report->validation->severity) : 'Not assessed',
+                                                  'Assessed'     => $report->validation?->assessed_damage_percent !== null
+                                                        ? round($report->validation->assessed_damage_percent) . '%' : '-',
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No completed inspections yet</p>
+                            <p class="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+                                A report appears here once a technician has finished the field inspection
+                                and submitted it.
+                            </p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                {{-- ---------- TABLET AND UP ---------- --}}
+                <div class="hidden overflow-x-auto sm:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

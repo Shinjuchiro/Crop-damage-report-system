@@ -51,7 +51,35 @@
                 </form>
 
                 {{-- Table --}}
-                <div class="overflow-x-auto">
+                {{-- ---------- PHONE: one card per application ----------
+                     Archive stays on the table and in the detail panel: it is
+                     a deliberate action and does not belong on a card whose
+                     whole surface is a link. --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($applications as $application)
+                        @php
+                            $cardStatus = $application->user?->status ?? 'pending';
+                        @endphp
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($application->id)"
+                                              :eyebrow="'APP-' . str_pad($application->id, 3, '0', STR_PAD_LEFT)"
+                                              :title="$application->full_name"
+                                              :subtitle="$application->barangay?->name ?? 'No barangay'"
+                                              :status="$cardStatus"
+                                              :fields="[
+                                                  'Date applied' => $application->created_at?->format('M d, Y'),
+                                                  'Farm size'    => $application->farm_size_hectares ? $application->farm_size_hectares . ' ha' : '-',
+                                              ]"
+                                              action="Review application" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No applications match these filters</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

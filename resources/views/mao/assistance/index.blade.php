@@ -60,7 +60,31 @@
                 </form>
 
                 {{-- Table --}}
-                <div class="overflow-x-auto">
+                {{-- ---------- PHONE: one card per catalogue item ---------- --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($assistances as $assistance)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($assistance->id)"
+                                              :eyebrow="$assistance->type === 'cash' ? 'Cash' : 'In-Kind'"
+                                              :title="$assistance->name"
+                                              :subtitle="($assistance->disaster?->name ?? 'Any disaster')
+                                                    . ' · ' . ($assistance->crop?->name ?? 'Any crop')"
+                                              :status="$assistance->status"
+                                              :fields="[
+                                                  'Available'   => $assistance->available_quantity_or_amount !== null
+                                                        ? number_format($assistance->available_quantity_or_amount, 2) : 'Not tracked',
+                                                  'Allocated'   => number_format((float) $assistance->allocations_sum_allocated_quantity, 2),
+                                                  'Allocations' => $assistance->allocations_count,
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">Nothing in the catalogue yet</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

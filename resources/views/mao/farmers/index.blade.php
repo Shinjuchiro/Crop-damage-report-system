@@ -79,7 +79,31 @@
                 </form>
 
                 {{-- Table --}}
-                <div class="overflow-x-auto">
+                {{-- ---------- PHONE: one card per farmer ----------
+                     Only 3 of 7 columns fit on a phone; Farm Size, Location,
+                     Status and the View button were all off-screen. --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($farmers as $farmer)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($farmer->id)"
+                                              :eyebrow="'FARM-' . str_pad($farmer->id, 3, '0', STR_PAD_LEFT)"
+                                              :title="$farmer->full_name"
+                                              :subtitle="$farmer->user?->username ?? 'No username'"
+                                              :status="$farmer->activity_status"
+                                              :fields="[
+                                                  'Association' => $farmer->association?->name ?? '-',
+                                                  'Barangay'    => $farmer->barangay?->name ?? '-',
+                                                  'Farm size'   => $farmer->farm_size_hectares ? $farmer->farm_size_hectares . ' ha' : '-',
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No farmers match these filters</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

@@ -60,7 +60,31 @@
                 </form>
 
                 {{-- Table --}}
-                <div class="overflow-x-auto">
+                {{-- ---------- PHONE: one card per planting ----------
+                     Archive stays on the table and the detail panel. --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($plantings as $planting)
+                        @php $cardFarmer = $planting->plantingRecord?->farmer; @endphp
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($planting->crop_planting_record_id)"
+                                              :eyebrow="$cardFarmer ? 'FARM-' . str_pad($cardFarmer->id, 3, '0', STR_PAD_LEFT) : '-'"
+                                              :title="$cardFarmer?->full_name ?? 'Unknown'"
+                                              :subtitle="$cardFarmer?->association?->name ?? 'No association'"
+                                              :status="$cardFarmer?->activity_status"
+                                              :fields="[
+                                                  'Crop'          => $planting->crop_specify ?: ($planting->crop?->name ?? '-'),
+                                                  'Planting date' => $planting->date_planted?->format('M d, Y'),
+                                                  'Farm area'     => $planting->area_hectares . ' ha',
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No planting records match these filters</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

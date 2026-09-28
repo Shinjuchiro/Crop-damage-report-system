@@ -71,8 +71,41 @@
                     @endif
                 </form>
 
-                {{-- Table --}}
-                <div class="overflow-x-auto">
+                {{-- ---------- PHONE: one card per report ----------
+                     The table below keeps all nine columns, which on a phone
+                     means 460px of it sits off-screen inside its own scroller,
+                     Action column included. Cards instead, from the shared
+                     x-ui.record-card. --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($reports as $report)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($report->id)"
+                                              :eyebrow="$report->reference"
+                                              :title="$report->farmer?->full_name ?? 'Unknown'"
+                                              :subtitle="($report->farmer?->barangay?->name ?? 'No barangay')
+                                                    . ' · ' . ($report->farmer?->association?->name ?? 'No association')"
+                                              :status="$report->status"
+                                              :fields="[
+                                                  'Disaster'     => $report->disasters->map(fn ($d) => ucwords(str_replace('_', ' ', $d->type)))->join(', ') ?: '-',
+                                                  'Reported'     => $report->created_at?->format('M d, Y'),
+                                                  'Damaged area' => number_format((float) $report->crops_sum_damaged_area_hectares, 2) . ' ha',
+                                                  'Inspection'   => $report->validation?->validated_at
+                                                        ? 'Validated'
+                                                        : ($report->validation ? 'In progress' : 'Pending'),
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No damage reports yet</p>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Reports appear here as soon as farmers submit them.
+                            </p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                {{-- ---------- TABLET AND UP: the table ---------- --}}
+                <div class="hidden overflow-x-auto sm:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

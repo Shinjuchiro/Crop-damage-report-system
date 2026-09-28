@@ -50,7 +50,27 @@
 
                 {{-- Table --}}
                 <div class="overflow-hidden rounded-xl border border-border">
-                    <div class="overflow-x-auto">
+                    {{-- ---------- PHONE: one card per event ---------- --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($disasters as $disaster)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($disaster->id)"
+                                              :eyebrow="ucwords(str_replace('_', ' ', $disaster->type))"
+                                              :title="$disaster->name"
+                                              :fields="[
+                                                  'Period' => $disaster->date_start?->format('M d, Y')
+                                                        . ($disaster->date_end ? ' to ' . $disaster->date_end->format('M d, Y') : ''),
+                                                  'Damage reports' => $disaster->damage_reports_count,
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No disaster events recorded</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr>

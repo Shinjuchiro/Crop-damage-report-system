@@ -46,7 +46,27 @@
 
                 {{-- Table --}}
                 <div class="overflow-hidden rounded-xl border border-border">
-                    <div class="overflow-x-auto">
+                    {{-- ---------- PHONE: one card per crop ---------- --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($crops as $crop)
+                        <li>
+                            <x-ui.record-card :href="$viewUrl($crop->id)"
+                                              :eyebrow="$crop->is_hvcc ? 'HVCC' : 'Standard'"
+                                              :title="$crop->name"
+                                              :fields="[
+                                                  'Farmer profiles'  => $crop->main_crops_count,
+                                                  'Planting records' => $crop->planting_record_crops_count,
+                                                  'Damage reports'   => $crop->damage_report_crops_count,
+                                              ]" />
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No crops recorded</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr>

@@ -35,6 +35,13 @@
 
         // Assistance
         'allocated'          => ['info',    'Allocated'],
+
+        // Receipt of assistance, as the farmer answered it. Added here
+        // rather than coloured inside the distribution pages, so the same
+        // answer looks the same on the MAO list, the card and the panel.
+        'pending_confirmation' => ['warning', 'Awaiting Confirmation'],
+        'confirmed_received'   => ['success', 'Confirmed Received'],
+        'not_received'         => ['danger',  'Not Received'],
         'distributed'        => ['success', 'Distributed'],
         'completed'          => ['success', 'Completed'],
 

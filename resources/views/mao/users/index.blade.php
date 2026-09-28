@@ -78,7 +78,49 @@
     </form>
 
     {{-- Table --}}
-    <div class="overflow-x-auto">
+    {{-- ---------- PHONE: one card per user ----------
+                     Archive and Restore stay on the table: they are
+                     deliberate actions and do not belong on a card whose
+                     whole surface is a link to the edit form. --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($users as $user)
+                        @php $cardProtected = $user->role === 'mao' && $user->id !== auth()->id(); @endphp
+                        <li>
+                            @if ($cardProtected)
+                                <div class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <span class="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold tracking-wide text-foreground">
+                                            USR-{{ str_pad($user->id, 3, '0', STR_PAD_LEFT) }}
+                                        </span>
+                                        <x-ui.status :value="$user->status" />
+                                    </div>
+                                    <p class="mt-2 truncate text-base font-bold leading-tight text-foreground">{{ $user->display_name }}</p>
+                                    <p class="truncate text-xs text-muted-foreground">{{ $user->email }}</p>
+                                    <p class="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+                                        {{ $roleLabels[$user->role] ?? ucfirst($user->role) }} &middot; Protected account
+                                    </p>
+                                </div>
+                            @else
+                                <x-ui.record-card :href="route('mao.users.edit', $user)"
+                                                  :eyebrow="'USR-' . str_pad($user->id, 3, '0', STR_PAD_LEFT)"
+                                                  :title="$user->display_name"
+                                                  :subtitle="$user->email"
+                                                  :status="$user->status"
+                                                  :fields="[
+                                                      'Role' => $roleLabels[$user->role] ?? ucfirst($user->role),
+                                                      'Association' => $user->associationOfficer?->association?->name ?? '-',
+                                                  ]"
+                                                  action="Edit user" />
+                            @endif
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No users match these filters</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
         <table class="w-full text-left">
             <thead>
                 <tr class="border-b-2 border-border text-base font-bold text-foreground">

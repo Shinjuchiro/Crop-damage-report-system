@@ -138,7 +138,43 @@
                 </p>
             </div>
 
-            <div class="overflow-x-auto">
+            {{-- ---------- PHONE: one card per association ---------- --}}
+                <ul class="space-y-3 sm:hidden">
+                    @forelse ($overviewRows as $row)
+                        <li>
+                            @if ($row->allocation)
+                                <x-ui.record-card :href="$viewUrl($row->allocation->id)"
+                                                  :title="$row->association->name"
+                                                  :subtitle="$row->association->barangay
+                                                        ? 'Brgy. ' . $row->association->barangay->name
+                                                        : 'Office barangay not set'"
+                                                  :status="$row->status"
+                                                  :fields="[
+                                                      'Qualified beneficiaries' => $row->qualified_count,
+                                                      'Assistance'              => $row->allocation->display_name,
+                                                  ]" />
+                            @else
+                                <div class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                                    <p class="truncate text-base font-bold leading-tight text-foreground">{{ $row->association->name }}</p>
+                                    <p class="truncate text-xs text-muted-foreground">
+                                        {{ $row->association->barangay ? 'Brgy. ' . $row->association->barangay->name : 'Office barangay not set' }}
+                                    </p>
+                                    <p class="mt-3 border-t border-border pt-3 text-sm text-muted-foreground">
+                                        <span class="font-semibold text-foreground">{{ $row->qualified_count }}</span>
+                                        qualified {{ $row->qualified_count === 1 ? 'beneficiary' : 'beneficiaries' }}, nothing allocated yet.
+                                        Use Allocate Assistance above.
+                                    </p>
+                                </div>
+                            @endif
+                        </li>
+                    @empty
+                        <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                            <p class="text-sm font-medium text-muted-foreground">No associations yet</p>
+                        </li>
+                    @endforelse
+                </ul>
+
+                <div class="hidden overflow-x-auto sm:block">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
