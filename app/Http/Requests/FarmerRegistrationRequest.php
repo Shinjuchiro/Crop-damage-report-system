@@ -27,7 +27,20 @@ class FarmerRegistrationRequest extends FormRequest
             'last_name'     => ['required', 'string', 'max:100'],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'sex'           => ['required', 'in:male,female'],
-            'phone_number'  => ['required', 'string', 'max:20'],
+            /*
+             | Exactly 11 digits: a Philippine mobile number is 09 plus nine
+             | more (09XXXXXXXXX). digits:11 is doing two jobs here, both of
+             | them wanted: it pins the length, and it rejects anything that
+             | is not a digit, so "0912-345-6789" and "+63 912 345 6789" are
+             | both turned away rather than stored in a shape the SMS
+             | provider cannot dial.
+             |
+             | The browser is asked for the same thing (maxlength and pattern
+             | on the field), but that is a convenience, not the rule: this
+             | line is what actually decides, because anything typed into a
+             | browser can be edited around.
+             */
+            'phone_number'  => ['required', 'digits:11'],
             'address'       => ['required', 'string', 'max:1000'],
             'barangay_id'   => ['required', 'exists:barangays,id'],
             'association_id'=> ['required', Rule::exists('associations', 'id')->whereNull('archived_at')],
@@ -72,6 +85,11 @@ class FarmerRegistrationRequest extends FormRequest
             'landowner_location.required_if'   => 'Please enter the land owner\'s location.',
             'barangay_certificate.required_if' => 'Land owners must upload a Barangay Certificate proving they own the land.',
             'crops.required'                   => 'Please add at least one main crop.',
+
+            // "must be 11 digits" is what the farmer needs to read, not
+            // Laravel's default phrasing about the field being a number.
+            'phone_number.digits'              => 'Please enter an 11-digit mobile number, for example 09171234567.',
+            'phone_number.required'            => 'Please enter your mobile number.',
         ];
     }
 }

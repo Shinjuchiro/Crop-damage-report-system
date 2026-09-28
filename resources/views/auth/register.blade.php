@@ -249,9 +249,33 @@
                         </div>
 
                         <div>
-                            <label class="{{ $labelClass }}">Phone Number <span class="text-red-500">*</span></label>
-                            <input type="text" name="phone_number" x-model="f.phone_number" required
+                            <label class="{{ $labelClass }}">Mobile Number <span class="text-red-500">*</span></label>
+                            {{--
+                                11 digits, nothing else.
+
+                                type="tel" and inputmode="numeric" put the
+                                number pad in front of a farmer on a phone
+                                rather than the full keyboard.
+
+                                maxlength stops the twelfth character being
+                                typed at all, and the @input handler strips
+                                anything that is not a digit and trims to 11,
+                                so a pasted "0912-345-6789" or "+63 912 345
+                                6789" becomes a usable number instead of an
+                                error after the fact.
+
+                                pattern is what makes checkValidity() fail on
+                                a short number, which is how validateStep()
+                                already turns a bad field red and refuses to
+                                move to step 2. No new validation code needed
+                                for that, it just hooks into what is there.
+                            --}}
+                            <input type="tel" name="phone_number" x-model="f.phone_number" required
+                                   inputmode="numeric" maxlength="11" pattern="[0-9]{11}"
+                                   title="Enter the 11 digits of your mobile number, for example 09171234567."
+                                   @input="f.phone_number = f.phone_number.replace(/\D/g, '').slice(0, 11)"
                                    placeholder="09XXXXXXXXX" class="{{ $inputClass('phone_number') }}">
+                            <p class="mt-1.5 text-xs text-muted-foreground">11 digits, for example 09171234567.</p>
                             @error('phone_number')
                                 <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
                             @enderror

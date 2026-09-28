@@ -1,5 +1,39 @@
 @import 'tailwindcss';
 
+/*
+    THE FONT: INTER, SELF HOSTED
+
+    One typeface everywhere, shipped with the app rather than fetched from
+    somebody else's server.
+
+    The reason this needed fixing at all: --font-sans used to name
+    'Instrument Sans', but nothing ever loaded it. There was no @font-face,
+    no font file in public/, and no stylesheet link. Measured on the live
+    site, 'Instrument Sans' rendered at exactly the same width as a made-up
+    font name and as serif, which is what a browser does when it cannot find
+    a family. Every device quietly fell through to its own platform UI font:
+    San Francisco on iPhone, Roboto on Android, Segoe UI on Windows.
+    Different letterforms, different widths, different line wrapping.
+
+    Self hosted rather than a CDN link, which matters more than usual here:
+
+      - This is a PWA meant to work on a weak signal in a field. A font
+        fetched from a third party is one more request that can hang, and it
+        hangs exactly when a farmer is standing in a flooded paddy filing a
+        report. Bundled with the assets, it is cached with everything else
+        and works offline.
+      - It is one variable file per subset covering weights 100 to 900, so
+        every weight the interface uses comes from a single download.
+      - unicode-range in the package means a browser only fetches the Latin
+        subset for this app; the Cyrillic and Greek files are never touched.
+      - font-display: swap is set inside the package, so text is readable
+        immediately and reflows when the font lands. It never blocks paint.
+
+    Vite bundles the woff2 into public/build and rewrites the URLs, so it is
+    served from your own domain alongside the rest of the assets.
+*/
+@import '@fontsource-variable/inter/wght.css';
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
@@ -73,8 +107,23 @@
 /* Hand the variables to Tailwind so bg-card, text-muted-foreground,
    border-border, ring-ring and so on all exist as normal utilities. */
 @theme inline {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    /*
+        'Inter Variable' is the family name the variable package registers,
+        and it has to come first or the @font-face above is never used.
+        'Inter' follows it for anyone who has the static font installed.
+
+        The fallbacks after those are named outright rather than left to
+        ui-sans-serif and system-ui alone. Measured on the live site,
+        ui-sans-serif is not recognised by every engine, which left the whole
+        chain resting on system-ui, and system-ui is a different typeface on
+        every operating system by definition. Naming Segoe UI, Roboto and
+        Helvetica Neue means that in the moment before Inter arrives, or on
+        the rare device where it fails, the text lands on a known sans face
+        rather than on whatever that browser happens to default to.
+    */
+    --font-sans: 'Inter Variable', Inter, system-ui, -apple-system,
+        'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
     --color-background:             var(--background);
     --color-foreground:             var(--foreground);
