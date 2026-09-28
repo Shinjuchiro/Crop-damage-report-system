@@ -42,14 +42,14 @@
         @else
 
             {{-- ---------- PHONE ---------- --}}
-            <ul class="divide-y divide-border sm:hidden">
+            <ul class="space-y-3 p-4 sm:hidden">
                 @foreach ($reports as $report)
                     @php $mine = $report->assigned_technician_id === auth()->id(); @endphp
                     <li>
                         @if ($mine)
-                            <a href="{{ route('technician.reports.show', $report) }}" class="block px-4 py-4 transition active:bg-muted">
+                            <a href="{{ route('technician.reports.show', $report) }}" class="block rounded-xl border border-border bg-card p-3.5 shadow-sm transition active:bg-muted">
                         @else
-                            <div class="px-4 py-4">
+                            <div class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
                         @endif
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">

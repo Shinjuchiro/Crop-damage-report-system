@@ -62,11 +62,11 @@
         @else
 
             {{-- ---------- PHONE ---------- --}}
-            <ul class="divide-y divide-border sm:hidden">
+            <ul class="space-y-3 p-4 sm:hidden">
                 @foreach ($members as $member)
                     <li>
                         <a href="{{ request()->fullUrlWithQuery(['selected' => $member->id]) }}"
-                           class="block px-4 py-4 transition active:bg-muted">
+                           class="block rounded-xl border border-border bg-card p-3.5 shadow-sm transition active:bg-muted">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-semibold">{{ $member->full_name }}</p>

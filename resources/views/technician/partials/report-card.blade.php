@@ -51,27 +51,16 @@
     $cardEstimate = $report->crops->avg('estimated_damage_percent');
     $cardShown    = $cardAssessed ?? $cardEstimate;
 
-    /* The bar down the left edge. It follows the status badge on the right,
-       using the same colour families x-ui.badge gives that status, so the
-       edge and the badge can never tell the technician two different things.
-       The bar is decoration: every status it stands for is also written out
-       in words in the badge, so nothing here is carried by colour alone. */
-    $cardAccent = match ($report->status) {
-        'assigned', 'under_verification' => 'bg-sky-500',
-        'verified', 'approved'           => 'bg-green-600',
-        'rejected', 'flagged'            => 'bg-rose-500',
-        'pending'                        => 'bg-amber-500',
-        default                          => 'bg-slate-300 dark:bg-slate-600',
-    };
+    /* There used to be a coloured bar down the left edge that repeated the
+       status badge. It was removed (Sept 2026): it said nothing the badge
+       beside it was not already saying in words, and it made these cards
+       look unlike the same card everywhere else in the system. */
 
     $cardAction = 'View Details';
 @endphp
 
 <a href="{{ $cardHref }}"
-   class="relative block overflow-hidden rounded-xl border border-border bg-card pl-4 transition active:bg-muted">
-
-    {{-- The status bar. aria-hidden because the badge below already says it --}}
-    <span class="absolute inset-y-0 left-0 w-1.5 {{ $cardAccent }}" aria-hidden="true"></span>
+   class="block rounded-xl border border-border bg-card transition active:bg-muted">
 
     <div class="min-w-0 p-3.5">
 

@@ -11,14 +11,29 @@
 ])
 
 @php
+    /*
+        Sept 2026: the fills were deepened from the 100 shades to the 200s,
+        with the text a shade darker to keep the contrast. The 100s were so
+        pale that on a phone, in daylight, a green pill and an amber one were
+        hard to tell apart at a glance, which is the one job these have. The
+        shape is unchanged: still a round pill with the small dot, so a
+        status is never carried by colour alone.
+
+        info and purple are kept here for anything that asks for them
+        directly, but no status uses them any more: x-ui.status now works in
+        green, amber, red and grey only.
+    */
     $variants = [
         'default'  => 'bg-secondary text-secondary-foreground',
         'primary'  => 'bg-accent text-accent-foreground',
-        'success'  => 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
-        'warning'  => 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300',
-        'danger'   => 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300',
-        'info'     => 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
-        'purple'   => 'bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-300',
+        // The grey of the four-colour set. Weighted to match the three
+        // below, which 'default' (a very pale slate) is not.
+        'neutral'  => 'bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100',
+        'success'  => 'bg-green-200 text-green-900 dark:bg-green-900 dark:text-green-100',
+        'warning'  => 'bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-100',
+        'danger'   => 'bg-rose-200 text-rose-900 dark:bg-rose-900 dark:text-rose-100',
+        'info'     => 'bg-sky-200 text-sky-900 dark:bg-sky-900 dark:text-sky-100',
+        'purple'   => 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-100',
         'outline'  => 'border border-border text-muted-foreground',
     ];
 @endphp

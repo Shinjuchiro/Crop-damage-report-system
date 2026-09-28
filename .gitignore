@@ -34,6 +34,10 @@ public/_phpcheck.php
 diag.txt
 /Claude outputs/
 
+# Local helper script for building and pushing in one step. Its log is
+# already covered by *.log above.
+/build-and-push.bat
+
 # AI-tooling config and defense-prep notes: these were already committed and
 # pushed once (confirmed via `git ls-files`) - this line only stops them from
 # being re-added after they're untracked with `git rm -r --cached`. See the

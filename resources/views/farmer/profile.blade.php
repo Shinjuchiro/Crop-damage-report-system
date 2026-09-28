@@ -29,7 +29,12 @@
          HEADER: who this is, and their standing at a glance
     ================================================================= --}}
     <x-ui.card>
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+        {{-- Centred on a phone, left aligned from sm up, the same as the
+             technician, association and MAO profile pages. This one was
+             left out when the others were done, so a farmer got a centred
+             photo with the name hanging off to the left of it. --}}
+        <div class="flex flex-col items-center gap-4 text-center
+                    sm:flex-row sm:items-center sm:text-left">
             <x-profile-photo :user="$farmer->user"
                 :update-route="route('farmer.profile.photo.update')"
                 :remove-route="route('farmer.profile.photo.remove')" />
@@ -44,7 +49,8 @@
 
         {{-- The five figures from the mockup. Every one is read from the
              database, none of them is stored as a display value. --}}
-        <dl class="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-3 xl:grid-cols-5">
+        <dl class="mt-5 grid gap-4 border-t border-border pt-5 text-center
+                   sm:grid-cols-3 sm:text-left xl:grid-cols-5">
             <div>
                 <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Last Activity</dt>
                 <dd class="mt-1 text-sm font-medium">

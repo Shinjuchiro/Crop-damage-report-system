@@ -49,9 +49,13 @@
     $rowBarangay = $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name;
 @endphp
 
+{{-- The row is not a link. It was one, with the action on the right looking
+     like a button but doing nothing of its own: on a phone that button was
+     a bare arrow, so the row's only clue that it went anywhere was an arrow
+     with no word on it. The button is now the link and it is worded, which
+     means the rest of the row does nothing when tapped. --}}
 <li>
-    <a href="{{ $rowHref }}"
-       class="flex items-start gap-3 px-4 py-4 transition hover:bg-muted/60 active:bg-muted sm:items-center sm:gap-4 sm:px-5">
+    <div class="flex items-start gap-3 px-4 py-4 sm:items-center sm:gap-4 sm:px-5">
 
         {{-- LEFT GUTTER
              A number for queued work, a filled marker for work in progress.
@@ -98,12 +102,15 @@
         </span>
 
         {{-- THE ACTION
-             Written out on a laptop where there is room, an arrow on a
-             phone where there is not. The whole row is the link either
-             way, so nothing is lost on a small screen. --}}
-        <span class="ml-auto flex shrink-0 items-center gap-1.5 self-center rounded-lg px-2.5 py-2
-                     text-sm font-semibold
-                     {{ $rowStarted ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground' }}">
+             The only link on the row, so it carries a word at every width:
+             the short form on a phone, where about 100px is all a 360px
+             screen can spare next to the farmer's name, and the full one
+             from sm up. 44px tall either way, a thumb sized target. --}}
+        <a href="{{ $rowHref }}"
+           class="ml-auto flex h-11 shrink-0 items-center gap-1.5 self-center rounded-lg px-3
+                  text-sm font-semibold transition active:opacity-90
+                  {{ $rowStarted ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground' }}">
+            <span class="sm:hidden">{{ $rowStarted ? 'Continue' : 'View' }}</span>
             <span class="hidden sm:inline">
                 {{ $rowStarted ? 'Continue Inspection' : 'View Details' }}
             </span>
@@ -112,9 +119,9 @@
                 <path d="M5 12h13M13 6l6 6-6 6"/>
             </svg>
             <span class="sr-only">
-                {{ $rowStarted ? 'Continue the inspection for' : 'View the briefing for' }}
+                {{ $rowStarted ? 'the inspection for' : 'the briefing for' }}
                 {{ $report->reference }}
             </span>
-        </span>
-    </a>
+        </a>
+    </div>
 </li>

@@ -660,8 +660,22 @@
             ============================================================== --}}
 
             {{-- Phone: Back and Next, or Submit on the last step.
-                 The bar sits above the bottom navigation, hence the offset. --}}
-            <div class="sticky bottom-20 z-10 -mx-3 border-t border-border bg-card px-3 py-3 lg:hidden">
+
+                 The bar sits directly on top of the bottom navigation. It
+                 used to be offset by a fixed 5rem, which left a gap of a
+                 few pixels between the two, and the page scrolling behind
+                 showed through that gap: a sliver of the card above,
+                 clipped, looking like the bar was sitting on top of the
+                 content. The offset is now the navigation's real height,
+                 4rem plus whatever the phone reserves for its own home
+                 indicator, so there is no gap left to see through.
+
+                 The upward shadow is the same one the navigation itself
+                 uses, so the two read as one bar rather than a button row
+                 that happens to be floating. --}}
+            <div class="sticky bottom-[calc(4rem_+_env(safe-area-inset-bottom))] z-10 -mx-3
+                        border-t border-border bg-card px-3 py-3
+                        shadow-[0_-2px_12px_-6px_rgb(15_23_42/0.25)] lg:hidden">
                 <div class="flex gap-3">
                     <x-ui.button type="button" size="lg" variant="outline" class="flex-1"
                                  @click="back()" x-bind:disabled="step === 1">

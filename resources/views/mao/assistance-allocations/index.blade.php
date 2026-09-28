@@ -139,7 +139,7 @@
             </div>
 
             {{-- ---------- PHONE: one card per association ---------- --}}
-                <ul class="space-y-3 sm:hidden">
+                <ul class="space-y-3 p-4 sm:hidden">
                     @forelse ($overviewRows as $row)
                         <li>
                             @if ($row->allocation)

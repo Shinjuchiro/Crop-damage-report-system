@@ -40,7 +40,7 @@
                 {{-- ---------- PHONE: one card per dispute ----------
                      529px of this table is off-screen on a phone. Cards
                      below sm, table from sm up. --}}
-                <ul class="space-y-3 p-4 sm:hidden">
+                <ul class="space-y-3 sm:hidden">
                     @forelse ($disputes as $distribution)
                         <li>
                             <x-ui.record-card :href="$viewUrl($distribution->id)"

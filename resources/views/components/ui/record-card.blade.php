@@ -92,17 +92,58 @@
         <p class="truncate text-xs text-muted-foreground">{{ $subtitle }}</p>
     @endif
 
-    {{-- The figures. min-w-0 on every cell so a long association name wraps
-         inside its own column instead of widening the card, which is the
-         whole fault this component exists to fix. --}}
-    @if (count($fields))
-        <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border pt-3">
-            @foreach ($fields as $label => $value)
-                <div class="min-w-0">
-                    <dt class="text-[11px] leading-tight text-muted-foreground">{{ $label }}</dt>
-                    <dd class="text-sm font-semibold leading-tight text-foreground">
-                        {{ $value === null || $value === '' ? '-' : $value }}
-                    </dd>
+    {{-- The figures.
+
+         Two to a row, except that a value too long for half a card takes a
+         row of its own and runs the full width. A full association name is
+         about sixty characters: in half a card that wrapped to four or five
+         lines, and since the figure beside it was two words, it left a hole
+         the height of the name next to it. Given the whole width the same
+         name takes two lines and nothing sits empty.
+
+         A rule between rows and one down the middle of a pair, so a label
+         belongs to the value under it and to nothing else. min-w-0 on every
+         cell so a long word wraps inside its own column instead of widening
+         the card, which is the fault this component exists to fix. --}}
+    @php
+        $fieldRows   = [];
+        $pendingCell = null;
+
+        foreach ($fields as $fieldLabel => $fieldValue) {
+            $text = trim((string) ($fieldValue === null || $fieldValue === '' ? '-' : $fieldValue));
+            $cell = [$fieldLabel, $text];
+
+            // 24 characters is about what half of a 360px card holds on one
+            // line at this size. Past that the value is going to wrap.
+            if (mb_strlen($text) > 24) {
+                if ($pendingCell !== null) {
+                    $fieldRows[] = [$pendingCell];
+                    $pendingCell = null;
+                }
+                $fieldRows[] = [$cell];
+            } elseif ($pendingCell === null) {
+                $pendingCell = $cell;
+            } else {
+                $fieldRows[] = [$pendingCell, $cell];
+                $pendingCell = null;
+            }
+        }
+
+        if ($pendingCell !== null) {
+            $fieldRows[] = [$pendingCell];
+        }
+    @endphp
+
+    @if (count($fieldRows))
+        <dl class="mt-3 divide-y divide-border border-t border-border">
+            @foreach ($fieldRows as $fieldRow)
+                <div class="flex gap-3 py-3">
+                    @foreach ($fieldRow as $i => [$cellLabel, $cellValue])
+                        <div class="min-w-0 flex-1 {{ $i === 1 ? 'border-l border-border pl-3' : '' }}">
+                            <dt class="text-[11px] leading-tight text-muted-foreground">{{ $cellLabel }}</dt>
+                            <dd class="text-sm font-semibold leading-tight text-foreground">{{ $cellValue }}</dd>
+                        </div>
+                    @endforeach
                 </div>
             @endforeach
         </dl>

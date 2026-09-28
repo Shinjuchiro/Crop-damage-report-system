@@ -47,7 +47,7 @@
         @else
 
             {{-- ---------- PHONE ---------- --}}
-            <ul class="divide-y divide-border sm:hidden">
+            <ul class="space-y-3 p-4 sm:hidden">
                 @foreach ($allocations as $allocation)
                     @php
                         $given  = (float) ($allocation->distributed_so_far ?? 0);
@@ -58,7 +58,7 @@
                         $closed = in_array($allocation->status, ['completed', 'cancelled'], true);
                     @endphp
 
-                    <li class="px-4 py-4">
+                    <li class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="truncate text-sm font-semibold">

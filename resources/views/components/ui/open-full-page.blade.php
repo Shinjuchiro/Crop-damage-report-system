@@ -26,9 +26,17 @@
 ])
 
 {{--
-    flex w-fit, not inline-flex: this link always wants a line of its own,
-    and several panels place it straight after an inline status badge, where
-    inline-flex would leave it sitting on the same line as the badge.
+    LAPTOP AND UP ONLY (hidden lg:flex)
+
+    The link exists because on a wide screen the panel sits beside the list
+    and the full record is somewhere else. Below 1024px there is no panel
+    beside anything: the list is a column of cards, tapping one opens the
+    full page, and the panel above it is that same record. So on a phone or
+    a tablet this offered to open the page you were already looking at.
+
+    hidden lg:flex, not inline-flex: this link always wants a line of its
+    own, and several panels place it straight after an inline status badge,
+    where inline-flex would leave it sitting on the same line as the badge.
     Passing class="block" from the call site does NOT fix that - the
     override and the component's own display class both end up in one class
     attribute, and which one wins is decided by the order of the two rules
@@ -36,8 +44,8 @@
     its own display. w-fit keeps the underline to the width of the words.
 --}}
 <a href="{{ $href }}" {{ $attributes->class(
-        'mt-3 flex w-fit items-center gap-1 text-xs font-medium text-sky-700 underline '
-        . 'hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300'
+        'mt-3 hidden w-fit items-center gap-1 text-xs font-medium text-sky-700 underline '
+        . 'hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300 lg:flex'
     ) }}>
     {{ $label }}
     <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2"

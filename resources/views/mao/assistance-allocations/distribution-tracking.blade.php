@@ -49,7 +49,7 @@
                 {{-- ---------- PHONE: one card per distribution ----------
                      The worst of the set: 684px of a 1001px table sits
                      off-screen on a phone. Cards below sm, table from sm up. --}}
-                <ul class="space-y-3 p-4 sm:hidden">
+                <ul class="space-y-3 sm:hidden">
                     @forelse ($distributions as $distribution)
                         <li>
                             <x-ui.record-card :href="$viewUrl($distribution->id)"

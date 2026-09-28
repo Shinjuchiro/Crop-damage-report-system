@@ -41,9 +41,9 @@
         @else
 
             {{-- ---------- PHONE ---------- --}}
-            <ul class="divide-y divide-border sm:hidden">
+            <ul class="space-y-3 p-4 sm:hidden">
                 @foreach ($reports as $report)
-                    <li class="px-4 py-4">
+                    <li class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="truncate text-sm font-semibold">

@@ -43,27 +43,46 @@
             </x-ui.empty>
         @else
 
-            {{-- ---------- PHONE ---------- --}}
-            <ul class="divide-y divide-border sm:hidden">
-                @foreach ($inspections as $inspection)
-                    <li>
-                        <a href="{{ route('technician.history.show', $inspection) }}"
-                           class="block px-4 py-4 transition active:bg-muted">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold">{{ $inspection->damageReport?->reference }}</p>
-                                    <p class="truncate text-sm">
-                                        {{ $inspection->damageReport?->farmer?->full_name ?? 'Unknown farmer' }}
-                                    </p>
-                                </div>
-                                <x-ui.status :value="$inspection->severity" />
-                            </div>
+            {{-- ---------- PHONE ----------
 
-                            <p class="mt-2 text-xs text-muted-foreground">
-                                {{ round($inspection->assessed_damage_percent) }}% assessed
-                                &middot; {{ $inspection->photos_count }} photo{{ $inspection->photos_count === 1 ? '' : 's' }}
-                                &middot; {{ $inspection->validated_at?->format('M d, Y') }}
-                            </p>
+                 The row itself is not a link. It used to be: the whole row
+                 opened the inspection, with nothing on screen to say so, so
+                 a technician who had not already discovered it had no way
+                 of knowing the row did anything at all. The button below
+                 each row is now the only way in, and it says where it goes,
+                 the same way the MAO lists do. --}}
+            <ul class="space-y-3 p-4 sm:hidden">
+                @foreach ($inspections as $inspection)
+                    <li class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold">{{ $inspection->damageReport?->reference }}</p>
+                                <p class="truncate text-sm">
+                                    {{ $inspection->damageReport?->farmer?->full_name ?? 'Unknown farmer' }}
+                                </p>
+                            </div>
+                            <x-ui.status :value="$inspection->severity" />
+                        </div>
+
+                        <p class="mt-2 text-xs text-muted-foreground">
+                            {{ round($inspection->assessed_damage_percent) }}% assessed
+                            &middot; {{ $inspection->photos_count }} photo{{ $inspection->photos_count === 1 ? '' : 's' }}
+                            &middot; {{ $inspection->validated_at?->format('M d, Y') }}
+                        </p>
+
+                        {{-- 44px tall, full width: a thumb sized target that
+                             names itself. --}}
+                        <a href="{{ route('technician.history.show', $inspection) }}"
+                           class="mt-3 flex h-11 items-center gap-2 rounded-lg bg-accent px-3
+                                  text-sm font-semibold text-accent-foreground transition active:bg-muted">
+                            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8"
+                                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M5 12h13M13 6l6 6-6 6"/>
+                            </svg>
+                            View Details
+                            <span class="sr-only">
+                                for {{ $inspection->damageReport?->reference }}
+                            </span>
                         </a>
                     </li>
                 @endforeach

@@ -6,6 +6,18 @@
 
     Add new statuses here rather than colouring them inside a page, otherwise
     "Verified" ends up green on one screen and blue on another.
+
+    FOUR COLOURS (Sept 2026)
+
+    Green for a good outcome, amber for something still waiting, red for a
+    bad outcome, grey for everything in between and for anything switched
+    off. Blue and purple were retired: blue said nothing green, amber and
+    grey were not already saying, and one purple badge among them read as a
+    fifth meaning that did not exist.
+
+    In-progress states (Assigned, Under Verification, Scheduled, Allocated)
+    are the filled grey, and switched-off ones (Inactive, Archived, Draft)
+    stay the outlined grey, so the two are still told apart.
 --}}
 @props(['value'])
 
@@ -22,19 +34,21 @@
         'inactive'           => ['outline', 'Inactive'],
         'archived'           => ['outline', 'Archived'],
 
-        // Damage reports
-        'assigned'           => ['info',    'Assigned'],
-        'under_verification' => ['info',    'Under Verification'],
+        // Damage reports. Assigned and Under Verification are work in
+        // progress, so they take the filled grey.
+        'assigned'           => ['neutral', 'Assigned'],
+        'under_verification' => ['neutral', 'Under Verification'],
         'flagged'            => ['danger',  'Flagged'],
 
-        // Damage severity. Total is dark purple, not red, by request.
+        // Damage severity. Total is the same red as Partial; the word is
+        // what separates them, as it does everywhere else here.
         'slight'             => ['success', 'Slight'],
         'moderate'           => ['warning', 'Moderate'],
         'partial'            => ['danger',  'Partial'],
-        'total'              => ['purple',  'Total'],
+        'total'              => ['danger',  'Total'],
 
         // Assistance
-        'allocated'          => ['info',    'Allocated'],
+        'allocated'          => ['neutral', 'Allocated'],
 
         // Receipt of assistance, as the farmer answered it. Added here
         // rather than coloured inside the distribution pages, so the same
@@ -47,14 +61,14 @@
 
         // Alerts and messages
         'draft'              => ['outline', 'Draft'],
-        'scheduled'          => ['info',    'Scheduled'],
+        'scheduled'          => ['neutral', 'Scheduled'],
         'sent'               => ['success', 'Sent'],
         'delivered'          => ['success', 'Delivered'],
         'failed'             => ['danger',  'Failed'],
 
         // Alert priority
         'normal'             => ['outline', 'Normal'],
-        'important'          => ['info',    'Important'],
+        'important'          => ['neutral', 'Important'],
         'urgent'             => ['warning', 'Urgent'],
         'critical'           => ['danger',  'Critical'],
     ];
