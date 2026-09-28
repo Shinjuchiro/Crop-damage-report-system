@@ -88,17 +88,17 @@
                         <thead class="border-b-2 border-border text-xs uppercase tracking-wide text-muted-foreground">
                             @if ($view === 'deleted')
                                 <tr>
-                                    <th class="px-4 py-3 font-medium">Record</th>
-                                    <th class="px-4 py-3 font-medium">Deleted By</th>
-                                    <th class="px-4 py-3 font-medium">Deleted On</th>
-                                    <th class="px-4 py-3 text-right font-medium">Action</th>
+                                    <th class="px-3 sm:px-4 py-3 font-medium">Record</th>
+                                    <th class="px-3 sm:px-4 py-3 font-medium">Deleted By</th>
+                                    <th class="px-3 sm:px-4 py-3 font-medium">Deleted On</th>
+                                    <th class="px-3 sm:px-4 py-3 text-right font-medium">Action</th>
                                 </tr>
                             @else
                                 <tr>
-                                    <th class="px-4 py-3 font-medium">Record</th>
-                                    <th class="px-4 py-3 font-medium">Details</th>
-                                    <th class="px-4 py-3 font-medium">Archived</th>
-                                    <th class="px-4 py-3 text-right font-medium">Action</th>
+                                    <th class="px-3 sm:px-4 py-3 font-medium">Record</th>
+                                    <th class="px-3 sm:px-4 py-3 font-medium">Details</th>
+                                    <th class="px-3 sm:px-4 py-3 font-medium">Archived</th>
+                                    <th class="px-3 sm:px-4 py-3 text-right font-medium">Action</th>
                                 </tr>
                             @endif
                         </thead>
@@ -107,7 +107,7 @@
                             @if ($view === 'deleted')
                                 @forelse ($records as $record)
                                     <tr class="hover:bg-muted/60 {{ $selected?->id === $record->id ? 'bg-muted/60' : '' }}">
-                                        <td class="px-4 py-3">
+                                        <td class="px-3 sm:px-4 py-3">
                                             <p class="{{ in_array($type, ['farmers', 'users', 'crop_planting', 'associations']) ? 'font-bold' : 'font-medium' }} text-foreground">
                                                 @switch($type)
                                                     @case('farmers')
@@ -130,15 +130,15 @@
                                                 @endswitch
                                             </p>
                                         </td>
-                                        <td class="px-4 py-3 text-muted-foreground">{{ $record->deletedBy?->display_name ?? 'Unknown' }}</td>
-                                        <td class="px-4 py-3 text-muted-foreground">{{ $record->deleted_at?->format('M d, Y') }}</td>
-                                        <td class="px-4 py-3 text-right">
+                                        <td class="px-3 sm:px-4 py-3 text-muted-foreground">{{ $record->deletedBy?->display_name ?? 'Unknown' }}</td>
+                                        <td class="px-3 sm:px-4 py-3 text-muted-foreground">{{ $record->deleted_at?->format('M d, Y') }}</td>
+                                        <td class="px-3 sm:px-4 py-3 text-right">
                                             <x-ui.button :href="$viewUrl($record->id)" variant="view" size="sm">View</x-ui.button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="px-4 py-14 text-center">
+                                        <td colspan="4" class="px-3 sm:px-4 py-14 text-center">
                                             <p class="text-sm font-medium text-muted-foreground">Nothing deleted here</p>
                                             <p class="mt-1 text-xs text-muted-foreground">
                                                 {{ $types[$type] }} that are permanently deleted will show up here, along with who deleted them and when.
@@ -149,7 +149,7 @@
                             @else
                                 @forelse ($records as $record)
                                     <tr class="hover:bg-muted/60 {{ $selected?->id === $record->id ? 'bg-muted/60' : '' }}">
-                                        <td class="px-4 py-3">
+                                        <td class="px-3 sm:px-4 py-3">
                                             <p class="{{ in_array($type, ['farmers', 'users', 'crop_planting', 'associations']) ? 'font-bold' : 'font-medium' }} text-foreground">
                                                 @switch($type)
                                                     @case('farmers')
@@ -172,7 +172,7 @@
                                                 @endswitch
                                             </p>
                                         </td>
-                                        <td class="px-4 py-3 text-muted-foreground">
+                                        <td class="px-3 sm:px-4 py-3 text-muted-foreground">
                                             @switch($type)
                                                 @case('farmers')
                                                     {{ $record->association?->name ?? '-' }}
@@ -203,14 +203,14 @@
                                                     @break
                                             @endswitch
                                         </td>
-                                        <td class="px-4 py-3 text-muted-foreground">{{ $record->archived_at?->format('M d, Y') }}</td>
-                                        <td class="px-4 py-3 text-right">
+                                        <td class="px-3 sm:px-4 py-3 text-muted-foreground">{{ $record->archived_at?->format('M d, Y') }}</td>
+                                        <td class="px-3 sm:px-4 py-3 text-right">
                                             <x-ui.button :href="$viewUrl($record->id)" variant="view" size="sm">View</x-ui.button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="px-4 py-14 text-center">
+                                        <td colspan="4" class="px-3 sm:px-4 py-14 text-center">
                                             <p class="text-sm font-medium text-muted-foreground">Nothing archived here</p>
                                             <p class="mt-1 text-xs text-muted-foreground">
                                                 {{ $types[$type] }} you archive will show up in this list, and can be restored at any time.
