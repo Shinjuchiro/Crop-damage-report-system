@@ -1006,6 +1006,32 @@
                 const el = document.getElementById('verifyMap');
                 if (! el) return;
 
+                /*
+                 | Leaflet comes from a CDN, and this is the one screen in the
+                 | system that is used standing in a field. If that request
+                 | fails, L is undefined and L.map() throws a ReferenceError
+                 | inside Alpine's init, which takes the whole inspection
+                 | component down with it: the photo steps, the severity
+                 | cards and the submit button all stop responding, and the
+                 | technician cannot file the inspection they drove out to do.
+                 |
+                 | Every other map in the system already guards this (see
+                 | technician/map, mao/map, the two damage-report views and
+                 | the association map). This one did not.
+                 |
+                 | Failing soft is safe here because the map is not the only
+                 | way to set the location: Use Current Location still works,
+                 | and the latitude and longitude fields above it can be typed
+                 | in by hand, which is what section 47 asks for anyway.
+                 */
+                if (typeof L === 'undefined') {
+                    el.innerHTML =
+                        '<div class="flex h-full items-center justify-center p-6 text-center text-sm ' +
+                        'text-muted-foreground">The map could not be loaded. You can still use ' +
+                        '&quot;Use Current Location&quot;, or type the coordinates in above.</div>';
+                    return;
+                }
+
                 // Tanza town centre, used only until we have a real pin.
                 const startLat = parseFloat(this.latitude) || 14.3947;
                 const startLng = parseFloat(this.longitude) || 120.8519;
