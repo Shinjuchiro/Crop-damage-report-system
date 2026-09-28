@@ -35,7 +35,9 @@
     @endif
 
     {{-- ================= MEMBERSHIP ================= --}}
-    <div class="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {{-- Two across on a phone, not one, now that the stat card is compact
+         below sm: all four figures fit on one screen. --}}
+    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <x-ui.stat label="Total Members" :value="number_format($summary['total_members'])"
                    hint="Kabuuang kasapi"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9"
@@ -58,7 +60,7 @@
     </div>
 
     {{-- ================= REPORTS AND ASSISTANCE ================= --}}
-    <div class="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <x-ui.stat label="Damage Reports" :value="number_format($summary['total_reports'])"
                    icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01"
                    :href="route('association.reports.index')" />

@@ -45,7 +45,9 @@
     @endif
 
     {{-- ===================== HEADLINE FIGURES ===================== --}}
-    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {{-- Two across on a phone, not one, now that the stat card is compact
+         below sm: all four headline figures fit on one screen. --}}
+    <div class="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <x-ui.stat label="Total Affected Farmers"
                      :value="number_format($headline['affected_farmers'])"
                      :hint="'Farmers with a damage report, ' . strtolower($headline['period_label'])"

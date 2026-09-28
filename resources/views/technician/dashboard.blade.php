@@ -138,7 +138,10 @@
     {{-- =================================================================
          THE TILES
     ================================================================== --}}
-    <div class="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    {{-- Two across on a phone, not one. With the compact stat card these fit
+         side by side, so all three figures are on screen at once instead of
+         being scrolled past one at a time. --}}
+    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
 
         <x-ui.stat label="Pending Validation"
                    :value="number_format($summary['pending_validation'])"

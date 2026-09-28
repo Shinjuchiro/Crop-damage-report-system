@@ -105,8 +105,13 @@
         @endif
     </x-ui.card>
 
-    {{-- Figures. Every one is counted from the database on page load. --}}
-    <div class="stagger mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {{-- Figures. Every one is counted from the database on page load.
+
+         Two across on a phone, not one. With the compact stat card these
+         fit side by side comfortably, and a farmer can see all four
+         figures without scrolling past them one at a time, which is what
+         the old full-width cards forced. --}}
+    <div class="stagger mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <x-ui.stat label="Planting Records"
                    :value="number_format($plantingCount)"
                    hint="Mga naitalang pagtatanim"
