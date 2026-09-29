@@ -1,30 +1,38 @@
+{{--
+    THE OLD STAT CARD, NOW A THIN WRAPPER OVER x-ui.stat
+
+    <x-stat-card label="Total Farmers" :value="$data['farmer']['total_farmers']" />
+
+    This component predates x-ui.stat and was still drawing its own card:
+    hard-coded slate and white instead of the theme's tokens, px-5 py-4 of
+    padding and a 30px number at every width. It is used 59 times, all on
+    the two monthly report pages (mao/reports/show and
+    association/summaries/show), which is why those two looked like a
+    different system on a phone: big pale cards in a grid, while every other
+    figure in the app had become the compact card.
+
+    Rather than edit 59 call sites, it now hands its props straight to
+    x-ui.stat. The report pages get the same card as everything else, at the
+    same size, honouring the theme, and they follow it from here on.
+
+    tone and icon are accepted so one of these can be coloured later without
+    another rewrite.
+--}}
 @props([
-    'label',
-    'value',
+    'label'  => '',
+    'value'  => '0',
     'suffix' => null,
     'hint'   => null,
     'href'   => null,
+    'tone'   => 'default',
+    'icon'   => null,
 ])
 
-@php $tag = $href ? 'a' : 'div'; @endphp
-
-<{{ $tag }}
-    @if ($href) href="{{ $href }}" @endif
-    {{ $attributes->merge([
-        'class' => 'block rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm transition '
-            . ($href ? 'card-hover hover:border-[#2f9e41]' : ''),
-    ]) }}
->
-    <p class="text-sm font-medium text-slate-800">{{ $label }}</p>
-
-    <p class="mt-1 flex items-baseline gap-2">
-        <span class="text-3xl font-bold tracking-tight text-slate-900">{{ $value }}</span>
-        @if ($suffix)
-            <span class="text-xs font-medium text-slate-500">{{ $suffix }}</span>
-        @endif
-    </p>
-
-    @if ($hint)
-        <p class="mt-1 text-xs text-slate-500">{{ $hint }}</p>
-    @endif
-</{{ $tag }}>
+<x-ui.stat :label="$label"
+           :value="$value"
+           :suffix="$suffix"
+           :hint="$hint"
+           :href="$href"
+           :tone="$tone"
+           :icon="$icon"
+           {{ $attributes }} />

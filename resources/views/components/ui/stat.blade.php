@@ -58,8 +58,13 @@
     // icon) rather than a saturated amber - a bright amber-on-white tile
     // next to the other three quiet stat cards was too vivid to sit with
     // comfortably on a dashboard someone looks at all day.
+    //
+    // 'default' used to be grey on grey, which on a dashboard of five cards
+    // meant three colourless ones between the amber and the green. It is a
+    // soft blue now: a plain count is neither good news nor bad, so it gets
+    // a colour that says neither, and no icon on any page is left plain.
     $iconTones = [
-        'default' => 'bg-muted text-muted-foreground',
+        'default' => 'bg-sky-100 text-sky-700',
         'primary' => 'bg-accent text-primary',
         'warning' => 'bg-amber-50 text-amber-800',
         'danger'  => 'bg-rose-100 text-rose-700',
@@ -100,16 +105,24 @@
             <p class="min-w-0 text-xs font-medium leading-tight text-muted-foreground">{{ $label }}</p>
         </div>
 
-        <p class="mt-2 flex items-baseline gap-1">
-            <span class="text-xl font-bold tracking-tight {{ $valueTone }}">{{ $value }}</span>
-            @if ($suffix)
-                <span class="text-xs font-medium text-muted-foreground">{{ $suffix }}</span>
-            @endif
-        </p>
+        {{-- The number and the hint start where the label starts, not at the
+             card's edge. The icon is 32px and the gap 8px, so they are
+             indented by 40px to sit under the first letter of the label
+             rather than under the icon. Without it every figure hung out to
+             the left of its own label, which is what made a row of these
+             look crooked. No icon, no indent. --}}
+        <div class="{{ $icon ? 'pl-10' : '' }}">
+            <p class="mt-2 flex items-baseline gap-1">
+                <span class="text-xl font-bold tracking-tight {{ $valueTone }}">{{ $value }}</span>
+                @if ($suffix)
+                    <span class="text-xs font-medium text-muted-foreground">{{ $suffix }}</span>
+                @endif
+            </p>
 
-        @if ($hint)
-            <p class="mt-0.5 text-[11px] leading-tight text-muted-foreground">{{ $hint }}</p>
-        @endif
+            @if ($hint)
+                <p class="mt-0.5 text-[11px] leading-tight text-muted-foreground">{{ $hint }}</p>
+            @endif
+        </div>
     </div>
 
     {{-- ---------------------------------------------------------------
