@@ -60,12 +60,17 @@
     // comfortably on a dashboard someone looks at all day.
     //
     // 'default' used to be grey on grey, which on a dashboard of five cards
-    // meant three colourless ones between the amber and the green. It is a
-    // soft blue now: a plain count is neither good news nor bad, so it gets
-    // a colour that says neither, and no icon on any page is left plain.
+    // meant three colourless ones between the amber and the green. It is
+    // the office's own pale green now (--accent behind --primary), not a
+    // borrowed blue: the theme is a green one, and a plain count should
+    // look like it belongs to it rather than to a different system.
+    //
+    // 'primary' goes the other way, a solid green circle with a white
+    // glyph, so the figures that matter (verified, released) still stand
+    // out from the ordinary counts beside them.
     $iconTones = [
-        'default' => 'bg-sky-100 text-sky-700',
-        'primary' => 'bg-accent text-primary',
+        'default' => 'bg-accent text-primary',
+        'primary' => 'bg-primary text-primary-foreground',
         'warning' => 'bg-amber-50 text-amber-800',
         'danger'  => 'bg-rose-100 text-rose-700',
     ];
