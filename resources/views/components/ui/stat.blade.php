@@ -59,21 +59,52 @@
     // next to the other three quiet stat cards was too vivid to sit with
     // comfortably on a dashboard someone looks at all day.
     //
-    // 'default' used to be grey on grey, which on a dashboard of five cards
-    // meant three colourless ones between the amber and the green. It is
-    // the office's own pale green now (--accent behind --primary), not a
-    // borrowed blue: the theme is a green one, and a plain count should
-    // look like it belongs to it rather than to a different system.
-    //
-    // 'primary' goes the other way, a solid green circle with a white
-    // glyph, so the figures that matter (verified, released) still stand
-    // out from the ordinary counts beside them.
+    // 'primary' is a solid green circle with a white glyph, so the figures
+    // that matter (verified, released) stand out from the ordinary counts
+    // beside them. Amber and rose are reserved for waiting and for trouble,
+    // and are never handed out to a plain count, otherwise a harmless total
+    // would look like a warning.
     $iconTones = [
-        'default' => 'bg-accent text-primary',
         'primary' => 'bg-primary text-primary-foreground',
         'warning' => 'bg-amber-50 text-amber-800',
         'danger'  => 'bg-rose-100 text-rose-700',
     ];
+
+    /*
+        A PLAIN COUNT GETS ITS OWN COLOUR
+
+        'default' used to be grey on grey, and then briefly one blue for all
+        of them, which made a dashboard of eight cards look like one card
+        repeated. Now they cycle through this set.
+
+        The colour comes from a counter that advances with each card drawn
+        on the page, so neighbours are never the same. Picking the colour
+        from the label instead was the first attempt and it collided: the
+        technician's three tiles all landed on cyan, which is exactly the
+        look this is meant to avoid.
+
+        Every entry is a pale tint behind a dark glyph of the same hue, all
+        at the same weight, so a row reads as one set rather than a bag of
+        colours. The office's own green leads, and the alarm colours are not
+        in here at all: amber and rose stay reserved for waiting and for
+        trouble, so a harmless total can never be mistaken for a warning.
+    */
+    $iconPalette = [
+        'bg-accent text-primary',
+        'bg-sky-100 text-sky-700',
+        'bg-violet-100 text-violet-700',
+        'bg-teal-100 text-teal-700',
+        'bg-indigo-100 text-indigo-700',
+        'bg-lime-100 text-lime-800',
+        'bg-cyan-100 text-cyan-700',
+    ];
+
+    // One counter for the whole page render. It lives in $GLOBALS because a
+    // Blade component is a fresh include every time, so a local or a static
+    // would reset on each card.
+    $GLOBALS['uiStatSequence'] = ($GLOBALS['uiStatSequence'] ?? -1) + 1;
+
+    $iconTones['default'] = $iconPalette[$GLOBALS['uiStatSequence'] % count($iconPalette)];
 
     $tag = $href ? 'a' : 'div';
 
