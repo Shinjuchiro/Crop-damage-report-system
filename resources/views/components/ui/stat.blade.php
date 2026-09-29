@@ -87,42 +87,39 @@
     ---------------------------------------------------------------- --}}
     <div class="sm:hidden">
 
-        {{-- Icon and label share the top line, so the number below gets the
-             full width of the card instead of being squeezed beside a big
-             square. min-w-0 so a long label wraps inside the card rather
-             than widening it, which is what pushed these pages sideways. --}}
-        <div class="flex items-center gap-2">
-            @if ($icon)
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full
-                             {{ $iconTone }}" aria-hidden="true">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9"
-                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <path d="{{ $icon }}"/>
-                    </svg>
-                </span>
+        {{-- Bento tile: one column, one left edge.
+
+             The icon has a line of its own above the label, and the label,
+             the figure and the hint all start where the icon starts. The
+             two layouts before this both left something out of line: icon
+             and label on one row put the figure under the icon but away
+             from its own label, and indenting the figure to meet the label
+             left it out of line with the icon. Stacked, there is only one
+             edge to be out of line with. --}}
+        @if ($icon)
+            <span class="mb-2 flex h-9 w-9 items-center justify-center rounded-full
+                         {{ $iconTone }}" aria-hidden="true">
+                <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9"
+                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <path d="{{ $icon }}"/>
+                </svg>
+            </span>
+        @endif
+
+        {{-- min-w-0 so a long label wraps inside the card rather than
+             widening it, which is what pushed these pages sideways. --}}
+        <p class="min-w-0 text-xs font-medium leading-tight text-muted-foreground">{{ $label }}</p>
+
+        <p class="mt-1 flex items-baseline gap-1">
+            <span class="text-2xl font-bold tracking-tight {{ $valueTone }}">{{ $value }}</span>
+            @if ($suffix)
+                <span class="text-xs font-medium text-muted-foreground">{{ $suffix }}</span>
             @endif
+        </p>
 
-            <p class="min-w-0 text-xs font-medium leading-tight text-muted-foreground">{{ $label }}</p>
-        </div>
-
-        {{-- The number and the hint start where the label starts, not at the
-             card's edge. The icon is 32px and the gap 8px, so they are
-             indented by 40px to sit under the first letter of the label
-             rather than under the icon. Without it every figure hung out to
-             the left of its own label, which is what made a row of these
-             look crooked. No icon, no indent. --}}
-        <div class="{{ $icon ? 'pl-10' : '' }}">
-            <p class="mt-2 flex items-baseline gap-1">
-                <span class="text-xl font-bold tracking-tight {{ $valueTone }}">{{ $value }}</span>
-                @if ($suffix)
-                    <span class="text-xs font-medium text-muted-foreground">{{ $suffix }}</span>
-                @endif
-            </p>
-
-            @if ($hint)
-                <p class="mt-0.5 text-[11px] leading-tight text-muted-foreground">{{ $hint }}</p>
-            @endif
-        </div>
+        @if ($hint)
+            <p class="mt-0.5 text-[11px] leading-tight text-muted-foreground">{{ $hint }}</p>
+        @endif
     </div>
 
     {{-- ---------------------------------------------------------------
