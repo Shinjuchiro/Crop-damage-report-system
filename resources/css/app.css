@@ -60,12 +60,17 @@
 
     /* Page and surfaces
 
-       A cream ground was tried here, from the reference design, and taken
-       back out: the system's colours are its identity, dark agricultural
-       green on a light blue-grey, and the restyle was only ever meant to
-       change the shapes. The rounding and the shadows below are the parts
-       that were kept. */
-    --background:            #dce6ea;   /* the light blue-gray page ground */
+       The ground is a very light lime tint. A cream one was tried first,
+       from the reference design, and taken out because it pulled the system
+       away from its own identity; this one goes the other way, staying
+       inside the green family the sidebar, the buttons and the accent
+       already live in.
+
+       It is deliberately close to white: #f0f6ec is about 4% saturated, so
+       white cards still lift off it and nothing competes with the deep
+       green that carries meaning. The blue-grey it replaces was the one
+       cool colour in an otherwise green system. */
+    --background:            #f0f6ec;   /* very light lime page ground */
     --foreground:            #0f172a;
     --card:                  #ffffff;
     --card-foreground:       #0f172a;
