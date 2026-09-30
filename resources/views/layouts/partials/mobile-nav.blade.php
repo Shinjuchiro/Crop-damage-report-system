@@ -53,7 +53,12 @@
             'tabs' => [
                 ['label' => 'Home',     'route' => 'farmer.dashboard',      'pattern' => 'farmer.dashboard',      'icon' => $ico['home']],
                 ['label' => 'Planting', 'route' => 'farmer.planting.index', 'pattern' => 'farmer.planting.*',     'icon' => $ico['planting']],
-                ['label' => 'Reports',  'route' => 'farmer.reports.index',  'pattern' => 'farmer.reports.index',  'icon' => $ico['reports']],
+                /* "History", not "Reports": the tab beside it is also called
+                   Report, and two tabs a letter apart is not a choice a
+                   farmer should have to read twice. This one is the list of
+                   what they have already filed, so it takes the clock, the
+                   same icon the technician's History tab uses. */
+                ['label' => 'History',  'route' => 'farmer.reports.index',  'pattern' => 'farmer.reports.index',  'icon' => $ico['clock']],
                 ['label' => 'Report',   'route' => 'farmer.reports.create', 'pattern' => 'farmer.reports.create', 'icon' => $ico['report']],
             ],
             'more' => [
