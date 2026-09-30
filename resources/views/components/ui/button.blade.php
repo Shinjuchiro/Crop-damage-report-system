@@ -48,7 +48,11 @@
         'icon'    => 'h-10 w-10',
     ];
 
-    $base = 'inline-flex shrink-0 items-center justify-center rounded-md font-medium '
+    /* Pills, not rectangles. Every button in the reference design is fully
+       rounded, and it is the single most recognisable thing about that
+       style. rounded-full on a tall button is a capsule and on the square
+       icon button it is a circle, which is what we want in both places. */
+    $base = 'inline-flex shrink-0 items-center justify-center rounded-full font-medium '
         . 'transition-colors disabled:pointer-events-none disabled:opacity-50 '
         . '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4';
 

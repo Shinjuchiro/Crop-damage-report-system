@@ -100,3 +100,72 @@ git push origin old-look
 `old-look` is then a full working copy of the system as it was before the
 restyle, to check a screen against or to demo from. It does not move as `main`
 moves, so it stays a faithful snapshot.
+
+---
+
+# The AniAgapay pass (second batch)
+
+A later round took the look closer to the AniAgapay mockups. It has its own
+mark, so the two batches can be undone separately.
+
+## Mark the point before it
+
+Run this **before committing that batch**, so the tag names the last commit of
+the previous look:
+
+```powershell
+git tag before-aniagapay
+git push origin before-aniagapay
+```
+
+## What that batch changed
+
+| File | What it holds |
+| --- | --- |
+| `resources/css/app.css` | The light lime page ground (`--background: #f0f6ec`) in place of the blue-grey |
+| `resources/views/components/ui/card.blade.php` | Card headings in bold sentence case instead of small capitals, and the rule under the header removed |
+| `resources/views/components/ui/button.blade.php` | Every button is a pill (`rounded-full`) |
+| `resources/views/layouts/partials/mobile-nav.blade.php` | The farmer's first Reports tab renamed History, with the clock icon |
+
+## Put it back
+
+All of it:
+
+```powershell
+git checkout before-aniagapay -- resources/css/app.css resources/views/components/ui/card.blade.php resources/views/components/ui/button.blade.php resources/views/layouts/partials/mobile-nav.blade.php
+git commit -m "Revert the AniAgapay pass"
+git push
+```
+
+One piece at a time, which is usually what you want:
+
+```powershell
+# rectangular buttons again
+git checkout before-aniagapay -- resources/views/components/ui/button.blade.php
+
+# small-capital card headings with the rule under them
+git checkout before-aniagapay -- resources/views/components/ui/card.blade.php
+
+# blue-grey page ground again
+git checkout before-aniagapay -- resources/css/app.css
+```
+
+Careful with that last one: `app.css` also carries the corner radius, the
+shadows and the fixed text size from the first batch, so restoring the whole
+file takes those with it. To change only the ground, edit the single line
+`--background: #f0f6ec;` by hand instead.
+
+## Two tags, two batches
+
+| Tag | Everything after it |
+| --- | --- |
+| `pre-restyle` | Rounder cards, soft shadows, fixed text size, greeting banners, floating nav with the More sheet |
+| `before-aniagapay` | Lime ground, pill buttons, sentence-case card headings, the History tab rename |
+
+Neither tag moves as `main` moves, so both stay faithful snapshots. To see one
+in full rather than picking files out of it:
+
+```powershell
+git switch --detach before-aniagapay   # look around
+git switch main                        # come back
+```

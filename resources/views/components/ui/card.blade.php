@@ -46,19 +46,19 @@
 <div {{ $attributes->class('min-w-0 rounded-xl border border-border bg-card text-card-foreground shadow-sm') }}>
 
     @if ($title || $description || isset($actions))
-        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-5 sm:py-4">
+        {{-- No rule under the header any more: in the reference the title
+             just sits above its content with air between them, and a card
+             that is already separated by its own edge does not need a
+             second line inside it. --}}
+        <div class="flex flex-wrap items-start justify-between gap-3 px-4 pb-1 pt-4 sm:px-5 sm:pt-5">
             <div class="min-w-0">
-                {{--
-                    Card titles are set in capitals, the way the section
-                    headings on the detail pages already are, so the eye can
-                    find the start of a panel quickly on a long dashboard.
-                    uppercase is a CSS transform, so the title is still written
-                    and read by screen readers in ordinary sentence case.
-                    tracking-wide replaces tracking-tight because capitals need
-                    a little more room between letters to stay readable.
-                --}}
+                {{-- Sentence case and bold, as in the reference, rather than
+                     the small capitals this used to use. Capitals read as a
+                     form label; a bold sentence reads as a heading, and it is
+                     what sits above "Recent Reports" in the design we are
+                     following. --}}
                 @if ($title)
-                    <h3 class="text-base font-semibold uppercase leading-tight tracking-wide">{{ $title }}</h3>
+                    <h3 class="text-lg font-bold leading-tight tracking-tight">{{ $title }}</h3>
                 @endif
 
                 @if ($description)
