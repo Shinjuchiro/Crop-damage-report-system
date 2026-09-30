@@ -122,7 +122,7 @@ git push origin before-aniagapay
 
 | File | What it holds |
 | --- | --- |
-| `resources/css/app.css` | The light lime page ground (`--background: #f0f6ec`) in place of the blue-grey |
+| `resources/css/app.css` | The page ground. Lime (`#f0f6ec`) replaced the original blue-grey, and was itself replaced by a very light sky blue (`--background: #eef4fb`) |
 | `resources/views/components/ui/card.blade.php` | Card headings in bold sentence case instead of small capitals, and the rule under the header removed |
 | `resources/views/components/ui/button.blade.php` | Every button is a pill (`rounded-full`) |
 | `resources/views/layouts/partials/mobile-nav.blade.php` | The farmer's first Reports tab renamed History, with the clock icon |
@@ -153,7 +153,7 @@ git checkout before-aniagapay -- resources/css/app.css
 Careful with that last one: `app.css` also carries the corner radius, the
 shadows and the fixed text size from the first batch, so restoring the whole
 file takes those with it. To change only the ground, edit the single line
-`--background: #f0f6ec;` by hand instead.
+`--background: #eef4fb;` by hand instead.
 
 ## Two tags, two batches
 
