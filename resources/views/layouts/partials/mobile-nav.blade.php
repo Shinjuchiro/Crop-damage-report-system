@@ -1,7 +1,7 @@
 @php
     /*
      |--------------------------------------------------------------------
-     | Bottom navigation (phones only)
+     | Bottom navigation (phones and tablets)
      |--------------------------------------------------------------------
      | A floating bar rather than a band welded to the bottom edge: inset
      | from the sides, rounded, with a shadow under it, and the active tab
@@ -11,12 +11,20 @@
      |
      | FOUR TABS AND A MORE SHEET
      |
-     | "More" was removed in Sept 2026 because it duplicated the hamburger,
-     | and it is back by request in a different form: it no longer opens the
-     | sidebar drawer, it opens its own sheet of large tap targets, each an
-     | icon tile with a label, its Filipino line and a chevron. That is
-     | easier to hit with a thumb than a sidebar list, and it gives each
-     | role somewhere for the destinations that do not fit four tabs.
+     | The four tabs are each role's own most-used screens, so a farmer has
+     | Report one tap away and a technician has Validation. Everything else
+     | the role can reach lives in the More sheet, which is this bar's
+     | equivalent of the sidebar: the same destinations, as large tap
+     | targets instead of a dense list.
+     |
+     | The sheet's contents follow the AniAgapay screens role for role, with
+     | two deliberate departures, both because the page does not exist:
+     | the association has no Announcements screen of its own (the office
+     | sends them; the association reads them under Notifications), and no
+     | role has a screen behind a row that would only lead nowhere.
+     |
+     | Settings sits in its own group under a gap, away from the rest, so a
+     | thumb reaching for the last item in the list cannot land on it.
      |
      | Hidden on lg and up, where the sidebar takes over.
      */
@@ -42,11 +50,14 @@
         'cog'      => 'M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM4.3 15.5a1.7 1.7 0 00-.4 1.9l.1.1a2 2 0 102.8 2.8l.1-.1a1.7 1.7 0 011.9-.4 1.7 1.7 0 011 1.6V21a2 2 0 104 0v-.1a1.7 1.7 0 011-1.6 1.7 1.7 0 011.9.4l.1.1a2 2 0 102.8-2.8l-.1-.1a1.7 1.7 0 01-.4-1.9 1.7 1.7 0 011.6-1H21a2 2 0 100-4h-.1a1.7 1.7 0 01-1.6-1 1.7 1.7 0 01.4-1.9l.1-.1a2 2 0 10-2.8-2.8l-.1.1a1.7 1.7 0 01-1.9.4 1.7 1.7 0 01-1-1.6V3a2 2 0 10-4 0v.1a1.7 1.7 0 01-1 1.6 1.7 1.7 0 01-1.9-.4l-.1-.1a2 2 0 10-2.8 2.8l.1.1a1.7 1.7 0 01.4 1.9 1.7 1.7 0 01-1.6 1H3a2 2 0 100 4h.1a1.7 1.7 0 011.6 1z',
         'archive'  => 'M21 8v12a1 1 0 01-1 1H4a1 1 0 01-1-1V8M2 4h20v4H2zM10 12h4',
         'chart'    => 'M3 3v18h18M7 15l3-3 3 3 5-6',
+        'leaf'     => 'M4 20c0-9 5-14 16-15 0 11-5 16-14 16H4zM4 20c1-5 4-8 8-9.5',
+        'megaphone'=> 'M3 11a1 1 0 011-1h2.5L15 5.5v13L6.5 14H4a1 1 0 01-1-1v-2zM7.5 14.2V19a1 1 0 001 1h1.5a1 1 0 001-1v-3.3M18.5 9a3.5 3.5 0 010 6',
     ];
 
     /*
-     | Per role: four tabs, then the rows the More sheet holds. Plain data,
-     | so a route rename is one line rather than a hunt through markup.
+     | Per role: four tabs, the rows the More sheet holds, and Settings on
+     | its own. Plain data, so a route rename is one line rather than a hunt
+     | through markup.
      */
     $sets = [
         'farmer' => [
@@ -62,13 +73,15 @@
                 ['label' => 'Report',   'route' => 'farmer.reports.create', 'pattern' => 'farmer.reports.create', 'icon' => $ico['report']],
             ],
             'more' => [
-                ['label' => 'My Profile',             'fil' => 'Aking Profile', 'route' => 'farmer.profile',             'icon' => $ico['user']],
-                ['label' => 'My Crop Planting',       'fil' => 'Pagtatanim',    'route' => 'farmer.planting.index',      'icon' => $ico['planting']],
-                ['label' => 'My Reports',             'fil' => 'Mga Ulat',      'route' => 'farmer.reports.index',       'icon' => $ico['reports']],
-                ['label' => 'Assistance',             'fil' => 'Tulong',        'route' => 'farmer.assistance.index',    'icon' => $ico['assist']],
-                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',     'route' => 'farmer.notifications.index', 'icon' => $ico['bell']],
-                ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong', 'route' => 'help',                 'icon' => $ico['help']],
-                ['label' => 'Settings',               'fil' => 'Mga Setting',   'route' => 'farmer.settings',            'icon' => $ico['cog']],
+                ['label' => 'My Profile',             'fil' => 'Aking Profile',       'route' => 'farmer.profile',             'icon' => $ico['user']],
+                ['label' => 'My Crop Planting',       'fil' => 'Aking Pagtatanim',    'route' => 'farmer.planting.index',      'icon' => $ico['planting']],
+                ['label' => 'My Reports',             'fil' => 'Aking Mga Ulat',      'route' => 'farmer.reports.index',       'icon' => $ico['reports']],
+                ['label' => 'Assistance',             'fil' => 'Tulong',              'route' => 'farmer.assistance.index',    'icon' => $ico['assist']],
+                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',           'route' => 'farmer.notifications.index', 'icon' => $ico['bell']],
+                ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong', 'route' => 'help',                       'icon' => $ico['help']],
+            ],
+            'settings' => [
+                ['label' => 'Settings', 'fil' => 'Mga Setting', 'route' => 'farmer.settings.index', 'icon' => $ico['cog']],
             ],
         ],
 
@@ -80,12 +93,20 @@
                 ['label' => 'History',     'route' => 'technician.history.index',    'pattern' => 'technician.history.*',    'icon' => $ico['clock']],
             ],
             'more' => [
-                ['label' => 'My Profile',             'fil' => 'Aking Profile', 'route' => 'technician.profile',             'icon' => $ico['user']],
-                ['label' => 'Maps and Visualization', 'fil' => 'Mapa',          'route' => 'technician.map.index',           'icon' => $ico['map']],
-                ['label' => 'Summaries',              'fil' => 'Buod',          'route' => 'technician.summaries.index',     'icon' => $ico['chart']],
-                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',     'route' => 'technician.notifications.index', 'icon' => $ico['bell']],
-                ['label' => 'Need Help',              'fil' => 'Tulong',        'route' => 'help',                            'icon' => $ico['help']],
-                ['label' => 'Settings',               'fil' => 'Mga Setting',   'route' => 'technician.settings',            'icon' => $ico['cog']],
+                ['label' => 'Assigned Reports',       'fil' => 'Mga Nakatalagang Ulat', 'route' => 'technician.reports.index',       'icon' => $ico['reports']],
+                ['label' => 'Planting Reports',       'fil' => 'Ulat ng Pagtatanim',    'route' => 'technician.planting.index',      'icon' => $ico['planting']],
+                ['label' => 'Validation',             'fil' => 'Pagsusuri',             'route' => 'technician.validation.index',    'icon' => $ico['check']],
+                ['label' => 'Maps & Visualization',   'fil' => 'Mapa',                  'route' => 'technician.map.index',           'icon' => $ico['map']],
+                ['label' => 'Inspection History',     'fil' => 'Kasaysayan ng Inspeksyon', 'route' => 'technician.history.index',    'icon' => $ico['clock']],
+                /* Not on the reference sheet, kept because the sheet is the
+                   only navigation below 1024px now and the page would
+                   otherwise have no door on a phone at all. */
+                ['label' => 'Summaries',              'fil' => 'Buod',                  'route' => 'technician.summaries.index',     'icon' => $ico['chart']],
+                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',             'route' => 'technician.notifications.index', 'icon' => $ico['bell']],
+                ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong',   'route' => 'help',                           'icon' => $ico['help']],
+            ],
+            'settings' => [
+                ['label' => 'Settings', 'fil' => 'Mga Setting', 'route' => 'technician.settings.index', 'icon' => $ico['cog']],
             ],
         ],
 
@@ -97,13 +118,17 @@
                 ['label' => 'Assistance', 'route' => 'association.assistance.index', 'pattern' => 'association.assistance.*', 'icon' => $ico['assist']],
             ],
             'more' => [
-                ['label' => 'My Profile',             'fil' => 'Aking Profile', 'route' => 'association.profile',             'icon' => $ico['user']],
-                ['label' => 'Planting Activities',    'fil' => 'Pagtatanim',    'route' => 'association.planting.index',      'icon' => $ico['planting']],
-                ['label' => 'Maps and Visualization', 'fil' => 'Mapa',          'route' => 'association.map.index',           'icon' => $ico['map']],
-                ['label' => 'Summaries',              'fil' => 'Buod',          'route' => 'association.summaries.index',     'icon' => $ico['chart']],
-                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',     'route' => 'association.notifications.index', 'icon' => $ico['bell']],
-                ['label' => 'Need Help',              'fil' => 'Tulong',        'route' => 'help',                            'icon' => $ico['help']],
-                ['label' => 'Settings',               'fil' => 'Mga Setting',   'route' => 'association.settings',            'icon' => $ico['cog']],
+                ['label' => 'Members',                'fil' => 'Mga Kasapi',          'route' => 'association.members.index',       'icon' => $ico['people']],
+                ['label' => 'Planting Activities',    'fil' => 'Mga Pagtatanim',      'route' => 'association.planting.index',      'icon' => $ico['planting']],
+                ['label' => 'Damage Reports',         'fil' => 'Ulat ng Pinsala',     'route' => 'association.reports.index',       'icon' => $ico['damage']],
+                ['label' => 'Assistance',             'fil' => 'Tulong',              'route' => 'association.assistance.index',    'icon' => $ico['assist']],
+                ['label' => 'Maps & Visualization',   'fil' => 'Mapa',                'route' => 'association.map.index',           'icon' => $ico['map']],
+                ['label' => 'Summaries',              'fil' => 'Buod',                'route' => 'association.summaries.index',     'icon' => $ico['chart']],
+                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',           'route' => 'association.notifications.index', 'icon' => $ico['bell']],
+                ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong', 'route' => 'help',                            'icon' => $ico['help']],
+            ],
+            'settings' => [
+                ['label' => 'Settings', 'fil' => 'Mga Setting', 'route' => 'association.settings.index', 'icon' => $ico['cog']],
             ],
         ],
 
@@ -115,17 +140,30 @@
                 ['label' => 'Map',     'route' => 'mao.map.index',            'pattern' => 'mao.map.*',            'icon' => $ico['map']],
             ],
             'more' => [
-                ['label' => 'My Profile',              'fil' => 'Aking Profile', 'route' => 'mao.profile',                       'icon' => $ico['user']],
-                ['label' => 'Users Management',        'fil' => 'Mga Gumagamit', 'route' => 'mao.users.index',                   'icon' => $ico['people']],
-                ['label' => 'Membership Applications', 'fil' => 'Aplikasyon',    'route' => 'mao.membership-applications.index', 'icon' => $ico['user']],
-                ['label' => 'Crop Planting',           'fil' => 'Pagtatanim',    'route' => 'mao.crop-planting.index',           'icon' => $ico['planting']],
-                ['label' => 'Validation',              'fil' => 'Pagsusuri',     'route' => 'mao.validations.index',             'icon' => $ico['check']],
-                ['label' => 'Assistance Allocation',   'fil' => 'Tulong',        'route' => 'mao.assistance-allocations.index',  'icon' => $ico['assist']],
-                ['label' => 'Monthly Reports',         'fil' => 'Buwanang Ulat', 'route' => 'mao.reports.index',                 'icon' => $ico['chart']],
-                ['label' => 'Notifications & Alerts',  'fil' => 'Mga Abiso',     'route' => 'mao.notifications.inbox',           'icon' => $ico['bell']],
-                ['label' => 'Archive',                 'fil' => 'Archive',       'route' => 'mao.archive.index',                 'icon' => $ico['archive']],
-                ['label' => 'Need Help',               'fil' => 'Tulong',        'route' => 'help',                              'icon' => $ico['help']],
-                ['label' => 'Settings',                'fil' => 'Mga Setting',   'route' => 'mao.settings',                      'icon' => $ico['cog']],
+                ['label' => 'User Management',         'fil' => 'Mga Gumagamit',      'route' => 'mao.users.index',                   'icon' => $ico['people']],
+                ['label' => 'Membership Applications', 'fil' => 'Mga Aplikasyon',     'route' => 'mao.membership-applications.index', 'icon' => $ico['reports']],
+                ["label" => "Farmers' Associations",   'fil' => 'Mga Samahan',        'route' => 'mao.associations.index',            'icon' => $ico['leaf']],
+                ['label' => 'Crop Planting Monitoring','fil' => 'Pagsubaybay sa Pagtatanim', 'route' => 'mao.crop-planting.index',    'icon' => $ico['planting']],
+                ['label' => 'Crop Damage Monitoring',  'fil' => 'Pagsubaybay sa Pinsala',    'route' => 'mao.damage-reports.index',   'icon' => $ico['damage']],
+                ['label' => 'Validation',              'fil' => 'Pagsusuri',          'route' => 'mao.validations.index',             'icon' => $ico['check']],
+                ['label' => 'Assistance Allocation',   'fil' => 'Paglalaan ng Tulong','route' => 'mao.assistance-allocations.index',  'icon' => $ico['assist']],
+                /* Also not on the reference sheet. Unlike Allocation History,
+                   which the allocations page links to, nothing else in the
+                   system links here, so without this row the page has no
+                   door at all below 1024px. */
+                ['label' => 'Distribution Tracking',   'fil' => 'Pagsubaybay sa Pamamahagi', 'route' => 'mao.assistance-allocations.distribution-tracking', 'icon' => $ico['check']],
+                ['label' => 'Maps & Visualization',    'fil' => 'Mapa',               'route' => 'mao.map.index',                     'icon' => $ico['map']],
+                /* "Announcements", not "Notifications": this is where the
+                   office WRITES and reviews what it has sent. What the
+                   office has been sent is the bell in the top bar, a
+                   different page (see the note in layouts/app.blade.php). */
+                ['label' => 'Announcements',           'fil' => 'Mga Anunsyo',        'route' => 'mao.notifications.index',           'icon' => $ico['megaphone']],
+                ['label' => 'Reports',                 'fil' => 'Mga Ulat',           'route' => 'mao.reports.index',                 'icon' => $ico['chart']],
+                ['label' => 'Archive',                 'fil' => 'Archive',            'route' => 'mao.archive.index',                 'icon' => $ico['archive']],
+                ['label' => 'Need Help',               'fil' => 'Kailangan ng Tulong','route' => 'help',                              'icon' => $ico['help']],
+            ],
+            'settings' => [
+                ['label' => 'Settings', 'fil' => 'Mga Setting', 'route' => 'mao.settings', 'icon' => $ico['cog']],
             ],
         ],
     ];
@@ -134,16 +172,25 @@
     // the things every role has.
     $set = $sets[$role] ?? [
         'tabs' => [['label' => 'Home', 'route' => $role . '.dashboard', 'pattern' => $role . '.dashboard', 'icon' => $ico['home']]],
-        'more' => [['label' => 'Need Help', 'fil' => 'Tulong', 'route' => 'help', 'icon' => $ico['help']]],
+        'more' => [['label' => 'Need Help', 'fil' => 'Kailangan ng Tulong', 'route' => 'help', 'icon' => $ico['help']]],
+        'settings' => [],
     ];
 
     /* Drop any row whose route does not exist rather than letting one
        missing module take the whole bar down with a RouteNotFoundException.
-       Cheap insurance: this partial renders on every page a phone loads. */
-    $more = array_values(array_filter(
-        $set['more'] ?? [],
+       Cheap insurance: this partial renders on every page a phone loads.
+
+       It is insurance, not a strategy: a row silently vanishing is exactly
+       how Settings went missing from three of the four roles for a while,
+       under a route name that had never existed. Every name above is
+       checked against routes/web.php. */
+    $keep = fn ($rows) => array_values(array_filter(
+        $rows ?? [],
         fn ($item) => \Illuminate\Support\Facades\Route::has($item['route'])
     ));
+
+    $more     = $keep($set['more'] ?? []);
+    $settings = $keep($set['settings'] ?? []);
 @endphp
 
 <div x-data="{ sheet: false }" class="lg:hidden">
@@ -179,16 +226,18 @@
             @endforeach
 
             {{-- More. A button, not a link: it opens the sheet below. --}}
-            @if (count($more))
+            @if (count($more) || count($settings))
                 <button type="button" @click="sheet = true"
                         class="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-1.5 text-center"
                         aria-haspopup="dialog" :aria-expanded="sheet">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                          :class="sheet ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'">
                         <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>
                         </svg>
                     </span>
-                    <span class="text-[11px] font-medium leading-none text-muted-foreground">More</span>
+                    <span class="text-[11px] leading-none"
+                          :class="sheet ? 'font-semibold text-primary' : 'font-medium text-muted-foreground'">More</span>
                 </button>
             @endif
         </div>
@@ -230,34 +279,75 @@
                 </button>
             </div>
 
-            <ul class="space-y-2">
-                @foreach ($more as $item)
-                    <li>
-                        <a href="{{ route($item['route']) }}"
-                           class="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition active:bg-muted">
+            {{-- One grouped card with hairlines between the rows, rather than
+                 a stack of separate cards: the list reads as one thing, and
+                 eleven separate cards on the office's sheet was a lot of
+                 border for a phone screen. --}}
+            @if (count($more))
+                <ul class="divide-y divide-border overflow-hidden rounded-2xl border border-border">
+                    @foreach ($more as $item)
+                        <li>
+                            <a href="{{ route($item['route']) }}"
+                               class="flex items-center gap-3 bg-card p-3 transition active:bg-muted">
 
-                            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-primary"
-                                  aria-hidden="true">
-                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
-                                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                                    <path d="{{ $item['icon'] }}"/>
+                                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-primary"
+                                      aria-hidden="true">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
+                                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                        <path d="{{ $item['icon'] }}"/>
+                                    </svg>
+                                </span>
+
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-base font-semibold text-foreground">{{ $item['label'] }}</span>
+                                    <span class="block truncate text-xs text-muted-foreground">{{ $item['fil'] }}</span>
+                                </span>
+
+                                <svg class="h-5 w-5 shrink-0 text-muted-foreground" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                     viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M9 6l6 6-6 6"/>
                                 </svg>
-                            </span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
 
-                            <span class="min-w-0 flex-1">
-                                <span class="block truncate text-base font-semibold text-foreground">{{ $item['label'] }}</span>
-                                <span class="block truncate text-xs text-muted-foreground">{{ $item['fil'] }}</span>
-                            </span>
+            {{-- Settings, set apart. It is the one row here that changes the
+                 account rather than going somewhere, so it does not sit at
+                 the end of the list where a thumb scrolling to the bottom
+                 lands on it. --}}
+            @if (count($settings))
+                <ul class="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border">
+                    @foreach ($settings as $item)
+                        <li>
+                            <a href="{{ route($item['route']) }}"
+                               class="flex items-center gap-3 bg-card p-3 transition active:bg-muted">
 
-                            <svg class="h-5 w-5 shrink-0 text-muted-foreground" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                 viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M9 6l6 6-6 6"/>
-                            </svg>
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
+                                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-primary"
+                                      aria-hidden="true">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
+                                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                        <path d="{{ $item['icon'] }}"/>
+                                    </svg>
+                                </span>
+
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-base font-semibold text-foreground">{{ $item['label'] }}</span>
+                                    <span class="block truncate text-xs text-muted-foreground">{{ $item['fil'] }}</span>
+                                </span>
+
+                                <svg class="h-5 w-5 shrink-0 text-muted-foreground" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                     viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M9 6l6 6-6 6"/>
+                                </svg>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
     </div>
 </div>
