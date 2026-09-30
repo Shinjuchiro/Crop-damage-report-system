@@ -11,17 +11,24 @@
     @stack('head')
 </head>
 <body class="min-h-screen bg-background font-sans text-foreground antialiased">
-<div x-data="{ sidebarOpen: false }" class="min-h-screen lg:flex">
+<div class="min-h-screen lg:flex">
 
     {{-- =====================================================================
          SIDEBAR
-         Off canvas on phones and tablets, fixed from lg up. On a phone the
-         bottom bar is the main navigation and this is the "More" drawer.
+         Desktop only. Below 1024px the bottom bar and its More sheet are the
+         navigation, and nothing opens this.
+
+         It is hidden with a plain class rather than by an Alpine binding,
+         and that is the whole point. It used to be an off canvas drawer
+         held off screen by :class="sidebarOpen ? ... : '-translate-x-full'".
+         Alpine is a deferred module, so on every page load the browser
+         painted this aside before Alpine had run, with no transform on it
+         yet: the sidebar flashed across the screen for an instant on every
+         phone navigation. A class that is in the HTML from the first paint
+         cannot do that.
     ====================================================================== --}}
-    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-           class="fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 transform flex-col border-r
-                  border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform duration-200
-                  lg:sticky lg:top-0 lg:h-screen lg:translate-x-0">
+    <aside class="hidden w-72 shrink-0 flex-col border-r border-sidebar-border
+                  bg-sidebar text-sidebar-foreground lg:sticky lg:top-0 lg:flex lg:h-screen">
 
         {{-- Logo. Tighter than before: the old block wasted most of a phone
              screen height before the first menu item appeared. --}}
@@ -33,13 +40,6 @@
                 Farmers Information and<br class="hidden lg:inline">
                 Technology Services Center
             </p>
-
-            {{-- Close button, phones only --}}
-            <button @click="sidebarOpen = false" aria-label="Close menu"
-                    class="ml-auto rounded-md p-1.5 text-sidebar-foreground/80 hover:bg-sidebar-accent lg:hidden">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
-            </button>
         </div>
 
         <div class="mx-4 border-t border-sidebar-border lg:mx-5"></div>
@@ -52,11 +52,6 @@
         </nav>
 
     </aside>
-
-    {{-- Backdrop for the drawer --}}
-    <div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false"
-         x-transition.opacity.duration.150ms
-         class="fixed inset-0 z-30 bg-slate-900/50 lg:hidden"></div>
 
     <div class="flex min-w-0 flex-1 flex-col">
 
