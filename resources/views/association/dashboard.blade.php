@@ -11,6 +11,10 @@
                    :subtitle="$association->name"
                    :href="route('association.profile')" />
 
+    {{-- Today's weather over Tanza. Renders nothing at all if the
+         forecast cannot be fetched. --}}
+    <x-ui.weather />
+
 {{--
     Association dashboard, proposal section 60.
 

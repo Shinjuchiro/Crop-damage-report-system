@@ -36,6 +36,10 @@
                    role="Municipal Agriculture Office"
                    :href="route('mao.profile')" />
 
+    {{-- Today's weather over Tanza. Renders nothing at all if the
+         forecast cannot be fetched. --}}
+    <x-ui.weather />
+
     {{-- ===================== ASSISTANCE DISPUTES ===================== --}}
     @if ($disputeCount > 0)
         <x-ui.alert variant="warning" title="Assistance disputes need follow-up" class="mb-5">

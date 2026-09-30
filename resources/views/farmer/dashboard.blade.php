@@ -35,6 +35,10 @@
                    role="Farmer"
                    :href="route('farmer.profile')" />
 
+    {{-- Today's weather over Tanza. Renders nothing at all if the
+         forecast cannot be fetched. --}}
+    <x-ui.weather />
+
     {{-- The figures. Every one is counted from the database on page load.
 
          Two across on a phone, not one. With the compact stat card these

@@ -79,6 +79,10 @@
                    role="Technician"
                    :href="route('technician.profile')" />
 
+    {{-- Today's weather over Tanza. Renders nothing at all if the
+         forecast cannot be fetched. --}}
+    <x-ui.weather />
+
 {{--
     Technician dashboard, laid out to match the approved mockup.
 
