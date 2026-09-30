@@ -77,8 +77,9 @@
             {{ strtoupper(substr($user->display_name ?: $user->username, 0, 2)) }}
         </span>
 
-        {{-- The name is hidden on a phone, where the avatar alone is enough --}}
-        <span class="hidden min-w-0 text-left leading-tight sm:block">
+        {{-- The name is hidden on phones and tablets, where the avatar alone is
+             enough and the bar is already carrying the office mark --}}
+        <span class="hidden min-w-0 text-left leading-tight lg:block">
             <span class="block truncate text-sm font-semibold">{{ $user->display_name }}</span>
             <span class="block truncate text-xs font-medium text-primary">
                 {{ $roleLabels[$user->role] ?? 'User' }}

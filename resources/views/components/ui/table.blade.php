@@ -15,15 +15,15 @@
     without a pile of classes on every cell. The table scrolls sideways
     inside its own container rather than pushing the page wide on a phone.
 
-    The 42rem minimum starts at sm, not at 0. A wide list table is hidden
-    below sm anyway (the pages show cards instead), so the minimum only
-    ever caught the small tables that ARE shown on a phone: three columns
-    of a planting record, or a monthly report's summary blocks. Those were
-    held at 672px inside a 364px card and had to be dragged sideways to
-    read. Without the minimum they simply fit.
+    The 42rem minimum starts at lg, not at 0. A wide list table is hidden
+    below lg anyway (the pages show cards instead), so the minimum only
+    ever caught the small tables that ARE shown on a phone or tablet: three
+    columns of a planting record, or a monthly report's summary blocks.
+    Those were held at 672px inside a 364px card and had to be dragged
+    sideways to read. Without the minimum they simply fit.
 --}}
 <div {{ $attributes->class('w-full overflow-x-auto') }}>
-    <table class="w-full border-collapse sm:min-w-[42rem] text-left text-sm
+    <table class="w-full border-collapse lg:min-w-[42rem] text-left text-sm
                   [&_tbody_tr]:border-t [&_tbody_tr]:border-border
                   [&_tbody_tr:hover]:bg-muted/60
                   [&_td]:px-3 [&_td]:py-3 sm:[&_td]:px-4 [&_td]:align-middle [&_td]:text-foreground

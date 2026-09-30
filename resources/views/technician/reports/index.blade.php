@@ -45,7 +45,7 @@
             {{-- ---------- PHONE: one card per report ----------
                  Shared with the dashboard queue: see
                  technician/partials/report-card.blade.php. --}}
-            <ul class="space-y-3 p-4 sm:hidden">
+            <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                 @foreach ($reports as $report)
                     <li>@include('technician.partials.report-card', [
                             'report'            => $report,
@@ -55,7 +55,7 @@
             </ul>
 
             {{-- ---------- TABLET AND UP: the table ---------- --}}
-            <div class="hidden sm:block">
+            <div class="hidden lg:block">
                 <x-ui.table>
                     <x-slot:head>
                         <tr>

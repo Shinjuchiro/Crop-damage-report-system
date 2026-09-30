@@ -110,8 +110,8 @@
            class="ml-auto flex h-11 shrink-0 items-center gap-1.5 self-center rounded-lg px-3
                   text-sm font-semibold transition active:opacity-90
                   {{ $rowStarted ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground' }}">
-            <span class="sm:hidden">{{ $rowStarted ? 'Continue' : 'View' }}</span>
-            <span class="hidden sm:inline">
+            <span class="lg:hidden">{{ $rowStarted ? 'Continue' : 'View' }}</span>
+            <span class="hidden lg:inline">
                 {{ $rowStarted ? 'Continue Inspection' : 'View Details' }}
             </span>
             <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"

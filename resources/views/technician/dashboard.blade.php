@@ -213,14 +213,14 @@
                  shared with technician/reports/index.blade.php so the two
                  lists cannot drift apart again.
             --}}
-            <ul class="space-y-3 p-4 sm:hidden">
+            <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                 @foreach ($reports as $report)
                     <li>@include('technician.partials.report-card', ['report' => $report])</li>
                 @endforeach
             </ul>
 
             {{-- ---------- TABLET AND UP: the table ---------- --}}
-            <div class="hidden sm:block">
+            <div class="hidden lg:block">
             <x-ui.table>
                 <x-slot:head>
                     <tr>
@@ -334,7 +334,7 @@
                     </tr>
                 @endforeach
             </x-ui.table>
-            </div>{{-- /hidden sm:block --}}
+            </div>{{-- /hidden lg:block --}}
 
             <x-slot:footer>
                 <div class="flex justify-end">

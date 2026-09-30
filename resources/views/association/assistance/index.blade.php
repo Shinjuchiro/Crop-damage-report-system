@@ -47,7 +47,7 @@
         @else
 
             {{-- ---------- PHONE ---------- --}}
-            <ul class="space-y-3 p-4 sm:hidden">
+            <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                 @foreach ($allocations as $allocation)
                     @php
                         $given  = (float) ($allocation->distributed_so_far ?? 0);
@@ -106,7 +106,7 @@
             </ul>
 
             {{-- ---------- TABLET AND UP ---------- --}}
-            <div class="hidden sm:block">
+            <div class="hidden lg:block">
                 <x-ui.table>
                     <x-slot:head>
                         <tr>

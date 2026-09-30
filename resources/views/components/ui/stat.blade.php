@@ -14,14 +14,19 @@
 
     TWO SIZES, ONE CARD (Sept 2026)
 
-    Below 640px the card is the compact one: a 36px round icon with the
+Below 1024px the card is the compact one: a 36px round icon with the
     figure beside it on the top line, and the label and hint underneath.
     Four of these fit two across on a phone, so a farmer sees all four
     figures at once instead of scrolling past four full-width tiles.
 
-    From 640px up the card is the original: a 44px rounded square on the
+    From 1024px up the card is the original: a 44px rounded square on the
     left, label, number and hint stacked in a column beside it. A laptop has
     the room for it, and the office reads these all day.
+
+    1024px, not 640px: that is where the sidebar appears and the system
+    becomes a desktop layout. Splitting at 640px gave a tablet the desktop
+    card while it still had the phone's bottom bar and no sidebar, so it
+    looked like neither. One dividing line now, at the sidebar.
 
     The two layouts are written out separately and one of them is hidden,
     rather than being one layout that changes shape. They do not just differ
@@ -120,9 +125,9 @@
 <{{ $tag }} @if ($href) href="{{ $href }}" @endif {{ $attributes->class($classes) }}>
 
     {{-- ---------------------------------------------------------------
-         PHONE (under 640px): compact
+         PHONE AND TABLET (under 1024px): compact
     ---------------------------------------------------------------- --}}
-    <div class="sm:hidden">
+    <div class="lg:hidden">
 
         {{-- The icon and the figure share the top line, and the words sit
              under both.
@@ -165,9 +170,9 @@
     </div>
 
     {{-- ---------------------------------------------------------------
-         TABLET AND UP (640px and over): the original card
+         LAPTOP AND UP (1024px and over): the original card
     ---------------------------------------------------------------- --}}
-    <div class="hidden sm:flex sm:items-start sm:gap-3">
+    <div class="hidden lg:flex lg:items-start lg:gap-3">
 
         @if ($icon)
             <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl

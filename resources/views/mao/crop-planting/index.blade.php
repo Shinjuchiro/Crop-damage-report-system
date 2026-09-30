@@ -62,7 +62,7 @@
                 {{-- Table --}}
                 {{-- ---------- PHONE: one card per planting ----------
                      Archive stays on the table and the detail panel. --}}
-                <ul class="space-y-3 sm:hidden">
+                <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($plantings as $planting)
                         @php $cardFarmer = $planting->plantingRecord?->farmer; @endphp
                         <li>
@@ -84,7 +84,7 @@
                     @endforelse
                 </ul>
 
-                <div class="hidden overflow-x-auto sm:block">
+                <div class="hidden overflow-x-auto lg:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

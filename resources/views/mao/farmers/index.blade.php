@@ -82,7 +82,7 @@
                 {{-- ---------- PHONE: one card per farmer ----------
                      Only 3 of 7 columns fit on a phone; Farm Size, Location,
                      Status and the View button were all off-screen. --}}
-                <ul class="space-y-3 sm:hidden">
+                <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($farmers as $farmer)
                         <li>
                             <x-ui.record-card :href="$viewUrl($farmer->id)"
@@ -103,7 +103,7 @@
                     @endforelse
                 </ul>
 
-                <div class="hidden overflow-x-auto sm:block">
+                <div class="hidden overflow-x-auto lg:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

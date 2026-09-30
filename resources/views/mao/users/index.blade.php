@@ -82,7 +82,7 @@
                      Archive and Restore stay on the table: they are
                      deliberate actions and do not belong on a card whose
                      whole surface is a link to the edit form. --}}
-                <ul class="space-y-3 p-4 sm:hidden">
+                <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($users as $user)
                         @php $cardProtected = $user->role === 'mao' && $user->id !== auth()->id(); @endphp
                         <li>
@@ -120,7 +120,7 @@
                     @endforelse
                 </ul>
 
-                <div class="hidden overflow-x-auto sm:block">
+                <div class="hidden overflow-x-auto lg:block">
         <table class="w-full text-left">
             <thead>
                 <tr class="border-b-2 border-border text-base font-bold text-foreground">

@@ -76,7 +76,7 @@
                      means 460px of it sits off-screen inside its own scroller,
                      Action column included. Cards instead, from the shared
                      x-ui.record-card. --}}
-                <ul class="space-y-3 sm:hidden">
+                <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($reports as $report)
                         <li>
                             <x-ui.record-card :href="$viewUrl($report->id)"
@@ -105,7 +105,7 @@
                 </ul>
 
                 {{-- ---------- TABLET AND UP: the table ---------- --}}
-                <div class="hidden overflow-x-auto sm:block">
+                <div class="hidden overflow-x-auto lg:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">

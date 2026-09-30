@@ -160,8 +160,10 @@
         <main class="flex-1 px-3 pb-28 pt-4 sm:px-5 lg:px-8 lg:pt-6 lg:pb-6">
             <div class="w-full">
 
-                {{-- Heading. Hidden on phones because the title is already in
-                     the top bar, which is one less block of wasted height.
+                {{-- Heading. Hidden on phones and tablets: below 1024px the
+                     bar carries the office mark and the screen is running the
+                     compact layout, where a heading block is wasted height.
+                     It appears with the sidebar, at 1024px.
 
                      A page can opt out of this whole block with
                      @section('hideHeading', true) when it carries its own
@@ -171,7 +173,7 @@
                      Opt-in only: every page that doesn't set this keeps
                      working exactly as before. --}}
                 @unless (View::hasSection('hideHeading'))
-                    <div class="mb-4 hidden flex-col gap-3 sm:flex sm:flex-row sm:items-start sm:justify-between">
+                    <div class="mb-4 hidden flex-col gap-3 lg:flex lg:flex-row lg:items-start lg:justify-between">
                         <div class="min-w-0">
                             <h1 class="truncate text-xl font-bold tracking-tight lg:text-2xl">
                                 @yield('heading', 'Welcome back, ' . auth()->user()->display_name . '!')
@@ -188,12 +190,12 @@
                     </div>
                 @endunless
 
-                {{-- On phones the page actions still need somewhere to live -
-                     right-aligned to match where they sit on the desktop
-                     heading row above (justify-between puts them on the
-                     right there too). --}}
+                {{-- Below 1024px the page actions still need somewhere to
+                     live - right-aligned to match where they sit on the
+                     desktop heading row above (justify-between puts them on
+                     the right there too). --}}
                 @hasSection('header-actions')
-                    <div class="mb-4 flex justify-end sm:hidden">@yield('header-actions')</div>
+                    <div class="mb-4 flex justify-end lg:hidden">@yield('header-actions')</div>
                 @endif
 
                 @if (session('status'))

@@ -44,7 +44,7 @@
         @else
 
             {{-- ---------- PHONE ---------- --}}
-            <ul class="space-y-3 p-4 sm:hidden">
+            <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                 @foreach ($records as $record)
                     <li class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
                         <div class="flex items-start justify-between gap-3">
@@ -74,7 +74,7 @@
             </ul>
 
             {{-- ---------- TABLET AND UP ---------- --}}
-            <div class="hidden sm:block">
+            <div class="hidden lg:block">
                 <x-ui.table>
                     <x-slot:head>
                         <tr>

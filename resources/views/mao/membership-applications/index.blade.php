@@ -55,7 +55,7 @@
                      Archive stays on the table and in the detail panel: it is
                      a deliberate action and does not belong on a card whose
                      whole surface is a link. --}}
-                <ul class="space-y-3 p-4 sm:hidden">
+                <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($applications as $application)
                         @php
                             $cardStatus = $application->user?->status ?? 'pending';
@@ -79,7 +79,7 @@
                     @endforelse
                 </ul>
 
-                <div class="hidden overflow-x-auto sm:block">
+                <div class="hidden overflow-x-auto lg:block">
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">
