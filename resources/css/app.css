@@ -58,8 +58,16 @@
        while our text on it is light, which is unreadable in dark mode. */
     color-scheme: light;
 
-    /* Page and surfaces */
-    --background:            #dce6ea;   /* the light blue-gray page ground */
+    /* Page and surfaces
+
+       The ground is a warm off-white with a trace of green in it, not the
+       blue-grey it used to be. It comes from the reference design: a cream
+       ground makes a white card lift off the page on its own, so the cards
+       can lose most of their border and nearly all of their shadow and still
+       read as separate things. Blue-grey pulled the other way, cool against
+       a green system, and needed a harder edge on every card to separate
+       them. */
+    --background:            #f3f5ee;   /* warm off-white page ground */
     --foreground:            #0f172a;
     --card:                  #ffffff;
     --card-foreground:       #0f172a;
@@ -69,19 +77,19 @@
     /* Actions */
     --primary:               #166534;   /* solid buttons and links */
     --primary-foreground:    #ffffff;
-    --secondary:             #f1f5f9;
+    --secondary:             #f2f4ec;
     --secondary-foreground:  #0f172a;
     --destructive:           #b91c1c;
     --destructive-foreground:#ffffff;
 
     /* Quiet things */
-    --muted:                 #f1f5f9;
+    --muted:                 #f2f4ec;
     --muted-foreground:      #64748b;   /* helper text, table headings */
     --accent:                #e7f4ea;   /* pale green highlight */
     --accent-foreground:     #0d3d1b;
 
     /* Lines and focus */
-    --border:                #e2e8f0;
+    --border:                #e8eae0;
     --input:                 #cbd5e1;   /* field outlines, darker than border */
     --ring:                  #2f9e41;   /* the focus ring, always visible */
 
@@ -100,8 +108,14 @@
     --chart-4: #e11d48;
     --chart-5: #6b21a8;
 
-    /* One radius drives the whole system */
-    --radius: 0.625rem;
+    /* One radius drives the whole system.
+
+       0.625rem (10px) was a municipal-software radius. The reference rounds
+       everything much harder, which is most of what makes it read as a phone
+       app rather than a web form, so this is 1rem: cards land at 20px
+       (rounded-xl), buttons and inputs at 16px (rounded-lg). Nothing in the
+       markup changes; every rounded-* utility is derived from this one line. */
+    --radius: 1rem;
 }
 
 /* Hand the variables to Tailwind so bg-card, text-muted-foreground,
@@ -157,6 +171,21 @@
     --color-chart-3: var(--chart-3);
     --color-chart-4: var(--chart-4);
     --color-chart-5: var(--chart-5);
+
+    /*
+        Shadows, softened and warmed.
+
+        Tailwind's defaults are a tight grey drop shadow, which against the
+        new cream ground looked like a hairline rather than lift. These are
+        wider, much fainter, and tinted with the system's green rather than
+        neutral grey, which is what gives the reference its floating cards.
+        Redefining them here reaches every shadow-sm and shadow-md already
+        written across the app - nothing per page to change.
+    */
+    --shadow-xs:  0 1px 2px 0 rgb(24 40 24 / 0.04);
+    --shadow-sm:  0 2px 10px -4px rgb(24 40 24 / 0.10), 0 1px 2px 0 rgb(24 40 24 / 0.04);
+    --shadow-md:  0 8px 24px -12px rgb(24 40 24 / 0.16);
+    --shadow-lg:  0 16px 40px -20px rgb(24 40 24 / 0.22);
 
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
