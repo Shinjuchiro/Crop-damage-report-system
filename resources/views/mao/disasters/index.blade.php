@@ -49,9 +49,14 @@
                 </form>
 
                 {{-- Table --}}
-                <div class="overflow-hidden rounded-xl border border-border">
+                {{-- The box around the list is drawn from lg up only, where the
+                     contents are a table and the border is what frames it.
+                     Below lg the contents are record cards, each already a
+                     card, sitting inside this page's card, inside the page
+                     frame: a fourth box around them was one box too many. --}}
+                <div class="lg:overflow-hidden lg:rounded-xl lg:border lg:border-border">
                     {{-- ---------- PHONE: one card per event ---------- --}}
-                <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
+                <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($disasters as $disaster)
                         <li>
                             <x-ui.record-card :href="$viewUrl($disaster->id)"
