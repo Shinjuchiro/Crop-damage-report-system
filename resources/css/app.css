@@ -222,11 +222,41 @@
        it no longer gets it here. Pinch-to-zoom still works, and nothing
        stops them zooming the page, which scales the layout with the text
        instead of breaking it.
+
+       ONE NOTCH SMALLER BELOW THE SIDEBAR
+       -----------------------------------------------------------------
+       15px under 1024px, 16px from there up. At 16px the phone and tablet
+       screens read as oversized: the app was drawn for a laptop, and the
+       same type on a 390px screen leaves too little room for the content
+       itself.
+
+       This is the root size, so it moves everything at once. Tailwind
+       writes its padding, gaps and rounding in rem as well as its type,
+       so one card goes from 20px of padding and 14px of text to 18.75px
+       and 13.1px together. Shrinking only the type would have left the
+       cards the same height with smaller words rattling around inside
+       them, which reads as a mistake rather than as a smaller screen.
+
+       Why 15 and not 14: at 14px the hint lines under each figure land at
+       about 10px, and this is a field app that a farmer reads outdoors in
+       sunlight. 15px is roughly six percent off, enough to feel tighter
+       without pushing the smallest text past reading size.
+
+       1024px is the same line the layout already turns on - see the
+       sidebar in layouts/app.blade.php - so a screen is either the
+       compact one throughout or the desktop one throughout, never a
+       mixture.
        ================================================================= */
     html {
-        font-size: 16px;
+        font-size: 15px;
         -webkit-text-size-adjust: 100%;
         text-size-adjust: 100%;
+    }
+
+    @media (min-width: 1024px) {
+        html {
+            font-size: 16px;
+        }
     }
 
     body {
