@@ -168,27 +168,27 @@
                 <dl class="mb-5 space-y-3 rounded-lg bg-muted p-4 text-sm">
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Name</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="name || '-'"></dd>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="name || '-'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Type</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="type === 'cash' ? 'Cash' : 'In-Kind'"></dd>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="type === 'cash' ? 'Cash' : 'In-Kind'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">For Disaster</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="label('disasters', disasterId)"></dd>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="label('disasters', disasterId)"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">For Crop</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="label('crops', cropId)"></dd>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="label('crops', cropId)"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Available</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="available || 'Not tracked'"></dd>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="available || 'Not tracked'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Status</dt>
-                        <dd class="text-right font-medium capitalize text-foreground" x-text="status"></dd>
+                        <dd class="min-w-0 text-right font-medium capitalize text-foreground" x-text="status"></dd>
                     </div>
 
                     @if ($assistance)

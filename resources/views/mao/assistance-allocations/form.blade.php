@@ -233,28 +233,28 @@
                     <dl class="mb-5 max-h-[45vh] space-y-3 overflow-y-auto rounded-lg bg-muted p-4 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Assistance</dt>
-                            <dd class="text-right font-medium" x-text="assistanceName()"></dd>
+                            <dd class="min-w-0 text-right font-medium" x-text="assistanceName()"></dd>
                         </div>
 
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Association</dt>
-                            <dd class="text-right font-bold" x-text="label('associations', associationId)"></dd>
+                            <dd class="min-w-0 text-right font-bold" x-text="label('associations', associationId)"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Type</dt>
-                            <dd class="text-right font-medium" x-text="isCash() ? 'Cash' : 'In-Kind'"></dd>
+                            <dd class="min-w-0 text-right font-medium" x-text="isCash() ? 'Cash' : 'In-Kind'"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground" x-text="isCash() ? 'Amount' : 'Quantity'"></dt>
-                            <dd class="text-right font-medium" x-text="quantity || 'Not specified'"></dd>
+                            <dd class="min-w-0 text-right font-medium" x-text="quantity || 'Not specified'"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Disaster</dt>
-                            <dd class="text-right font-medium" x-text="label('disasters', disasterId)"></dd>
+                            <dd class="min-w-0 text-right font-medium" x-text="label('disasters', disasterId)"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Date</dt>
-                            <dd class="text-right font-medium">{{ now()->format('F d, Y') }}</dd>
+                            <dd class="min-w-0 text-right font-medium">{{ now()->format('F d, Y') }}</dd>
                         </div>
                     </dl>
 

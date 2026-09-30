@@ -75,15 +75,15 @@
     <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-green-800">Personal Information</h3>
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Full Name</dt><dd class="text-right font-bold text-foreground">{{ $farmer->full_name }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date of Birth</dt><dd class="text-right font-bold text-foreground">{{ $farmer->date_of_birth?->format('M d, Y') ?? '-' }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Sex</dt><dd class="text-right font-bold capitalize text-foreground">{{ $farmer->sex }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Contact Number</dt><dd class="text-right font-bold text-foreground">{{ $farmer->user?->phone_number ?? '-' }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Username</dt><dd class="text-right font-bold text-foreground">{{ $farmer->user?->username ?? '-' }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Email</dt><dd class="text-right font-bold break-all text-foreground">{{ $farmer->user?->email ?? '-' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Full Name</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $farmer->full_name }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date of Birth</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $farmer->date_of_birth?->format('M d, Y') ?? '-' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Sex</dt><dd class="min-w-0 text-right font-bold capitalize text-foreground">{{ $farmer->sex }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Contact Number</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $farmer->user?->phone_number ?? '-' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Username</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $farmer->user?->username ?? '-' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Email</dt><dd class="min-w-0 text-right font-bold break-all text-foreground">{{ $farmer->user?->email ?? '-' }}</dd></div>
             <div class="flex justify-between gap-3 sm:col-span-2 lg:col-span-3">
                 <dt class="shrink-0 text-muted-foreground">Complete Address</dt>
-                <dd class="text-right font-bold text-foreground">{{ $farmer->address }}</dd>
+                <dd class="min-w-0 text-right font-bold text-foreground">{{ $farmer->address }}</dd>
             </div>
         </dl>
         {{-- The password is never displayed --}}
@@ -96,19 +96,19 @@
             <dl class="grid gap-4 text-sm sm:grid-cols-2">
                 <div class="flex justify-between gap-3">
                     <dt class="shrink-0 text-muted-foreground">Farmer Type</dt>
-                    <dd class="text-right font-bold text-foreground">
+                    <dd class="min-w-0 text-right font-bold text-foreground">
                         {{ $farmer->ownership_type === 'tenant' ? 'Tenant' : 'Land Owner' }}
                     </dd>
                 </div>
 
                 @if ($farmer->ownership_type === 'tenant')
-                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Land Owner Name</dt><dd class="text-right font-bold text-foreground">{{ $farmer->landowner_name ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Land Owner Contact</dt><dd class="text-right font-bold text-foreground">{{ $farmer->landowner_contact ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Land Owner Location</dt><dd class="text-right font-bold text-foreground">{{ $farmer->landowner_location ?: '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Land Owner Name</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $farmer->landowner_name ?: '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Land Owner Contact</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $farmer->landowner_contact ?: '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Land Owner Location</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $farmer->landowner_location ?: '-' }}</dd></div>
                 @else
                     <div class="flex justify-between gap-3">
                         <dt class="shrink-0 text-muted-foreground">Barangay Certificate</dt>
-                        <dd class="text-right">
+                        <dd class="min-w-0 text-right">
                             @if ($farmer->barangay_certificate_path)
                                 <a href="{{ asset('storage/' . $farmer->barangay_certificate_path) }}" target="_blank"
                                    class="font-bold text-green-800 hover:underline">View Barangay Certificate</a>
@@ -126,13 +126,13 @@
             <dl class="grid gap-4 text-sm sm:grid-cols-2">
                 <div class="flex justify-between gap-3">
                     <dt class="shrink-0 text-muted-foreground">Farm Size</dt>
-                    <dd class="text-right font-bold text-foreground">
+                    <dd class="min-w-0 text-right font-bold text-foreground">
                         {{ $farmer->farm_size_hectares ? $farmer->farm_size_hectares . ' ha' : 'Not provided' }}
                     </dd>
                 </div>
                 <div class="flex justify-between gap-3">
                     <dt class="shrink-0 text-muted-foreground">Main Crops</dt>
-                    <dd class="text-right font-bold text-foreground">
+                    <dd class="min-w-0 text-right font-bold text-foreground">
                         @forelse ($farmer->mainCrops as $mainCrop)
                             {{ $mainCrop->crop?->name }}{{ $mainCrop->crop_specify ? " ({$mainCrop->crop_specify})" : '' }}@if (! $loop->last), @endif
                         @empty

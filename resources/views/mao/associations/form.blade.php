@@ -86,15 +86,15 @@
                 <dl class="mb-5 space-y-3 rounded-lg bg-muted p-4 text-sm">
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Name</dt>
-                        <dd class="text-right font-bold text-foreground" x-text="name || '-'"></dd>
+                        <dd class="min-w-0 text-right font-bold text-foreground" x-text="name || '-'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Office Barangay</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="barangayName()"></dd>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="barangayName()"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Description</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="description || 'Not provided'"></dd>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="description || 'Not provided'"></dd>
                     </div>
 
                     @if ($association)

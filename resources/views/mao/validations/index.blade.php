@@ -231,11 +231,11 @@
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Inspection Summary</p>
                         @if ($validation)
                             <dl class="space-y-1.5">
-                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Technician</dt><dd class="font-bold text-foreground">{{ $validation->technician?->full_name ?: $validation->technician?->username ?? '-' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Severity</dt><dd class="font-medium capitalize text-foreground">{{ $validation->severity ?? 'Not assessed' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Farmer Estimated Damage</dt><dd class="font-medium text-foreground">{{ $report->crops->avg('estimated_damage_percent') !== null ? round($report->crops->avg('estimated_damage_percent')) . '%' : '-' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Technician Assessed Damage</dt><dd class="font-medium text-foreground">{{ $validation->assessed_damage_percent !== null ? $validation->assessed_damage_percent . '%' : '-' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Inspection Submitted</dt><dd class="font-medium text-foreground">{{ $validation->validated_at?->format('M d, Y g:i A') ?? 'In progress' }}</dd></div>
+                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Technician</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $validation->technician?->full_name ?: $validation->technician?->username ?? '-' }}</dd></div>
+                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Severity</dt><dd class="min-w-0 text-right font-medium capitalize text-foreground">{{ $validation->severity ?? 'Not assessed' }}</dd></div>
+                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Farmer Estimated Damage</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $report->crops->avg('estimated_damage_percent') !== null ? round($report->crops->avg('estimated_damage_percent')) . '%' : '-' }}</dd></div>
+                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Technician Assessed Damage</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $validation->assessed_damage_percent !== null ? $validation->assessed_damage_percent . '%' : '-' }}</dd></div>
+                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Inspection Submitted</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $validation->validated_at?->format('M d, Y g:i A') ?? 'In progress' }}</dd></div>
                                 <div><dt class="mb-1 text-muted-foreground">Inspection Notes</dt><dd class="font-medium text-foreground">{{ $validation->notes ?: 'No notes recorded.' }}</dd></div>
                             </dl>
 

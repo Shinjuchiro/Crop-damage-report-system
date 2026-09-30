@@ -360,15 +360,15 @@
                     <dl class="space-y-3 rounded-lg bg-muted p-4 text-sm">
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Type</dt>
-                            <dd class="text-right font-medium text-foreground" x-text="label('categories', f.category)"></dd>
+                            <dd class="min-w-0 text-right font-medium text-foreground" x-text="label('categories', f.category)"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Priority</dt>
-                            <dd class="text-right font-medium text-foreground" x-text="label('priorities', f.priority)"></dd>
+                            <dd class="min-w-0 text-right font-medium text-foreground" x-text="label('priorities', f.priority)"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Title</dt>
-                            <dd class="text-right font-medium text-foreground" x-text="f.title || '-'"></dd>
+                            <dd class="min-w-0 text-right font-medium text-foreground" x-text="f.title || '-'"></dd>
                         </div>
                         <div>
                             <dt class="mb-1 text-muted-foreground">Message</dt>
@@ -376,16 +376,16 @@
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Recipients</dt>
-                            <dd class="text-right font-medium text-foreground" x-text="audienceLabel()"></dd>
+                            <dd class="min-w-0 text-right font-medium text-foreground" x-text="audienceLabel()"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Delivery</dt>
-                            <dd class="text-right font-medium text-foreground"
+                            <dd class="min-w-0 text-right font-medium text-foreground"
                                 x-text="sendsSms() ? 'In-app and SMS' : 'In-app only'"></dd>
                         </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">When</dt>
-                            <dd class="text-right font-medium text-foreground"
+                            <dd class="min-w-0 text-right font-medium text-foreground"
                                 x-text="f.scheduled_for ? f.scheduled_for.replace('T', ' at ') : 'Immediately'"></dd>
                         </div>
                     </dl>

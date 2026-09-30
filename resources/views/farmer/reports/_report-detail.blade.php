@@ -117,18 +117,18 @@
             </p>
             <dl class="space-y-1.5">
                 <div class="flex justify-between gap-3">
-                    <dt class="text-muted-foreground">You estimated</dt>
-                    <dd class="font-medium text-foreground">
+                    <dt class="shrink-0 text-muted-foreground">You estimated</dt>
+                    <dd class="min-w-0 text-right font-medium text-foreground">
                         {{ $panelEstimate !== null ? round($panelEstimate) . '%' : '-' }}
                     </dd>
                 </div>
                 <div class="flex justify-between gap-3">
-                    <dt class="text-muted-foreground">Technician assessed</dt>
-                    <dd class="font-bold text-foreground">{{ round($panelSeverity) }}%</dd>
+                    <dt class="shrink-0 text-muted-foreground">Technician assessed</dt>
+                    <dd class="min-w-0 text-right font-bold text-foreground">{{ round($panelSeverity) }}%</dd>
                 </div>
                 <div class="flex justify-between gap-3">
-                    <dt class="text-muted-foreground">Inspected on</dt>
-                    <dd class="font-medium text-foreground">
+                    <dt class="shrink-0 text-muted-foreground">Inspected on</dt>
+                    <dd class="min-w-0 text-right font-medium text-foreground">
                         {{ $report->validation?->validated_at?->format('M d, Y') ?? 'Not submitted yet' }}
                     </dd>
                 </div>
@@ -160,14 +160,14 @@
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</p>
         <dl class="space-y-1.5">
             <div class="flex justify-between gap-3">
-                <dt class="text-muted-foreground">Barangay</dt>
-                <dd class="font-medium text-foreground">
+                <dt class="shrink-0 text-muted-foreground">Barangay</dt>
+                <dd class="min-w-0 text-right font-medium text-foreground">
                     {{ $report->reportedBarangay?->name ?? 'Not set' }}
                 </dd>
             </div>
             <div class="flex justify-between gap-3">
-                <dt class="text-muted-foreground">Coordinates</dt>
-                <dd class="font-medium text-foreground">
+                <dt class="shrink-0 text-muted-foreground">Coordinates</dt>
+                <dd class="min-w-0 text-right font-medium text-foreground">
                     @if ($report->reported_latitude && $report->reported_longitude)
                         {{ number_format((float) $report->reported_latitude, 5) }},
                         {{ number_format((float) $report->reported_longitude, 5) }}

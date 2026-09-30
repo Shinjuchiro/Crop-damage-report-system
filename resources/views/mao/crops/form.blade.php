@@ -72,12 +72,12 @@
 
                 <dl class="mb-5 space-y-3 rounded-lg bg-muted p-4 text-sm">
                     <div class="flex justify-between gap-4">
-                        <dt class="text-muted-foreground">Crop Name</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="name || '-'"></dd>
+                        <dt class="shrink-0 text-muted-foreground">Crop Name</dt>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="name || '-'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <dt class="text-muted-foreground">HVCC</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="hvcc ? 'Yes' : 'No'"></dd>
+                        <dt class="shrink-0 text-muted-foreground">HVCC</dt>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="hvcc ? 'Yes' : 'No'"></dd>
                     </div>
 
                     @if ($crop)

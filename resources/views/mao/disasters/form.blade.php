@@ -93,16 +93,16 @@
 
                 <dl class="mb-5 space-y-3 rounded-lg bg-muted p-4 text-sm">
                     <div class="flex justify-between gap-4">
-                        <dt class="text-muted-foreground">Type</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="typeLabel()"></dd>
+                        <dt class="shrink-0 text-muted-foreground">Type</dt>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="typeLabel()"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <dt class="text-muted-foreground">Event Name</dt>
-                        <dd class="text-right font-medium text-foreground" x-text="name || '-'"></dd>
+                        <dt class="shrink-0 text-muted-foreground">Event Name</dt>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="name || '-'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <dt class="text-muted-foreground">Period</dt>
-                        <dd class="text-right font-medium text-foreground"
+                        <dt class="shrink-0 text-muted-foreground">Period</dt>
+                        <dd class="min-w-0 text-right font-medium text-foreground"
                             x-text="dateStart ? (dateEnd ? dateStart + ' to ' + dateEnd : dateStart) : '-'"></dd>
                     </div>
 

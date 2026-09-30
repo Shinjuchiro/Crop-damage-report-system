@@ -38,19 +38,19 @@
     <div>
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Allocation</p>
         <dl class="space-y-1.5">
-            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Disaster Event</dt><dd class="font-medium text-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Crop</dt><dd class="font-medium text-foreground">{{ $allocation->crop?->name ?? 'Not crop specific' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Disaster Event</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Crop</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->crop?->name ?? 'Not crop specific' }}</dd></div>
             <div class="flex justify-between gap-3">
-                <dt class="text-muted-foreground">{{ $isCash ? 'Allocated' : 'Qty Allocated' }}</dt>
-                <dd class="font-medium text-foreground">{{ $allocation->allocated_quantity !== null ? number_format($allocation->allocated_quantity, 2) : 'Not specified' }}</dd>
+                <dt class="shrink-0 text-muted-foreground">{{ $isCash ? 'Allocated' : 'Qty Allocated' }}</dt>
+                <dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->allocated_quantity !== null ? number_format($allocation->allocated_quantity, 2) : 'Not specified' }}</dd>
             </div>
             <div class="flex justify-between gap-3">
-                <dt class="text-muted-foreground">{{ $isCash ? 'Released' : 'Qty Released' }}</dt>
-                <dd class="font-medium text-foreground">{{ $allocation->distributed_quantity !== null ? number_format($allocation->distributed_quantity, 2) : 'Not yet released' }}</dd>
+                <dt class="shrink-0 text-muted-foreground">{{ $isCash ? 'Released' : 'Qty Released' }}</dt>
+                <dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distributed_quantity !== null ? number_format($allocation->distributed_quantity, 2) : 'Not yet released' }}</dd>
             </div>
-            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Allocated On</dt><dd class="font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Allocated By</dt><dd class="font-bold text-foreground">{{ $allocation->allocatedBy?->full_name ?: $allocation->allocatedBy?->username ?? '-' }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Released To Assoc.</dt><dd class="font-medium text-foreground">{{ $allocation->distributed_to_association_at?->format('M d, Y') ?? 'Not yet' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Allocated On</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Allocated By</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $allocation->allocatedBy?->full_name ?: $allocation->allocatedBy?->username ?? '-' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Released To Assoc.</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distributed_to_association_at?->format('M d, Y') ?? 'Not yet' }}</dd></div>
             <div>
                 <dt class="text-muted-foreground">Description</dt>
                 <dd class="font-medium text-foreground">{{ $allocation->in_kind_description ?: ($allocation->assistance?->description ?: 'Not specified') }}</dd>
