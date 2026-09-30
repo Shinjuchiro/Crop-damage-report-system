@@ -5,13 +5,10 @@
      heading line above the content would only repeat it. --}}
 @section('hideHeading', true)
 
-@section('header-actions')
-    <x-ui.button size="lg" :href="route('farmer.planting.create')">
-        <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-        Record Planting
-    </x-ui.button>
-@endsection
+{{-- The Record Planting button that used to sit up here is gone: the
+     Planting tab in the bottom bar and the Planting Records card below both
+     lead to the same place, and on a phone it was a lone button floating
+     above the greeting with nothing beside it. --}}
 
 @section('content')
 
@@ -37,6 +34,8 @@
     <x-ui.greeting :name="$farmer->first_name"
                    role="Farmer"
                    :href="route('farmer.profile')" />
+
+    {{-- The figures. Every one is counted from the database on page load.
 
          Two across on a phone, not one. With the compact stat card these
          fit side by side comfortably, and a farmer can see all four
