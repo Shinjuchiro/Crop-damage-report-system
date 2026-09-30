@@ -673,8 +673,11 @@
                  The upward shadow is the same one the navigation itself
                  uses, so the two read as one bar rather than a button row
                  that happens to be floating. --}}
-            <div class="sticky bottom-[calc(4rem_+_env(safe-area-inset-bottom))] z-10 -mx-3
-                        border-t border-border bg-card px-3 py-3
+            {{-- -mx-4 sm:-mx-6, not -mx-3: this used to cancel the page
+                 padding on <main>, and it now sits inside the page frame, so
+                 it cancels the frame's padding to reach its edges. --}}
+            <div class="sticky bottom-[calc(4rem_+_env(safe-area-inset-bottom))] z-10 -mx-4 sm:-mx-6
+                        border-t border-border bg-card px-4 py-3 sm:px-6
                         shadow-[0_-2px_12px_-6px_rgb(15_23_42/0.25)] lg:hidden">
                 <div class="flex gap-3">
                     <x-ui.button type="button" size="lg" variant="outline" class="flex-1"

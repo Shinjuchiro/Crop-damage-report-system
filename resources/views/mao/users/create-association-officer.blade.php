@@ -4,7 +4,9 @@
 @section('subheading', 'Create an account for a farmers association')
 
 @section('content')
-<div class="rounded-xl border border-border bg-card p-4 sm:p-6">
+{{-- The card this form used to draw around itself is now the page
+     frame in layouts/app.blade.php, on every screen. --}}
+<div>
 
     @if ($errors->any())
         <div class="mb-5 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">

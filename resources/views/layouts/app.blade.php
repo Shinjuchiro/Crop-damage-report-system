@@ -204,7 +204,30 @@
                     </x-ui.alert>
                 @endif
 
-                <div class="animate-fade-up">
+                {{-- THE PAGE FRAME
+
+                     Every page sits on one card, the way the Maps and
+                     Visualization screen already did: a white panel with a
+                     border and a soft shadow, holding whatever the page puts
+                     inside it. Before this, the map was the only screen built
+                     that way and every other page dropped its blocks straight
+                     onto the page background, so the system looked like two
+                     different products depending on where you were.
+
+                     It lives here rather than on each page because there are
+                     eighty-odd pages and a rule that has to be remembered
+                     eighty times is a rule that will be forgotten. Any page
+                     that genuinely cannot be framed opts out with
+                     @section('noFrame', true) - the same escape hatch
+                     hideHeading uses - and none do today.
+
+                     The map screen's own copy of this wrapper was removed
+                     when this went in, so it is not framed twice. --}}
+                <div @class([
+                    'animate-fade-up',
+                    'rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6'
+                        => ! View::hasSection('noFrame'),
+                ])>
                     @yield('content')
                 </div>
             </div>

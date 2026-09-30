@@ -5,7 +5,10 @@
 @section('subheading', "Crop damage by Farmers' Association across Tanza, Cavite.")
 
 @section('content')
-<div x-data="{ filtersOpen: false }" class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6 space-y-5">
+{{-- The card this page used to draw around itself is now the page
+     frame in layouts/app.blade.php, on every screen rather than only
+     this one. All that is left here is the spacing between blocks. --}}
+<div x-data="{ filtersOpen: false }" class="space-y-5">
 
     {{-- Coverage --}}
     <div class="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
