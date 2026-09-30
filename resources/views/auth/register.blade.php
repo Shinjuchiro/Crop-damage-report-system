@@ -464,7 +464,7 @@
                                 <input type="file" name="barangay_certificate" class="hidden"
                                        accept=".jpg,.jpeg,.png,.pdf"
                                        :required="f.ownership_type === 'land_owner'"
-                                       @change="documentName = $event.target.files.length ? $event.target.files[0].name : ''">
+                                       @change="pickCertificate($event)">
                             </label>
                             <p class="mt-1.5 text-xs text-muted-foreground">
                                 A certificate from your barangay confirming that you own the land you farm.
@@ -698,10 +698,14 @@
                         Back
                     </button>
 
+                    {{-- Disabled while the server is being asked whether the
+                         email is free, so a second tap cannot slip past the
+                         step before the answer arrives. --}}
                     <button type="button" x-show="step < 4" @click="next()"
-                            class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#15803d] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110">
-                        Continue
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
+                            :disabled="checking"
+                            class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#15803d] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70">
+                        <span x-text="checking ? 'Checking...' : 'Continue'"></span>
+                        <svg class="h-4 w-4" x-show="!checking" fill="none" stroke="currentColor" stroke-width="2"
                              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                             <path d="M5 12h14M13 6l6 6-6 6"/>
                         </svg>
@@ -753,6 +757,12 @@
             stepError: '',
             agreed: false,
             documentName: '',
+
+            // True while the server is being asked whether a username or an
+            // email is still free. The Continue button is disabled and says so,
+            // because a second tap would fire a second request and let the
+            // farmer past the step while the first answer was still coming.
+            checking: false,
 
             // Lookup tables rendered from the database, used by the review step
             lookup: {
@@ -881,6 +891,36 @@
                     }
                 }
 
+                /* Every rule below mirrors one in FarmerRegistrationRequest.
+                   The browser's own checkValidity() sweep above catches empty
+                   boxes and the patterns declared on them; these are the rules
+                   it cannot see, and each one used to be found only after the
+                   farmer had filled in all four steps and submitted. */
+
+                if (this.step === 1) {
+                    // 'before:today'. The field carries a max attribute, but a
+                    // date typed rather than picked slips past it in some
+                    // Android keyboards.
+                    if (this.f.date_of_birth) {
+                        const dob = new Date(this.f.date_of_birth + 'T00:00:00');
+                        const today = new Date(); today.setHours(0, 0, 0, 0);
+
+                        if (isNaN(dob) || dob >= today) {
+                            return this.markInvalid(
+                                container?.querySelector('[name="date_of_birth"]'),
+                                'Date of birth must be a day in the past.');
+                        }
+                    }
+
+                    // 'digits:11'. The input strips non-digits as you type, so
+                    // this is really a length check: 09171234567.
+                    if (!/^[0-9]{11}$/.test(this.f.phone_number || '')) {
+                        return this.markInvalid(
+                            container?.querySelector('[name="phone_number"]'),
+                            'Mobile number must be exactly 11 digits, for example 09171234567.');
+                    }
+                }
+
                 if (this.step === 2) {
                     // Mirrors FarmerRegistrationRequest's Password::min(8)->letters()->numbers()
                     // rule. Catching this here - before the page ever leaves the browser -
@@ -928,13 +968,117 @@
                             container?.querySelector('[name^="crops"], select'),
                             'Please select at least one main crop.');
                     }
+
+                    // 'numeric', 'min:0', 'max:999999'. Optional, so an empty
+                    // box is fine; a negative or absurd one is not.
+                    if (this.f.farm_size_hectares !== '' && this.f.farm_size_hectares !== null) {
+                        const size = Number(this.f.farm_size_hectares);
+
+                        if (isNaN(size) || size < 0 || size > 999999) {
+                            return this.markInvalid(
+                                container?.querySelector('[name="farm_size_hectares"]'),
+                                'Farm size must be a number between 0 and 999999 hectares.');
+                        }
+                    }
                 }
 
                 return true;
             },
 
-            next() {
+            /**
+             * The Barangay Certificate, judged the moment it is chosen.
+             *
+             * 'mimes:jpg,jpeg,png,pdf' and 'max:5120'. The accept attribute on
+             * the input is a filter in the file picker, not a rule: plenty of
+             * Android pickers let you choose anything anyway. Catching it here
+             * matters more than elsewhere, because a rejected submission
+             * cannot put the file back in the input afterwards.
+             */
+            pickCertificate(event) {
+                const file = event.target.files[0];
+
+                if (!file) {
+                    this.documentName = '';
+                    return;
+                }
+
+                const name = file.name.toLowerCase();
+                const ok = ['.jpg', '.jpeg', '.png', '.pdf'].some(ext => name.endsWith(ext));
+
+                if (!ok) {
+                    event.target.value = '';
+                    this.documentName = '';
+                    this.stepError = 'The certificate must be a JPG, PNG or PDF file.';
+                    return;
+                }
+
+                if (file.size > 5 * 1024 * 1024) {
+                    event.target.value = '';
+                    this.documentName = '';
+                    this.stepError = 'The certificate must be 5MB or smaller. This one is '
+                        + (file.size / 1024 / 1024).toFixed(1) + 'MB.';
+                    return;
+                }
+
+                this.stepError = '';
+                this.documentName = file.name;
+            },
+
+            /**
+             * Ask the server whether this username and email are still free.
+             *
+             * The one thing on step 2 the browser cannot judge by itself. It
+             * runs when leaving that step, so "already taken" is discovered
+             * there rather than after all four steps and an upload.
+             *
+             * If the request fails, for a dropped connection say, the farmer is
+             * let through rather than stranded: FarmerRegistrationRequest still
+             * enforces both rules on submit, so nothing unsafe gets in.
+             */
+            async checkAvailability() {
+                const container = this.$refs.step2;
+
+                this.checking = true;
+                this.stepError = '';
+
+                try {
+                    const url = '{{ route('register.availability') }}'
+                        + '?username=' + encodeURIComponent(this.f.username || '')
+                        + '&email=' + encodeURIComponent(this.f.email || '');
+
+                    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+
+                    if (!response.ok) return true;
+
+                    const taken = await response.json();
+
+                    if (taken.email === false) {
+                        return this.markInvalid(
+                            container?.querySelector('[name="email"]'),
+                            'That email address already has an account. Use another one, or sign in instead.');
+                    }
+
+                    if (taken.username === false) {
+                        return this.markInvalid(
+                            container?.querySelector('[name="username"]'),
+                            'That username is already taken. Please choose another.');
+                    }
+
+                    return true;
+                } catch (error) {
+                    return true;
+                } finally {
+                    this.checking = false;
+                }
+            },
+
+            async next() {
+                if (this.checking) return;
                 if (!this.validateStep()) return;
+
+                // Step 2 has one rule only the database knows.
+                if (this.step === 2 && !(await this.checkAvailability())) return;
+
                 if (this.step < 4) {
                     this.step++;
                     window.scrollTo({ top: 0, behavior: 'smooth' });

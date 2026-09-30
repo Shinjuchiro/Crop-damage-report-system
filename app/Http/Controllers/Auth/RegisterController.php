@@ -12,6 +12,7 @@ use App\Models\Farmer;
 use App\Models\FarmerMainCrop;
 use App\Models\NotificationBroadcast;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -30,6 +31,41 @@ class RegisterController extends Controller
             'associations' => Association::active()->orderBy('name')->get(),
             'crops'        => Crop::active()->orderBy('name')->get(),
         ]);
+    }
+
+    /**
+     * Is this username or email still free?
+     *
+     * The registration wizard asks before it lets a farmer leave the Account
+     * Details step. Everything else on that step the browser can judge on its
+     * own; "already taken" is the one thing only the database knows, and
+     * without this the farmer filled in all four steps, uploaded a Barangay
+     * Certificate, submitted, and was thrown back to step 2 with the file
+     * input emptied - a file input cannot be refilled by the server.
+     *
+     * Deliberately narrow: it answers yes or no for one username and one
+     * email, nothing else, and says nothing about the account behind them.
+     * FarmerRegistrationRequest still enforces both rules on submit; this is
+     * a courtesy, never the gate. Throttled in routes/web.php.
+     */
+    public function availability(Request $request)
+    {
+        $data = $request->validate([
+            'username' => ['nullable', 'string', 'max:100'],
+            'email'    => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $answer = [];
+
+        if (! empty($data['username'])) {
+            $answer['username'] = ! User::where('username', $data['username'])->exists();
+        }
+
+        if (! empty($data['email'])) {
+            $answer['email'] = ! User::where('email', $data['email'])->exists();
+        }
+
+        return response()->json($answer);
     }
 
     public function store(FarmerRegistrationRequest $request)

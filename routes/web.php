@@ -75,6 +75,17 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisterController::class, 'store'])
         ->middleware('throttle:10,1');
 
+    /*
+     | "Is this email already taken?" asked by the registration wizard while
+     | the farmer is still on step 2, so they find out there rather than after
+     | filling in all four steps and uploading a certificate. Throttled harder
+     | than the form itself because it is cheap to call in a loop; it answers
+     | only yes or no, for one value at a time.
+     */
+    Route::get('/register/availability', [RegisterController::class, 'availability'])
+        ->middleware('throttle:30,1')
+        ->name('register.availability');
+
     // Google login - farmers only (enforced inside the controller)
     Route::get('/auth/google/redirect', [GoogleController::class, 'redirect'])->name('google.redirect');
     Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
