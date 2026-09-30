@@ -14,10 +14,10 @@
 
     TWO SIZES, ONE CARD (Sept 2026)
 
-    Below 640px the card is the compact one: a 32px round icon with the label
-    beside it, and the number on its own line under them. Four of these fit
-    two across on a phone, so a farmer sees all four figures at once instead
-    of scrolling past four full-width tiles.
+    Below 640px the card is the compact one: a 36px round icon with the
+    figure beside it on the top line, and the label and hint underneath.
+    Four of these fit two across on a phone, so a farmer sees all four
+    figures at once instead of scrolling past four full-width tiles.
 
     From 640px up the card is the original: a 44px rounded square on the
     left, label, number and hint stacked in a column beside it. A laptop has
@@ -25,10 +25,11 @@
 
     The two layouts are written out separately and one of them is hidden,
     rather than being one layout that changes shape. They do not just differ
-    in size: the compact one puts the number below the icon, the wide one
-    puts it beside the icon, and CSS cannot move an element from one column
-    into another. Whichever is hidden is display:none, so it is not read out
-    by a screen reader and the figure is announced once.
+    in size: the compact one leads with the figure and puts the words under
+    it, the wide one leads with the label in a column beside the icon, and
+    CSS cannot move an element from one column into another. Whichever is
+    hidden is display:none, so it is not read out by a screen reader and the
+    figure is announced once.
 
     Both halves take their label, value, suffix, hint and tone from the same
     props, so a figure can never differ between phone and laptop. If you
@@ -123,35 +124,40 @@
     ---------------------------------------------------------------- --}}
     <div class="sm:hidden">
 
-        {{-- Bento tile: one column, one left edge.
+        {{-- The icon and the figure share the top line, and the words sit
+             under both.
 
-             The icon has a line of its own above the label, and the label,
-             the figure and the hint all start where the icon starts. The
-             two layouts before this both left something out of line: icon
-             and label on one row put the figure under the icon but away
-             from its own label, and indenting the figure to meet the label
-             left it out of line with the icon. Stacked, there is only one
-             edge to be out of line with. --}}
-        @if ($icon)
-            <span class="mb-2 flex h-9 w-9 items-center justify-center rounded-full
-                         {{ $iconTone }}" aria-hidden="true">
-                <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9"
-                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                    <path d="{{ $icon }}"/>
-                </svg>
-            </span>
-        @endif
+             The figure is what the card is for, so it goes where the eye
+             lands first, level with the icon rather than three lines below
+             it. The label and the hint read as one caption underneath
+             instead of being split by the number, which is what happened
+             when the label came first.
+
+             items-center, not items-baseline: the icon is a circle and has
+             no baseline to share, so matching centres is what makes the two
+             look level. --}}
+        <div class="flex items-center gap-2.5">
+            @if ($icon)
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
+                             {{ $iconTone }}" aria-hidden="true">
+                    <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.9"
+                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="{{ $icon }}"/>
+                    </svg>
+                </span>
+            @endif
+
+            <p class="flex min-w-0 items-baseline gap-1">
+                <span class="text-2xl font-bold tracking-tight {{ $valueTone }}">{{ $value }}</span>
+                @if ($suffix)
+                    <span class="truncate text-xs font-medium text-muted-foreground">{{ $suffix }}</span>
+                @endif
+            </p>
+        </div>
 
         {{-- min-w-0 so a long label wraps inside the card rather than
              widening it, which is what pushed these pages sideways. --}}
-        <p class="min-w-0 text-xs font-medium leading-tight text-muted-foreground">{{ $label }}</p>
-
-        <p class="mt-1 flex items-baseline gap-1">
-            <span class="text-2xl font-bold tracking-tight {{ $valueTone }}">{{ $value }}</span>
-            @if ($suffix)
-                <span class="text-xs font-medium text-muted-foreground">{{ $suffix }}</span>
-            @endif
-        </p>
+        <p class="mt-2 min-w-0 text-xs font-medium leading-tight text-muted-foreground">{{ $label }}</p>
 
         @if ($hint)
             <p class="mt-0.5 text-[11px] leading-tight text-muted-foreground">{{ $hint }}</p>

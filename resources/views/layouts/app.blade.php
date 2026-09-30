@@ -68,18 +68,29 @@
                        bg-card px-3 sm:px-5 lg:h-16 lg:px-8">
 
             <div class="flex min-w-0 items-center gap-2">
-                <button @click="sidebarOpen = true" aria-label="Open navigation"
-                        class="-ml-1 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent
-                               hover:text-accent-foreground lg:hidden">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                </button>
+                {{-- BRAND, PHONES ONLY
 
-                {{-- On a phone the page title sits in the bar, the way a phone
-                     app does it, instead of taking another block of height
-                     below. On desktop the heading below the bar does the job. --}}
-                <p class="truncate text-base font-bold lg:hidden">@yield('title', 'Dashboard')</p>
+                     The seal and the office's short name, the same mark the
+                     login screen opens with, so the top of every screen says
+                     whose system this is rather than repeating the name of
+                     the page.
+
+                     This replaced two things: the hamburger and the page
+                     title. The hamburger opened the off canvas sidebar, which
+                     nothing else on a phone now opens - the bottom bar and
+                     its More sheet carry every link the sidebar had, so the
+                     drawer was a second door to the same rooms. The sidebar
+                     itself is untouched and is still the navigation from
+                     1024px up, where it is always on screen.
+
+                     On desktop this is hidden: the sidebar already carries
+                     the seal and the full office name. --}}
+                <span class="flex min-w-0 items-center gap-2 lg:hidden">
+                    <img src="{{ asset('images/tanza-seal.png') }}"
+                         alt="Seal of the Municipality of Tanza, Cavite"
+                         class="h-9 w-9 shrink-0">
+                    <span class="truncate text-base font-bold tracking-tight">TANZA-FITS</span>
+                </span>
             </div>
 
             <div class="flex shrink-0 items-center gap-1 sm:gap-2">
