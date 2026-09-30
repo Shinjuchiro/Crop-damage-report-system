@@ -753,6 +753,82 @@
                         event.target?.closest?.('[data-upload-box]')?.classList.remove('field-invalid');
                     }, true);
                 });
+
+                /* Keep what has been typed, so a rejected submission never
+                   costs the farmer the twenty answers that were right.
+
+                   The server already returns them: every field above is
+                   seeded from old(). But old() survives exactly one request,
+                   so refreshing the error page, or pressing back to it, or
+                   coming back after the session expired, emptied the form.
+                   This draft survives all three.
+
+                   sessionStorage, not localStorage: it dies with the tab.
+                   These are a farmer's name, address and mobile number, and
+                   this is often a shared phone, so it should not outlive the
+                   sitting. Passwords are never in it, and the certificate
+                   cannot be: no browser lets a file input be refilled from
+                   script. It is cleared the moment the form submits. */
+                this.restoreDraft();
+
+                this.$watch('f', () => this.saveDraft(), { deep: true });
+                this.$watch('crops', () => this.saveDraft(), { deep: true });
+                this.$watch('documentName', () => this.saveDraft());
+
+                this.$el.querySelector('form')
+                    ?.addEventListener('submit', () => this.clearDraft());
+            },
+
+            draftKey: 'farmer-registration-draft',
+
+            saveDraft() {
+                try {
+                    const { password, password_confirmation, ...safe } = this.f;
+
+                    sessionStorage.setItem(this.draftKey, JSON.stringify({
+                        f: safe,
+                        crops: this.crops,
+                        step: this.step,
+                    }));
+                } catch (error) {
+                    // A phone in private mode refuses to store. The form still
+                    // works exactly as before; only the safety net is missing.
+                }
+            },
+
+            restoreDraft() {
+                let draft = null;
+
+                try {
+                    draft = JSON.parse(sessionStorage.getItem(this.draftKey) || 'null');
+                } catch (error) {
+                    return;
+                }
+
+                if (!draft || !draft.f) return;
+
+                /* The server's old() wins wherever it has something, because
+                   it is the newer of the two: it came from the submission the
+                   farmer just made. The draft only fills what is blank. */
+                Object.keys(draft.f).forEach(key => {
+                    if (key in this.f && (this.f[key] === '' || this.f[key] === null)) {
+                        this.f[key] = draft.f[key];
+                    }
+                });
+
+                const noCropsYet = !this.crops.some(crop => crop.crop_id);
+
+                if (noCropsYet && Array.isArray(draft.crops) && draft.crops.some(crop => crop.crop_id)) {
+                    this.crops = draft.crops;
+                }
+            },
+
+            clearDraft() {
+                try {
+                    sessionStorage.removeItem(this.draftKey);
+                } catch (error) {
+                    // Nothing to clear if it was never stored.
+                }
             },
             stepError: '',
             agreed: false,
