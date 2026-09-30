@@ -61,13 +61,13 @@
 ])
 
 <a href="{{ $href }}" {{ $attributes->class(
-        'block rounded-xl border border-border bg-card p-3.5 shadow-sm transition active:bg-muted'
+        'block rounded-xl border border-border bg-card p-4 shadow-sm transition active:bg-muted'
     ) }}>
 
     {{-- Reference and state --}}
     <div class="flex items-start justify-between gap-2">
         @if ($eyebrow)
-            <span class="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold tracking-wide text-foreground">
+            <span class="rounded-md bg-muted px-2.5 py-1 text-sm font-semibold tracking-wide text-foreground">
                 {{ $eyebrow }}
             </span>
         @else
@@ -86,10 +86,10 @@
 
     {{-- Who or what the row is about --}}
     @if ($title)
-        <p class="mt-2 truncate text-base font-bold leading-tight text-foreground">{{ $title }}</p>
+        <p class="mt-2.5 truncate text-lg font-bold leading-tight text-foreground">{{ $title }}</p>
     @endif
     @if ($subtitle)
-        <p class="truncate text-xs text-muted-foreground">{{ $subtitle }}</p>
+        <p class="mt-0.5 truncate text-sm text-muted-foreground">{{ $subtitle }}</p>
     @endif
 
     {{-- The figures.
@@ -142,9 +142,10 @@
             $text = trim((string) ($fieldValue === null || $fieldValue === '' ? '-' : $fieldValue));
             $cell = [$fieldLabel, $text];
 
-            // 24 characters is about what half of a 360px card holds on one
-            // line at this size. Past that the value is going to wrap.
-            if (mb_strlen($text) > 24) {
+            // 22 characters is about what half of a 360px card holds on
+            // one line now the card reads a size larger. Past that the
+            // value is going to wrap, so it takes a row of its own.
+            if (mb_strlen($text) > 22) {
                 $flushRun();
                 $fieldRows[] = [$cell];
             } else {
@@ -160,12 +161,12 @@
             @foreach ($fieldRows as $fieldRow)
                 {{-- Three to a row is tight on a 360px phone, so that row
                      closes up its gaps to buy each column a few more px. --}}
-                <div class="flex py-3 {{ count($fieldRow) === 3 ? 'gap-2' : 'gap-3' }}">
+                <div class="flex py-3.5 {{ count($fieldRow) === 3 ? 'gap-2' : 'gap-3' }}">
                     @foreach ($fieldRow as $i => [$cellLabel, $cellValue])
                         <div class="min-w-0 flex-1
                                     {{ $i > 0 ? 'border-l border-border ' . (count($fieldRow) === 3 ? 'pl-2' : 'pl-3') : '' }}">
-                            <dt class="text-[11px] leading-tight text-muted-foreground">{{ $cellLabel }}</dt>
-                            <dd class="text-sm font-semibold leading-tight text-foreground">{{ $cellValue }}</dd>
+                            <dt class="text-xs leading-tight text-muted-foreground">{{ $cellLabel }}</dt>
+                            <dd class="mt-0.5 text-base font-semibold leading-tight text-foreground">{{ $cellValue }}</dd>
                         </div>
                     @endforeach
                 </div>
@@ -179,9 +180,9 @@
 
     {{-- The action. 44px tall so it is a thumb-sized target; the whole card
          is the link anyway, this just says where it goes. --}}
-    <span class="mt-3 flex h-11 items-center gap-2 rounded-lg bg-accent px-3
-                 text-sm font-semibold text-accent-foreground">
-        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8"
+    <span class="mt-3.5 flex h-12 items-center gap-2 rounded-lg bg-accent px-3.5
+                 text-base font-semibold text-accent-foreground">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8"
              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 12h13M13 6l6 6-6 6"/>
         </svg>

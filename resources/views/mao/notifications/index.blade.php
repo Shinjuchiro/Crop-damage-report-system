@@ -85,7 +85,13 @@
                         [$iconBg, $iconText, $badge] = $categoryStyles[$alert->category] ?? $categoryStyles['announcement'];
                         [$statusLabel, $statusDot]   = $statusStyles[$alert->status] ?? $statusStyles['draft'];
                     @endphp
-                    <li class="flex flex-col gap-4 px-6 py-5 transition hover:bg-muted/60 sm:flex-row sm:items-start">
+                    {{-- Icon on the left at every width, with everything else in one
+                         column beside it. It used to stack below 640px: the icon
+                         took a line of its own and the title, the badges and the
+                         status all started back at the card edge under it, so a
+                         phone read the row as four loose pieces instead of one
+                         notification. --}}
+                    <li class="flex gap-4 px-4 py-5 transition hover:bg-muted/60 sm:px-6">
 
                         <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl {{ $iconBg }}">
                             <svg class="h-7 w-7 {{ $iconText }}" fill="none" stroke="currentColor" stroke-width="1.7"
@@ -94,85 +100,90 @@
                             </svg>
                         </span>
 
-                        <div class="min-w-0 flex-1">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h3 class="text-sm font-bold text-foreground">{{ $alert->title }}</h3>
-                                <span class="inline-flex rounded px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset {{ $badge }}">
-                                    {{ $alert->category_label }}
-                                </span>
-                                @if ($alert->sends_sms)
-                                    <span class="inline-flex rounded bg-secondary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                        {{ $alert->priority_label }} &middot; SMS
+                        <div class="min-w-0 flex-1 sm:flex sm:items-start sm:gap-4">
+                            <div class="min-w-0 sm:flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="text-sm font-bold text-foreground">{{ $alert->title }}</h3>
+                                    <span class="inline-flex rounded px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset {{ $badge }}">
+                                        {{ $alert->category_label }}
                                     </span>
-                                @endif
+                                    @if ($alert->sends_sms)
+                                        <span class="inline-flex rounded bg-secondary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                            {{ $alert->priority_label }} &middot; SMS
+                                        </span>
+                                    @endif
+                                </div>
+
+                                <p class="mt-1 text-sm text-muted-foreground">{{ $alert->message }}</p>
+
+                                <p class="mt-2 text-xs text-muted-foreground">
+                                    {{ ($alert->sent_at ?? $alert->scheduled_for ?? $alert->created_at)?->format('M d, Y') }}
+                                    &nbsp;|&nbsp;
+                                    {{ ($alert->sent_at ?? $alert->scheduled_for ?? $alert->created_at)?->format('g:i A') }}
+                                    &nbsp;|&nbsp;
+                                    {{ $alert->audience_label }}
+                                    @if ($alert->status === 'sent')
+                                        &nbsp;|&nbsp; {{ $alert->notifications_count }} recipients,
+                                        {{ $alert->read_count }} read
+                                    @endif
+                                </p>
                             </div>
 
-                            <p class="mt-1 text-sm text-muted-foreground">{{ $alert->message }}</p>
+                            {{-- Under the text on a phone, to its right from 640px
+                                 up. One block either way, so the actions menu is
+                                 not duplicated into the page twice. --}}
+                            <div class="mt-3 flex shrink-0 items-center gap-3 sm:mt-0">
+                                <span class="flex items-center gap-2 text-sm font-medium text-foreground">
+                                    <span class="h-2.5 w-2.5 rounded-full {{ $statusDot }}"></span>
+                                    {{ $statusLabel }}
+                                </span>
 
-                            <p class="mt-2 text-xs text-muted-foreground">
-                                {{ ($alert->sent_at ?? $alert->scheduled_for ?? $alert->created_at)?->format('M d, Y') }}
-                                &nbsp;|&nbsp;
-                                {{ ($alert->sent_at ?? $alert->scheduled_for ?? $alert->created_at)?->format('g:i A') }}
-                                &nbsp;|&nbsp;
-                                {{ $alert->audience_label }}
-                                @if ($alert->status === 'sent')
-                                    &nbsp;|&nbsp; {{ $alert->notifications_count }} recipients,
-                                    {{ $alert->read_count }} read
-                                @endif
-                            </p>
-                        </div>
+                                <div class="relative" x-data="{ menu: false }">
+                                    <button type="button" @click="menu = ! menu" @click.outside="menu = false"
+                                            class="rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-muted-foreground"
+                                            aria-label="Alert actions">
+                                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                                            <circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>
+                                        </svg>
+                                    </button>
 
-                        <div class="flex shrink-0 items-center gap-3">
-                            <span class="flex items-center gap-2 text-sm font-medium text-foreground">
-                                <span class="h-2.5 w-2.5 rounded-full {{ $statusDot }}"></span>
-                                {{ $statusLabel }}
-                            </span>
+                                    <div x-show="menu" x-cloak x-transition
+                                         class="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-lg">
+                                        @if (in_array($alert->status, ['scheduled', 'draft', 'failed'], true))
+                                            {{-- Sections 70 and 91.11: an alert is never sent on the
+                                                 first click. Urgent and critical alerts also go out as
+                                                 SMS, which costs the office money, so those get the
+                                                 stronger wording and the danger tone. --}}
+                                            <form method="POST" action="{{ route('mao.notifications.send', $alert) }}"
+                                                  data-confirm="{{ $alert->sends_sms
+                                                      ? 'This sends the alert immediately. Its priority is ' . $alert->priority_label . ', so it also goes out as SMS to every recipient.'
+                                                      : 'This sends the alert immediately as an in-app notification. No SMS will be sent.' }}"
+                                                  data-confirm-title="Send this alert now?"
+                                                  data-confirm-detail="{{ $alert->title }} ({{ $alert->audience_label }})"
+                                                  data-confirm-action="{{ $alert->sends_sms ? 'Send Alert & SMS' : 'Send Alert' }}"
+                                                  data-confirm-tone="{{ $alert->sends_sms ? 'danger' : 'default' }}">
+                                                @csrf @method('PUT')
+                                                <button class="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted/60">
+                                                    Send now
+                                                </button>
+                                            </form>
+                                        @endif
 
-                            <div class="relative" x-data="{ menu: false }">
-                                <button type="button" @click="menu = ! menu" @click.outside="menu = false"
-                                        class="rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-muted-foreground"
-                                        aria-label="Alert actions">
-                                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>
-                                    </svg>
-                                </button>
-
-                                <div x-show="menu" x-cloak x-transition
-                                     class="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-lg">
-                                    @if (in_array($alert->status, ['scheduled', 'draft', 'failed'], true))
-                                        {{-- Sections 70 and 91.11: an alert is never sent on the
-                                             first click. Urgent and critical alerts also go out as
-                                             SMS, which costs the office money, so those get the
-                                             stronger wording and the danger tone. --}}
-                                        <form method="POST" action="{{ route('mao.notifications.send', $alert) }}"
-                                              data-confirm="{{ $alert->sends_sms
-                                                  ? 'This sends the alert immediately. Its priority is ' . $alert->priority_label . ', so it also goes out as SMS to every recipient.'
-                                                  : 'This sends the alert immediately as an in-app notification. No SMS will be sent.' }}"
-                                              data-confirm-title="Send this alert now?"
-                                              data-confirm-detail="{{ $alert->title }} ({{ $alert->audience_label }})"
-                                              data-confirm-action="{{ $alert->sends_sms ? 'Send Alert & SMS' : 'Send Alert' }}"
-                                              data-confirm-tone="{{ $alert->sends_sms ? 'danger' : 'default' }}">
-                                            @csrf @method('PUT')
-                                            <button class="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted/60">
-                                                Send now
-                                            </button>
-                                        </form>
-                                    @endif
-
-                                    @if ($alert->status !== 'archived')
-                                        <form method="POST" action="{{ route('mao.notifications.archive', $alert) }}"
-                                              data-confirm="This alert will be removed from the active list. It stays on record for audit purposes and nothing is deleted."
-                                              data-confirm-title="Archive this alert?"
-                                              data-confirm-detail="{{ $alert->title }}"
-                                              data-confirm-action="Confirm Archive">
-                                            @csrf @method('PUT')
-                                            <button class="block w-full border-t border-border px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted/60">
-                                                Archive
-                                            </button>
-                                        </form>
-                                    @else
-                                        <p class="px-4 py-2.5 text-sm text-muted-foreground">Archived</p>
-                                    @endif
+                                        @if ($alert->status !== 'archived')
+                                            <form method="POST" action="{{ route('mao.notifications.archive', $alert) }}"
+                                                  data-confirm="This alert will be removed from the active list. It stays on record for audit purposes and nothing is deleted."
+                                                  data-confirm-title="Archive this alert?"
+                                                  data-confirm-detail="{{ $alert->title }}"
+                                                  data-confirm-action="Confirm Archive">
+                                                @csrf @method('PUT')
+                                                <button class="block w-full border-t border-border px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted/60">
+                                                    Archive
+                                                </button>
+                                            </form>
+                                        @else
+                                            <p class="px-4 py-2.5 text-sm text-muted-foreground">Archived</p>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -29,7 +29,10 @@
 <div>
 
     {{-- Summary --}}
-    <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+    {{-- One figure per row on a phone, the way the map screen does it.
+         Two across put five cards into three rows with a hole in the
+         last one, and halved the width each label had to sit in. --}}
+    <div class="mb-5 grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
         <x-ui.stat label="Total Farmers" :value="number_format($summary['total'])"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
         <x-ui.stat label="Verified" :value="number_format($summary['verified'])"
