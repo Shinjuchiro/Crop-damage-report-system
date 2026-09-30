@@ -60,14 +60,12 @@
 
     /* Page and surfaces
 
-       The ground is a warm off-white with a trace of green in it, not the
-       blue-grey it used to be. It comes from the reference design: a cream
-       ground makes a white card lift off the page on its own, so the cards
-       can lose most of their border and nearly all of their shadow and still
-       read as separate things. Blue-grey pulled the other way, cool against
-       a green system, and needed a harder edge on every card to separate
-       them. */
-    --background:            #f3f5ee;   /* warm off-white page ground */
+       A cream ground was tried here, from the reference design, and taken
+       back out: the system's colours are its identity, dark agricultural
+       green on a light blue-grey, and the restyle was only ever meant to
+       change the shapes. The rounding and the shadows below are the parts
+       that were kept. */
+    --background:            #dce6ea;   /* the light blue-gray page ground */
     --foreground:            #0f172a;
     --card:                  #ffffff;
     --card-foreground:       #0f172a;
@@ -77,19 +75,19 @@
     /* Actions */
     --primary:               #166534;   /* solid buttons and links */
     --primary-foreground:    #ffffff;
-    --secondary:             #f2f4ec;
+    --secondary:             #f1f5f9;
     --secondary-foreground:  #0f172a;
     --destructive:           #b91c1c;
     --destructive-foreground:#ffffff;
 
     /* Quiet things */
-    --muted:                 #f2f4ec;
+    --muted:                 #f1f5f9;
     --muted-foreground:      #64748b;   /* helper text, table headings */
     --accent:                #e7f4ea;   /* pale green highlight */
     --accent-foreground:     #0d3d1b;
 
     /* Lines and focus */
-    --border:                #e8eae0;
+    --border:                #e2e8f0;
     --input:                 #cbd5e1;   /* field outlines, darker than border */
     --ring:                  #2f9e41;   /* the focus ring, always visible */
 
@@ -176,16 +174,16 @@
         Shadows, softened and warmed.
 
         Tailwind's defaults are a tight grey drop shadow, which against the
-        new cream ground looked like a hairline rather than lift. These are
-        wider, much fainter, and tinted with the system's green rather than
-        neutral grey, which is what gives the reference its floating cards.
+        ground looked like a hairline rather than lift. These are wider and
+        much fainter, which is what gives the reference design its floating
+        cards. The colour stays neutral, to sit on the blue-grey ground.
         Redefining them here reaches every shadow-sm and shadow-md already
         written across the app - nothing per page to change.
     */
-    --shadow-xs:  0 1px 2px 0 rgb(24 40 24 / 0.04);
-    --shadow-sm:  0 2px 10px -4px rgb(24 40 24 / 0.10), 0 1px 2px 0 rgb(24 40 24 / 0.04);
-    --shadow-md:  0 8px 24px -12px rgb(24 40 24 / 0.16);
-    --shadow-lg:  0 16px 40px -20px rgb(24 40 24 / 0.22);
+    --shadow-xs:  0 1px 2px 0 rgb(15 23 42 / 0.04);
+    --shadow-sm:  0 2px 10px -4px rgb(15 23 42 / 0.10), 0 1px 2px 0 rgb(15 23 42 / 0.04);
+    --shadow-md:  0 8px 24px -12px rgb(15 23 42 / 0.16);
+    --shadow-lg:  0 16px 40px -20px rgb(15 23 42 / 0.22);
 
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
@@ -196,6 +194,34 @@
 @layer base {
     * {
         border-color: var(--border);
+    }
+
+    /* =================================================================
+       ONE TEXT SIZE ON EVERY DEVICE
+       -----------------------------------------------------------------
+       Two different things were resizing the text, and neither of them
+       was us.
+
+       First, a phone's own font-size setting. Every size in this app is
+       written in rem, which is a multiple of the root size, so a farmer
+       who has set their phone to the largest text was seeing every label,
+       every table cell and every button at roughly 1.3x. That is why the
+       same screen looked cramped on one phone and fine on another.
+       Pinning the root to 16px makes a rem mean 16px everywhere.
+
+       Second, text-size-adjust: mobile browsers inflate text on pages
+       they judge to be non-responsive, and they judge per element, so it
+       could enlarge one paragraph and leave the one beside it alone.
+
+       The trade: someone who enlarges text system-wide because they need
+       it no longer gets it here. Pinch-to-zoom still works, and nothing
+       stops them zooming the page, which scales the layout with the text
+       instead of breaking it.
+       ================================================================= */
+    html {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
     }
 
     body {

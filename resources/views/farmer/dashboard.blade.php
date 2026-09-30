@@ -1,8 +1,9 @@
 @extends('layouts.app')
 
 @section('title', 'Dashboard')
-@section('heading', 'Kumusta, ' . $farmer->first_name . '!')
-@section('subheading', 'Here is your farm activity. Ito po ang inyong mga naitalang gawain.')
+{{-- The greeting banner at the top of the page says all of this, so the
+     heading line above the content would only repeat it. --}}
+@section('hideHeading', true)
 
 @section('header-actions')
     <x-ui.button size="lg" :href="route('farmer.planting.create')">
@@ -31,6 +32,40 @@
     @if ($showApprovalWelcome)
         @include('farmer._onboarding', ['farmer' => $farmer])
     @endif
+
+    {{-- The greeting, in place of the old heading line. --}}
+    <x-ui.greeting :name="$farmer->first_name"
+                   role="Farmer"
+                   :href="route('farmer.profile')" />
+
+         Two across on a phone, not one. With the compact stat card these
+         fit side by side comfortably, and a farmer can see all four
+         figures without scrolling past them one at a time, which is what
+         the old full-width cards forced. --}}
+    <div class="stagger mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <x-ui.stat label="Planting Records"
+                   :value="number_format($plantingCount)"
+                   hint="Mga naitalang pagtatanim"
+                   icon="M12 21v-8m0 0C12 9 9 6 5 6c0 4 3 7 7 7zm0 0c0-4 3-7 7-7 0 4-3 7-7 7z"
+                   :href="route('farmer.planting.index')" />
+
+        <x-ui.stat label="Damage Reports"
+                   :value="number_format($reportTotal)"
+                   hint="Mga isinumiteng ulat"
+                   icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
+
+        <x-ui.stat label="Awaiting Verification"
+                   :value="number_format($pendingReports)"
+                   tone="warning"
+                   hint="Hinihintay ang technician"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2" />
+
+        <x-ui.stat label="Verified Reports"
+                   :value="number_format($verifiedReports)"
+                   tone="primary"
+                   hint="Nasuri na ng technician"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
+    </div>
 
     {{-- ----------------------------------------------------------------
          Account standing. This sits at the top because it is the thing a
@@ -73,37 +108,6 @@
             </x-ui.alert>
         @endif
     </x-ui.card>
-
-    {{-- Figures. Every one is counted from the database on page load.
-
-         Two across on a phone, not one. With the compact stat card these
-         fit side by side comfortably, and a farmer can see all four
-         figures without scrolling past them one at a time, which is what
-         the old full-width cards forced. --}}
-    <div class="stagger mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <x-ui.stat label="Planting Records"
-                   :value="number_format($plantingCount)"
-                   hint="Mga naitalang pagtatanim"
-                   icon="M12 21v-8m0 0C12 9 9 6 5 6c0 4 3 7 7 7zm0 0c0-4 3-7 7-7 0 4-3 7-7 7z"
-                   :href="route('farmer.planting.index')" />
-
-        <x-ui.stat label="Damage Reports"
-                   :value="number_format($reportTotal)"
-                   hint="Mga isinumiteng ulat"
-                   icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
-
-        <x-ui.stat label="Awaiting Verification"
-                   :value="number_format($pendingReports)"
-                   tone="warning"
-                   hint="Hinihintay ang technician"
-                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2" />
-
-        <x-ui.stat label="Verified Reports"
-                   :value="number_format($verifiedReports)"
-                   tone="primary"
-                   hint="Nasuri na ng technician"
-                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
-    </div>
 
     <div class="grid gap-5 lg:grid-cols-2">
 

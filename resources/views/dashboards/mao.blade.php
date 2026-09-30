@@ -2,6 +2,9 @@
 
 @section('title', 'Executive Dashboard')
 
+{{-- The greeting banner below carries the name and the role. --}}
+@section('hideHeading', true)
+
 @section('header-actions')
     <form method="GET" class="flex items-center gap-2">
         <div class="relative">
@@ -28,6 +31,10 @@
 @endsection
 
 @section('content')
+
+    <x-ui.greeting :name="auth()->user()->display_name"
+                   role="Municipal Agriculture Office"
+                   :href="route('mao.profile')" />
 
     {{-- ===================== ASSISTANCE DISPUTES ===================== --}}
     @if ($disputeCount > 0)

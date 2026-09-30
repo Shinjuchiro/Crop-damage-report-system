@@ -1,8 +1,8 @@
 @extends('layouts.app')
 
 @section('title', 'Technical Dashboard')
-@section('heading', 'Welcome back, ' . auth()->user()->display_name . '!')
-@section('subheading', 'Field Inspection and Validation Management')
+{{-- The greeting banner carries the name and the role instead. --}}
+@section('hideHeading', true)
 
 @php
     /* The filter panel is open when ?filters=1 is on the URL, and always
@@ -74,6 +74,10 @@
 
 
 @section('content')
+
+    <x-ui.greeting :name="auth()->user()->display_name"
+                   role="Technician"
+                   :href="route('technician.profile')" />
 
 {{--
     Technician dashboard, laid out to match the approved mockup.

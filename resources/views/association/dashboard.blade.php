@@ -1,10 +1,15 @@
 @extends('layouts.app')
 
 @section('title', 'Dashboard')
-@section('heading', 'Welcome back, ' . auth()->user()->display_name . '!')
-@section('subheading', $association->name)
+{{-- The greeting banner carries the name and the association instead. --}}
+@section('hideHeading', true)
 
 @section('content')
+
+    <x-ui.greeting :name="auth()->user()->display_name"
+                   role="Association Officer"
+                   :subtitle="$association->name"
+                   :href="route('association.profile')" />
 
 {{--
     Association dashboard, proposal section 60.
