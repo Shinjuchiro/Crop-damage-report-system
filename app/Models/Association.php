@@ -26,6 +26,17 @@ class Association extends Model
         return $this->belongsTo(Barangay::class);
     }
 
+    /**
+     * The barangays this association operates in, from the MAO's area
+     * coverage sheet. Not the same as barangay() above, which is the one
+     * barangay the office sits in: an association covers up to nine, and
+     * Tanza Farmers Association does not cover the one its office is in.
+     */
+    public function coverage()
+    {
+        return $this->belongsToMany(Barangay::class, 'association_barangay');
+    }
+
     public function farmers()
     {
         return $this->hasMany(Farmer::class);

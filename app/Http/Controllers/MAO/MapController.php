@@ -16,9 +16,19 @@ use Illuminate\Support\Facades\DB;
  * Spatial view of crop damage across Tanza.
  *
  * Damage is aggregated by FARMERS' ASSOCIATION, since that is the unit the MAO
- * allocates assistance to. Each association is drawn at the barangay where its
- * office sits, sized by how many reports its members filed. The barangay
- * outlines underneath are context only.
+ * allocates assistance to.
+ *
+ * Each association shades the barangays it covers, in a colour of its own,
+ * from the office's area coverage sheet (see AssociationCoverageSeeder). The
+ * fills are translucent and all eight are drawn at once, so a barangay several
+ * associations work in shows all of their colours layered - which is the real
+ * picture: Tres Cruces is covered by five of the eight and Calibuyo by four.
+ *
+ * On top of the shading each association keeps a bubble, sized by how many
+ * reports its members filed and coloured by the count or severity scale, so
+ * the damage reading survives the change. The bubble sits at the middle of the
+ * association's coverage, not at its office: Tanza Farmers Association's
+ * office is in Daang Amaya, which it does not cover.
  *
  * Because the aggregation runs off the farmer's association, not off GPS, the
  * map is populated from the first report and does not wait on field inspections.
@@ -45,6 +55,25 @@ class MapController extends Controller
     ];
 
     private const SEVERITY_ORDER = ['slight', 'moderate', 'partial', 'total'];
+
+    /**
+     * One colour per association, for the coverage shading. Eight hues far
+     * enough apart to stay apart when two or three are layered over the same
+     * barangay at low opacity, which is most of Tres Cruces.
+     *
+     * Deliberately NOT the green of the system: these say "who", not "how
+     * bad", and the count and severity scales own the second question.
+     */
+    public const COVERAGE_COLORS = [
+        '#0ea5e9', // sky
+        '#16a34a', // green
+        '#f59e0b', // amber
+        '#8b5cf6', // violet
+        '#e11d48', // rose
+        '#14b8a6', // teal
+        '#db2777', // pink
+        '#64748b', // slate
+    ];
 
     public function index(Request $request)
     {
@@ -93,10 +122,11 @@ class MapController extends Controller
 
         $severityScale = Validation::SEVERITY_SCALE;
 
-        $associations = Association::with('barangay')
+        $associations = Association::with(['barangay', 'coverage'])
             ->orderBy('name')
             ->get()
-            ->map(function (Association $association) use ($totals, $areas, $registered, $severityScale) {
+            ->values()
+            ->map(function (Association $association, int $index) use ($totals, $areas, $registered, $severityScale) {
                 $row     = $totals->get($association->id);
                 $reports = (int) ($row->reports ?? 0);
                 $rank    = (int) ($row->severity_rank ?? 0);
@@ -117,6 +147,17 @@ class MapController extends Controller
                     'count_color'    => $this->countColor($reports),
                     'severity_color' => $key ? $severityScale[$key]['color'] : '#cbd5e1',
                     'url'            => route('mao.damage-reports.index', ['association_id' => $association->id]),
+
+                    // The shading. 'coverage' is the PSGC codes of the
+                    // barangays this association works in, which is how the
+                    // boundary file is keyed; 'color' is its own colour.
+                    // Ordered by name above, so the colour a given
+                    // association gets is the same on every page load.
+                    'color'          => self::COVERAGE_COLORS[$index % count(self::COVERAGE_COLORS)],
+                    'coverage'       => $association->coverage
+                                            ->pluck('psgc_code')->filter()->values(),
+                    'coverage_names' => $association->coverage
+                                            ->pluck('name')->sort()->values()->join(', ') ?: 'No coverage set',
                 ];
             });
 
@@ -175,7 +216,9 @@ class MapController extends Controller
             'total_assoc'  => $associations->count(),
             'area'         => $associations->sum('area'),
             'pinned'       => $points->count(),
-            'unplaced'     => $associations->whereNull('psgc')->count(),
+            // Without coverage an association shades nothing, so it is worth
+            // saying out loud rather than leaving a quietly blank map.
+            'unplaced'     => $associations->filter(fn ($row) => $row['coverage']->isEmpty())->count(),
         ];
 
         $years = DamageReport::query()

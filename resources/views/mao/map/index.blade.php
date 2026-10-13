@@ -29,9 +29,10 @@
         <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {{ $coverage['unplaced'] }}
             {{ \Illuminate\Support\Str::plural('association', $coverage['unplaced']) }}
-            {{ $coverage['unplaced'] === 1 ? 'has' : 'have' }} no location barangay set, so
-            {{ $coverage['unplaced'] === 1 ? 'it does' : 'they do' }} not appear on the map.
-            Set it under <a href="{{ route('mao.associations.index') }}" class="font-medium underline">Manage Associations</a>.
+            {{ $coverage['unplaced'] === 1 ? 'has' : 'have' }} no area coverage recorded, so
+            {{ $coverage['unplaced'] === 1 ? 'it shades' : 'they shade' }} no barangay on the map.
+            Coverage comes from the office's area coverage sheet; see
+            <a href="{{ route('mao.associations.index') }}" class="font-medium underline">Manage Associations</a>.
         </div>
     @endif
 
@@ -186,6 +187,34 @@
              data-center-lng="{{ $center['lng'] }}"
              data-zoom="{{ $center['zoom'] }}"></div>
 
+        {{-- Which association shades which barangays. This legend is the key
+             to the fills; the one under it is the key to the bubbles, which
+             are a different question (how much damage, not whose area). --}}
+        <div class="border-t border-border px-6 py-4">
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Area coverage per association
+            </span>
+
+            <div class="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
+                @foreach ($associationStats as $row)
+                    <span class="flex items-start gap-2 text-sm text-foreground">
+                        <span class="mt-1 h-3.5 w-3.5 shrink-0 rounded-sm"
+                              style="background-color: {{ $row['color'] }}; opacity: .55"></span>
+                        <span class="min-w-0">
+                            <span class="font-medium">{{ $row['short'] }}</span>
+                            <span class="block text-xs text-muted-foreground">{{ $row['coverage_names'] }}</span>
+                        </span>
+                    </span>
+                @endforeach
+            </div>
+
+            <p class="mt-3 text-xs text-muted-foreground">
+                Shaded areas are each association's coverage, from the office's area coverage sheet.
+                Associations overlap, so a barangay several of them work in carries more than one
+                colour: Tres Cruces is covered by five and Calibuyo by four.
+            </p>
+        </div>
+
         {{-- Legend --}}
         <div class="border-t border-border px-6 py-4">
             @if ($shading === 'count')
@@ -321,8 +350,11 @@
                     '<div class="tip-row"><span class="tip-dot" style="background:' + dot + '"></span>' +
                         '<span>' + headline + '</span></div>' +
                     '<div class="tip-sep"></div>' +
-                    '<div class="tip-row"><span>Location</span>' +
+                    '<div class="tip-row"><span>Office</span>' +
                         '<span style="margin-left:auto;color:#f1f5f9">' + row.location + '</span></div>' +
+                    '<div class="tip-row" style="align-items:flex-start"><span>Covers</span>' +
+                        '<span style="margin-left:auto;max-width:14rem;text-align:right;color:#f1f5f9">' +
+                        row.coverage_names + '</span></div>' +
                     '<div class="tip-row"><span>Registered farmers</span>' +
                         '<span style="margin-left:auto;color:#f1f5f9">' + row.members + '</span></div>';
 
@@ -339,7 +371,8 @@
                 return html;
             }
 
-            const bubbles = L.layerGroup().addTo(map);
+            const coverage = L.layerGroup().addTo(map);
+            const bubbles  = L.layerGroup().addTo(map);
 
             fetch(el.dataset.geojson)
                 .then(response => response.json())
@@ -360,29 +393,76 @@
                     boundaries.bringToBack();
                     map.fitBounds(boundaries.getBounds(), { padding: [20, 20] });
 
-                    /* ---------- Where each barangay sits ---------- */
-                    const centres = {};
+                    /* ---------- Every barangay, by its PSGC code ---------- */
+                    const features = {};
+                    const centres  = {};
                     geojson.features.forEach(function (feature) {
+                        features[feature.properties.psgc] = feature;
                         centres[feature.properties.psgc] = L.geoJSON(feature).getBounds().getCenter();
                     });
 
-                    /* Two associations share Calibuyo, so nudge duplicates apart
-                       instead of stacking one on top of the other. */
-                    const seen = {};
+                    /* ---------- Coverage, shaded per association ----------
 
+                       Each association fills the barangays it covers in its
+                       own colour. Drawn all at once and translucent on
+                       purpose: the office's sheet has five associations
+                       working in Tres Cruces and four in Calibuyo, so those
+                       barangays carry several colours at once, and that
+                       overlap is the fact being shown rather than a problem
+                       to be hidden.
+
+                       0.28 opacity, not more: four layers over Calibuyo
+                       already reach about 0.73 together, and past that the
+                       barangay outline underneath stops reading. */
                     associations.forEach(function (row) {
-                        const centre = centres[row.psgc];
+                        (row.coverage || []).forEach(function (psgc) {
+                            const feature = features[psgc];
+                            if (! feature) return;
+
+                            L.geoJSON(feature, {
+                                style: {
+                                    color: row.color,
+                                    weight: 1,
+                                    opacity: 0.55,
+                                    fillColor: row.color,
+                                    fillOpacity: 0.28,
+                                },
+                            })
+                            .bindTooltip(row.name, {
+                                sticky: true,
+                                direction: 'top',
+                                className: 'assoc-tip',
+                            })
+                            .on('click', function () {
+                                if (row.reports > 0) window.location = row.url;
+                            })
+                            .addTo(coverage);
+                        });
+                    });
+
+                    /* ---------- One bubble per association ----------
+
+                       At the middle of its coverage, not at its office: Tanza
+                       Farmers Association's office is in Daang Amaya, which is
+                       not one of the seven barangays it covers, so placing the
+                       bubble there would put the figures outside the area they
+                       describe. An association with no coverage recorded falls
+                       back to its office barangay so it is still on the map. */
+                    associations.forEach(function (row) {
+                        let centre = null;
+
+                        if (row.coverage && row.coverage.length) {
+                            const bounds = L.latLngBounds([]);
+                            row.coverage.forEach(function (psgc) {
+                                if (centres[psgc]) bounds.extend(centres[psgc]);
+                            });
+                            if (bounds.isValid()) centre = bounds.getCenter();
+                        }
+
+                        if (! centre) centre = centres[row.psgc];
                         if (! centre) return;
 
-                        const index = seen[row.psgc] = (seen[row.psgc] || 0);
-                        seen[row.psgc]++;
-
-                        let lat = centre.lat, lng = centre.lng;
-                        if (index > 0) {
-                            const angle = (index - 1) * (Math.PI * 2 / 3);
-                            lat += Math.cos(angle) * 0.008;
-                            lng += Math.sin(angle) * 0.008;
-                        }
+                        const lat = centre.lat, lng = centre.lng;
 
                         const fill = shading === 'severity' ? row.severity_color : row.count_color;
 

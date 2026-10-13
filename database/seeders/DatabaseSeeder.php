@@ -12,6 +12,9 @@ class DatabaseSeeder extends Seeder
             MaoAdminSeeder::class,
             BarangaySeeder::class,
             AssociationSeeder::class,
+            // After AssociationSeeder: coverage is keyed on association names,
+            // so the associations have to exist first.
+            AssociationCoverageSeeder::class,
             CropSeeder::class,
         ]);
     }
