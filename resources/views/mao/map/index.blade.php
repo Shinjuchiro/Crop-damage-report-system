@@ -195,23 +195,33 @@
                 Area coverage per association
             </span>
 
-            <div class="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
+            {{-- Each chip is both the key to a colour and the switch for it.
+                 Eight territories over the same ground is a lot to read at
+                 once, and the ones that overlap most are the ones you most
+                 often want to see on their own. --}}
+            <div class="mt-3 flex flex-wrap gap-2">
                 @foreach ($associationStats as $row)
-                    <span class="flex items-start gap-2 text-sm text-foreground">
-                        <span class="mt-1 h-3.5 w-3.5 shrink-0 rounded-sm"
-                              style="background-color: {{ $row['color'] }}; opacity: .55"></span>
-                        <span class="min-w-0">
-                            <span class="font-medium">{{ $row['short'] }}</span>
-                            <span class="block text-xs text-muted-foreground">{{ $row['coverage_names'] }}</span>
-                        </span>
-                    </span>
+                    <button type="button"
+                            data-assoc="{{ $row['id'] }}"
+                            aria-pressed="true"
+                            title="{{ $row['name'] }} &mdash; {{ $row['coverage_names'] }}"
+                            class="assoc-chip" style="--chip: {{ $row['color'] }}">
+                        <span class="assoc-chip-dot"></span>
+                        {{ $row['short'] }}
+                    </button>
                 @endforeach
+
+                <span class="mx-1 w-px self-stretch bg-border"></span>
+
+                <button type="button" data-assoc="all" class="assoc-chip assoc-chip-plain">All</button>
+                <button type="button" data-assoc="none" class="assoc-chip assoc-chip-plain">None</button>
             </div>
 
             <p class="mt-3 text-xs text-muted-foreground">
-                Shaded areas are each association's coverage, from the office's area coverage sheet.
-                Associations overlap, so a barangay several of them work in carries more than one
-                colour: Tres Cruces is covered by five and Calibuyo by four.
+                Each association is one area, merged from the barangays it covers on the office's area
+                coverage sheet. They overlap, so the same ground can sit inside several outlines:
+                Tres Cruces is covered by five associations and Calibuyo by four. Switch one off to
+                read the rest.
             </p>
         </div>
 
@@ -295,6 +305,33 @@
         }
         .assoc-tip .tip-sep { border-top: 1px solid #1e293b; margin: 8px 0 7px; }
 
+        /* The association chips. The colour comes in as --chip, so one rule
+           serves all eight rather than eight inline styles. Pressed is the
+           normal state: everything starts visible. */
+        .assoc-chip {
+            display: inline-flex; align-items: center; gap: 7px;
+            border: 1px solid var(--chip, #cbd5e1);
+            border-radius: 9999px; padding: 5px 12px;
+            font-size: 13px; font-weight: 600; line-height: 1.2;
+            color: #334155; background: #fff;
+            cursor: pointer; transition: opacity .15s, background-color .15s;
+        }
+        .assoc-chip[aria-pressed="true"] {
+            background: color-mix(in srgb, var(--chip) 12%, #fff);
+        }
+        /* Switched off: drained of colour rather than hidden, so you can
+           still see what you turned off and put it back. */
+        .assoc-chip[aria-pressed="false"] {
+            border-color: #cbd5e1; color: #94a3b8; background: #fff;
+        }
+        .assoc-chip[aria-pressed="false"] .assoc-chip-dot { background: #cbd5e1; }
+
+        .assoc-chip-dot {
+            width: 10px; height: 10px; border-radius: 9999px;
+            background: var(--chip, #cbd5e1); flex: none;
+        }
+        .assoc-chip-plain { border-color: #cbd5e1; font-weight: 500; }
+
         .brgy-label { background: none; border: 0; box-shadow: none; white-space: nowrap; }
 
         /* Barangay names and association acronyms, readable on the basemap */
@@ -315,7 +352,21 @@
             const points       = JSON.parse(el.dataset.points);
             const shading      = el.dataset.shading;
 
-            const map = L.map(el).setView(
+            /* maxBoundsViscosity has to be set here rather than later: it is
+               read while a drag is in flight, and 1.0 makes the edge of the
+               allowed area solid instead of rubber-banding back. The bounds
+               themselves are set once the barangay outlines have loaded and
+               the real extent of Tanza is known. */
+            const map = L.map(el, {
+                maxBoundsViscosity: 1.0,
+                /* Leaflet normally snaps to whole zoom levels. Tanza is about
+                   10km across, which falls between two of them, so a whole
+                   level either overflowed the card or left the municipality
+                   floating in a third of it. Quarter steps let the fit
+                   actually fill the space. */
+                zoomSnap: 0.25,
+                zoomDelta: 0.5,
+            }).setView(
                 [parseFloat(el.dataset.centerLat), parseFloat(el.dataset.centerLng)],
                 parseInt(el.dataset.zoom)
             );
@@ -371,8 +422,104 @@
                 return html;
             }
 
+            /*
+                MERGE A GROUP OF BARANGAYS INTO ONE OUTLINE
+
+                An edge that two of the group's barangays share is a border
+                INSIDE the association's area, so it is dropped; an edge only
+                one of them has is on the outside, so it is kept. Stitching
+                the kept edges end to end gives the outline, or several
+                outlines when the barangays are not all neighbours.
+
+                This needs no geometry library, only that neighbouring
+                barangays share the same vertices along their common border,
+                which the PSGC boundary file does: the four barangays of P2BS
+                share 35 edges exactly, and CALACATC's four share 39.
+
+                Points are compared as fixed strings rather than as floats,
+                because two coordinates that are equal in the file can differ
+                in the last bit after being parsed.
+            */
+            function dissolve(rings) {
+                const key     = p => p[0].toFixed(7) + ',' + p[1].toFixed(7);
+                const edgeKey = (a, b) => {
+                    const ka = key(a), kb = key(b);
+                    return ka < kb ? ka + '|' + kb : kb + '|' + ka;
+                };
+
+                const count = new Map();   // edge -> how many barangays have it
+                const ends  = new Map();   // edge -> its two points
+
+                rings.forEach(function (ring) {
+                    for (let i = 0; i < ring.length - 1; i++) {
+                        const a = ring[i], b = ring[i + 1];
+                        const k = edgeKey(a, b);
+                        count.set(k, (count.get(k) || 0) + 1);
+                        if (! ends.has(k)) ends.set(k, [a, b]);
+                    }
+                });
+
+                const adj      = new Map();
+                const boundary = [];
+
+                count.forEach(function (n, k) {
+                    if (n !== 1) return;          // an inside border, drop it
+                    const pair = ends.get(k);
+                    boundary.push(k);
+                    [[pair[0], pair[1]], [pair[1], pair[0]]].forEach(function (pq) {
+                        const at = key(pq[0]);
+                        if (! adj.has(at)) adj.set(at, []);
+                        adj.get(at).push(pq[1]);
+                    });
+                });
+
+                const used = new Set();
+                const out  = [];
+
+                boundary.forEach(function (start) {
+                    if (used.has(start)) return;
+
+                    const pair = ends.get(start);
+                    used.add(start);
+                    const ring = [pair[0], pair[1]];
+
+                    // Walk from edge to edge until the ring closes, or until
+                    // there is nowhere left to go on a boundary file with a
+                    // gap in it. The guard is the edge count, so a malformed
+                    // file cannot spin here forever.
+                    for (let step = 0; step < boundary.length + 2; step++) {
+                        const cur  = ring[ring.length - 1];
+                        const prev = ring[ring.length - 2];
+                        const options = adj.get(key(cur)) || [];
+
+                        let next = null;
+                        for (let i = 0; i < options.length; i++) {
+                            const cand = options[i];
+                            if (key(cand) === key(prev)) continue;
+                            if (used.has(edgeKey(cur, cand))) continue;
+                            next = cand;
+                            break;
+                        }
+
+                        if (! next) break;
+                        used.add(edgeKey(cur, next));
+                        ring.push(next);
+                        if (key(next) === key(ring[0])) break;
+                    }
+
+                    if (ring.length > 3) out.push(ring);
+                });
+
+                return out;
+            }
+
             const coverage = L.layerGroup().addTo(map);
             const bubbles  = L.layerGroup().addTo(map);
+
+            /* association id -> its shape and its bubble, so the chips under
+               the map can show and hide one association at a time. */
+            const shapes  = {};
+            const markers = {};
 
             fetch(el.dataset.geojson)
                 .then(response => response.json())
@@ -391,7 +538,67 @@
                     }).addTo(map);
 
                     boundaries.bringToBack();
-                    map.fitBounds(boundaries.getBounds(), { padding: [20, 20] });
+
+                    /* ---------- Everywhere that is not Tanza ----------
+
+                       One polygon covering the world with Tanza cut out of
+                       it, painted the colour of the page. The basemap keeps
+                       its roads and landmarks inside the municipality, where
+                       they help a technician place a farm, and Naic, Trece
+                       Martires and the rest of Cavite simply are not drawn.
+
+                       The outline of Tanza is the same merge used for the
+                       associations, run over all 41 barangays at once: the
+                       borders between them cancel out and what is left is
+                       the municipal boundary.
+
+                       interactive: false, or this sheet would swallow every
+                       click and tooltip meant for the map underneath it. */
+                    const outerRing = [[-85, -180], [-85, 180], [85, 180], [85, -180]];
+
+                    const tanza = dissolve(geojson.features.map(function (feature) {
+                        return feature.geometry.coordinates[0];
+                    }));
+
+                    if (tanza.length) {
+                        L.polygon(
+                            [outerRing].concat(tanza.map(function (ring) {
+                                return ring.map(function (p) { return [p[1], p[0]]; });
+                            })),
+                            {
+                                stroke: false,
+                                fillColor: '#eef4fb',
+                                fillOpacity: 1,
+                                interactive: false,
+                            }
+                        ).addTo(map).bringToBack();
+                    }
+
+                    /* ---------- The view, fixed on the municipality ----------
+
+                       Fitted to Tanza, then penned there: you can zoom in to
+                       read a barangay, but not out to the whole of Luzon and
+                       not sideways into the blank. Before this the map opened
+                       at a guessed centre and zoom, and any drag left you
+                       looking at empty space.
+
+                       minZoom is whatever the fit came out at, so a phone and
+                       a desktop each get their own floor rather than a number
+                       picked for one of them. */
+                    const extent = boundaries.getBounds().pad(0.05);
+                    const inset  = L.point(20, 20);
+
+                    /* The floor is worked out from the bounds rather than
+                       read back from the map: fitBounds may still be easing
+                       into place when the next line runs, and getZoom() then
+                       answers with where the map was a moment ago, which
+                       pinned the floor one level too low. */
+                    const fitZoom = map.getBoundsZoom(extent, false, inset);
+
+                    map.fitBounds(extent, { padding: [20, 20] });
+                    map.setMaxBounds(extent);
+                    map.setMinZoom(fitZoom);
+                    map.setMaxZoom(17);
 
                     /* ---------- Every barangay, by its PSGC code ---------- */
                     const features = {};
@@ -401,43 +608,88 @@
                         centres[feature.properties.psgc] = L.geoJSON(feature).getBounds().getCenter();
                     });
 
-                    /* ---------- Coverage, shaded per association ----------
+                    /* ---------- Coverage, one shape per association ----------
 
-                       Each association fills the barangays it covers in its
-                       own colour. Drawn all at once and translucent on
-                       purpose: the office's sheet has five associations
-                       working in Tres Cruces and four in Calibuyo, so those
-                       barangays carry several colours at once, and that
-                       overlap is the fact being shown rather than a problem
-                       to be hidden.
+                       Each association is ONE shaded area, not a set of
+                       shaded barangays. The barangays it covers are merged
+                       into a single outline first, so the borders between
+                       them disappear and what is left is the association's
+                       own territory. PHAMBBSS covers fifteen barangays and
+                       reads as one region; Tanza Farmers Association's seven
+                       are not all neighbours, so it comes out as three
+                       separate pieces, which is the truth about its area.
+
+                       Drawn all at once and translucent on purpose: the
+                       office's sheet has five associations working in Tres
+                       Cruces and four in Calibuyo, so that ground carries
+                       several colours at once, and the overlap is the fact
+                       being shown rather than a problem to be hidden.
 
                        0.28 opacity, not more: four layers over Calibuyo
                        already reach about 0.73 together, and past that the
-                       barangay outline underneath stops reading. */
+                       barangay outlines underneath stop reading. */
                     associations.forEach(function (row) {
+                        const rings = [];
+
                         (row.coverage || []).forEach(function (psgc) {
                             const feature = features[psgc];
-                            if (! feature) return;
-
-                            L.geoJSON(feature, {
-                                style: {
-                                    color: row.color,
-                                    weight: 1,
-                                    opacity: 0.55,
-                                    fillColor: row.color,
-                                    fillOpacity: 0.28,
-                                },
-                            })
-                            .bindTooltip(row.name, {
-                                sticky: true,
-                                direction: 'top',
-                                className: 'assoc-tip',
-                            })
-                            .on('click', function () {
-                                if (row.reports > 0) window.location = row.url;
-                            })
-                            .addTo(coverage);
+                            if (feature && feature.geometry) {
+                                // A barangay is a simple polygon here, but
+                                // read it as a multipolygon so a future
+                                // boundary file with islands still works.
+                                const geom = feature.geometry;
+                                if (geom.type === 'Polygon') {
+                                    rings.push(geom.coordinates[0]);
+                                } else if (geom.type === 'MultiPolygon') {
+                                    geom.coordinates.forEach(function (part) {
+                                        rings.push(part[0]);
+                                    });
+                                }
+                            }
                         });
+
+                        if (! rings.length) return;
+
+                        const merged = dissolve(rings);
+                        if (! merged.length) return;
+
+                        // [[ring]] per shape, not [ring, ring]: Leaflet reads
+                        // a second ring inside one polygon as a HOLE, so the
+                        // pieces have to be separate shapes or Tanza Farmers
+                        // Association would punch holes in itself.
+                        const shape = L.polygon(
+                            merged.map(function (ring) {
+                                return [ring.map(function (p) { return [p[1], p[0]]; })];
+                            }),
+                            {
+                                /* Outline-led, not fill-led. Eight
+                                   translucent fills stacked on the same
+                                   ground turn to mud: Tres Cruces carries
+                                   five of them and came out a flat brown
+                                   with nothing to tell you whose it was.
+                                   A strong edge and a faint wash reads as
+                                   a territory, and overlapping territories
+                                   stay legible because edges cross rather
+                                   than blend. */
+                                color: row.color,
+                                weight: 2.5,
+                                opacity: 0.95,
+                                fillColor: row.color,
+                                fillOpacity: 0.12,
+                            }
+                        )
+                        .bindTooltip(tooltipFor(row), {
+                            sticky: true,
+                            direction: 'top',
+                            className: 'assoc-tip',
+                        })
+                        .on('click', function () {
+                            if (row.reports > 0) window.location = row.url;
+                        })
+                        .addTo(coverage);
+
+                        row._bounds = shape.getBounds();
+                        shapes[row.id] = shape;
                     });
 
                     /* ---------- One bubble per association ----------
@@ -451,12 +703,10 @@
                     associations.forEach(function (row) {
                         let centre = null;
 
-                        if (row.coverage && row.coverage.length) {
-                            const bounds = L.latLngBounds([]);
-                            row.coverage.forEach(function (psgc) {
-                                if (centres[psgc]) bounds.extend(centres[psgc]);
-                            });
-                            if (bounds.isValid()) centre = bounds.getCenter();
+                        // The merged shape's own middle, set when it was
+                        // drawn just above.
+                        if (row._bounds && row._bounds.isValid()) {
+                            centre = row._bounds.getCenter();
                         }
 
                         if (! centre) centre = centres[row.psgc];
@@ -466,7 +716,7 @@
 
                         const fill = shading === 'severity' ? row.severity_color : row.count_color;
 
-                        L.circleMarker([lat, lng], {
+                        const bubble = L.circleMarker([lat, lng], {
                             radius: radiusFor(row.reports),
                             color: '#ffffff',
                             weight: 2.5,
@@ -483,7 +733,7 @@
                         })
                         .addTo(bubbles);
 
-                        L.marker([lat, lng], {
+                        const label = L.marker([lat, lng], {
                             icon: L.divIcon({
                                 className: 'brgy-label',
                                 html: '<span class="assoc-code" style="font-weight:700;font-size:11px">' +
@@ -493,6 +743,45 @@
                             }),
                             interactive: false,
                         }).addTo(bubbles);
+
+                        // The bubble and its name travel together, so a chip
+                        // never leaves a label floating over nothing.
+                        markers[row.id] = L.layerGroup([bubble, label]);
+                    });
+
+                    /* ---------- The chips under the map ----------
+
+                       Eight associations over the same ground is a lot to
+                       read at once, so each one can be taken off. The chip
+                       carries the association's own colour, which is the
+                       only key to the shape it controls. */
+                    const chips = document.querySelectorAll('[data-assoc]');
+
+                    function setVisible(id, on) {
+                        [shapes[id], markers[id]].forEach(function (layer) {
+                            if (! layer) return;
+                            on ? layer.addTo(map) : map.removeLayer(layer);
+                        });
+                    }
+
+                    chips.forEach(function (chip) {
+                        chip.addEventListener('click', function () {
+                            const id = chip.dataset.assoc;
+
+                            if (id === 'all' || id === 'none') {
+                                const on = id === 'all';
+                                chips.forEach(function (other) {
+                                    if (other.dataset.assoc === 'all' || other.dataset.assoc === 'none') return;
+                                    other.setAttribute('aria-pressed', on ? 'true' : 'false');
+                                    setVisible(other.dataset.assoc, on);
+                                });
+                                return;
+                            }
+
+                            const on = chip.getAttribute('aria-pressed') !== 'true';
+                            chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+                            setVisible(id, on);
+                        });
                     });
                 })
                 .catch(function () {

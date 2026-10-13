@@ -18,9 +18,13 @@ use Illuminate\Support\Facades\DB;
  * Damage is aggregated by FARMERS' ASSOCIATION, since that is the unit the MAO
  * allocates assistance to.
  *
- * Each association shades the barangays it covers, in a colour of its own,
- * from the office's area coverage sheet (see AssociationCoverageSeeder). The
- * fills are translucent and all eight are drawn at once, so a barangay several
+ * Each association is drawn as ONE shaded area, not as a set of shaded
+ * barangays: the barangays it covers, from the office's area coverage sheet
+ * (see AssociationCoverageSeeder), are merged into a single outline in the
+ * browser so the borders between them disappear. What the controller sends is
+ * the list of PSGC codes; the merging is in the view, next to the map.
+ *
+ * The fills are translucent and all eight are drawn at once, so ground several
  * associations work in shows all of their colours layered - which is the real
  * picture: Tres Cruces is covered by five of the eight and Calibuyo by four.
  *
