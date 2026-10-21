@@ -72,9 +72,20 @@
             class="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-accent
                    hover:text-accent-foreground">
 
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary
-                     text-sm font-semibold text-primary-foreground">
-            {{ strtoupper(substr($user->display_name ?: $user->username, 0, 2)) }}
+        {{-- The photo, falling back to initials. This used to print the
+             initials and nothing else, so a user who had uploaded a photo
+             saw it on their profile page and still saw "MA" up here - the
+             avatar simply never looked at profile_photo_url.
+
+             overflow-hidden with object-cover, so a portrait or a landscape
+             photo is cropped to the circle rather than squashed into it. --}}
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full
+                     bg-primary text-sm font-semibold text-primary-foreground">
+            @if ($user->profile_photo_url)
+                <img src="{{ $user->profile_photo_url }}" alt="" class="h-full w-full object-cover">
+            @else
+                {{ strtoupper(substr($user->display_name ?: $user->username, 0, 2)) }}
+            @endif
         </span>
 
         {{-- The name is hidden on phones and tablets, where the avatar alone is

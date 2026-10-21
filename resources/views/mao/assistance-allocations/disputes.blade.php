@@ -26,10 +26,14 @@
         $backUrl = request()->fullUrlWithoutQuery(['selected']);
     @endphp
 
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
             <x-ui.card>
                 <x-ui.filter-bar :fields="['association_id']">
                     <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
@@ -49,8 +53,7 @@
                                               :subtitle="$distribution->allocation?->association?->name ?? 'No association'"
                                               status="not_received"
                                               :fields="[
-                                                  'Assistance'     => $distribution->allocation?->display_name ?? $distribution->in_kind_description ?? '-',
-                                                  'Quantity'       => $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-',
+                                                  'Assistance'     => $distribution->allocation?->display_name ?? 'Assistance',
                                                   'Distributed on' => $distribution->distributed_at?->format('M d, Y'),
                                                   'Reported'       => $distribution->receipt_confirmed_at?->format('M d, Y'),
                                               ]"
@@ -72,7 +75,6 @@
                                 <th class="px-5 py-3 font-medium">Farmer</th>
                                 <th class="px-5 py-3 font-medium">Association</th>
                                 <th class="px-5 py-3 font-medium">Assistance</th>
-                                <th class="px-5 py-3 text-right font-medium">Quantity</th>
                                 <th class="px-5 py-3 font-medium">Distributed On</th>
                                 <th class="px-5 py-3 font-medium">Reported Not Received</th>
                                 <th class="px-5 py-3 text-right font-medium">Action</th>
@@ -92,12 +94,7 @@
                                         {{ $distribution->allocation?->association?->name ?? '-' }}
                                     </td>
                                     <td class="px-5 py-3 text-muted-foreground">
-                                        {{ $distribution->allocation?->display_name
-                                            ?? $distribution->in_kind_description
-                                            ?? '-' }}
-                                    </td>
-                                    <td class="px-5 py-3 text-right tabular-nums text-foreground">
-                                        {{ $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-' }}
+                                        {{ $distribution->allocation?->display_name ?? 'Assistance' }}
                                     </td>
                                     <td class="px-5 py-3 text-muted-foreground">
                                         {{ $distribution->distributed_at?->format('M d, Y') }}
@@ -112,7 +109,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-5 py-14 text-center">
+                                    <td colspan="7" class="px-5 py-14 text-center">
                                         <p class="text-sm font-medium text-muted-foreground">No disputes</p>
                                         <p class="mt-1 text-xs text-muted-foreground">
                                             Every farmer who has answered so far has confirmed receiving their assistance.
@@ -153,15 +150,15 @@
                         <div>
                             <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assistance</dt>
                             <dd class="mt-0.5 font-medium text-foreground">
-                                {{ $selected->allocation?->display_name ?? $selected->in_kind_description ?? '-' }}
+                                {{ $selected->allocation?->display_name ?? 'Assistance' }}
                             </dd>
                         </div>
-                        <div>
-                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quantity</dt>
-                            <dd class="mt-0.5 font-medium text-foreground">
-                                {{ $selected->quantity !== null ? number_format($selected->quantity, 2) : '-' }}
-                            </dd>
-                        </div>
+                        {{-- The Quantity row was here. Every figure went in
+                             Oct 2026 (client decision): how much a named
+                             farmer received is a financial detail about an
+                             identifiable person. A dispute is about whether
+                             they received anything at all, which this page
+                             still shows in full. --}}
                         <div>
                             <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Distributed</dt>
                             <dd class="mt-0.5 font-medium text-foreground">

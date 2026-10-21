@@ -15,7 +15,7 @@
     Below sm the table becomes cards, because an officer checking a member on
     a phone should not have to scroll sideways.
 
-    List and detail sit side by side from lg up, the same arrangement the MAO
+    Selecting a member opens the record in a modal, the same arrangement the MAO
     screens use. Picking a member adds ?selected=<id> rather than navigating
     away, so the list, the filters and the page number all stay put. On a
     phone the panel takes over the screen and carries its own "Back to list"
@@ -24,10 +24,14 @@
 
 <div class="space-y-4">
 
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
     {{-- LIST --}}
-    <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+    <div>
 
     <x-ui.card :padded="false">
         <div class="border-b border-border px-4 pt-4 sm:px-5 sm:pt-5">
@@ -61,12 +65,30 @@
             </x-ui.empty>
         @else
 
+        {{-- ONE PIECE OF STATE, BOTH LAYOUTS (revision section 8)
+
+             `open` is an object keyed by member id rather than a single id,
+             so an officer can leave two members open side by side and
+             compare them. Alpine 3 proxies the object, so assigning a key
+             is reactive without any further ceremony.
+
+             It sits out here, around both the phone list and the table,
+             because the two are the same list at different widths and a
+             member expanded on a phone should still be expanded if the
+             window is dragged wider. --}}
+        <div x-data="{ open: {} }">
+
             {{-- ---------- PHONE ---------- --}}
             <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                 @foreach ($members as $member)
-                    <li>
-                        <a href="{{ request()->fullUrlWithQuery(['selected' => $member->id]) }}"
-                           class="block rounded-xl border border-border bg-card p-3.5 shadow-sm transition active:bg-muted">
+                    <li class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+
+                        {{-- The whole header is the toggle, so a thumb has
+                             the full width of the card to aim at rather
+                             than a chevron. --}}
+                        <button type="button" class="block w-full p-3.5 text-left transition active:bg-muted"
+                                @click="open[{{ $member->id }}] = ! open[{{ $member->id }}]"
+                                :aria-expanded="open[{{ $member->id }}] ? 'true' : 'false'">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-semibold">{{ $member->full_name }}</p>
@@ -74,7 +96,17 @@
                                         {{ $member->barangay?->name ?? 'Barangay not set' }}
                                     </p>
                                 </div>
-                                <x-ui.status :value="$member->activity_status" />
+
+                                <span class="flex shrink-0 items-center gap-2">
+                                    <x-ui.status :value="$member->activity_status" />
+                                    <svg class="h-4 w-4 text-muted-foreground transition-transform"
+                                         :class="open[{{ $member->id }}] ? 'rotate-180' : ''"
+                                         fill="none" stroke="currentColor" stroke-width="2"
+                                         stroke-linecap="round" stroke-linejoin="round"
+                                         viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M6 9l6 6 6-6"/>
+                                    </svg>
+                                </span>
                             </div>
 
                             <p class="mt-2 text-xs text-muted-foreground">
@@ -82,7 +114,16 @@
                                 &middot; {{ $member->damage_reports_count }} damage
                                 {{ $member->damage_reports_count === 1 ? 'report' : 'reports' }}
                             </p>
-                        </a>
+                        </button>
+
+                        {{-- x-transition, not x-collapse: resources/js/app.js
+                             imports core Alpine only, and the collapse plugin
+                             is not among it. A directive Alpine does not know
+                             is simply ignored, so the card would snap open
+                             with no warning that the animation never ran. --}}
+                        <div x-show="open[{{ $member->id }}]" x-cloak x-transition.opacity.duration.200ms>
+                            @include('association.members._member-summary', ['member' => $member])
+                        </div>
                     </li>
                 @endforeach
             </ul>
@@ -94,7 +135,6 @@
                         <tr>
                             <th>Member</th>
                             <th>Barangay</th>
-                            <th>Farm Size</th>
                             <th>Planting</th>
                             <th>Damage Reports</th>
                             <th>Status</th>
@@ -105,19 +145,32 @@
                     @foreach ($members as $member)
                         <tr>
                             <td>
-                                <span class="font-medium">{{ $member->full_name }}</span>
-                                <span class="block text-xs text-muted-foreground">
-                                    {{ $member->user?->phone_number ?: 'No contact number' }}
-                                </span>
+                                {{-- The toggle is in this cell rather than a
+                                     column of its own: a seventh column
+                                     holding nothing but a chevron needs a
+                                     heading that says nothing. --}}
+                                <button type="button" class="flex items-start gap-2 text-left"
+                                        @click="open[{{ $member->id }}] = ! open[{{ $member->id }}]"
+                                        :aria-expanded="open[{{ $member->id }}] ? 'true' : 'false'"
+                                        aria-label="Show {{ $member->full_name }} at a glance">
+                                    <svg class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform"
+                                         :class="open[{{ $member->id }}] ? 'rotate-180' : ''"
+                                         fill="none" stroke="currentColor" stroke-width="2"
+                                         stroke-linecap="round" stroke-linejoin="round"
+                                         viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M6 9l6 6 6-6"/>
+                                    </svg>
+
+                                    <span class="min-w-0">
+                                        <span class="font-medium">{{ $member->full_name }}</span>
+                                        <span class="block text-xs text-muted-foreground">
+                                            {{ $member->user?->phone_number ?: 'No contact number' }}
+                                        </span>
+                                    </span>
+                                </button>
                             </td>
 
                             <td class="text-muted-foreground">{{ $member->barangay?->name ?? '-' }}</td>
-
-                            <td class="whitespace-nowrap">
-                                {{ $member->farm_size_hectares
-                                    ? number_format($member->farm_size_hectares, 2) . ' ha'
-                                    : '-' }}
-                            </td>
 
                             <td class="text-muted-foreground">{{ $member->planting_records_count }}</td>
 
@@ -145,9 +198,29 @@
                                 </x-ui.button>
                             </td>
                         </tr>
+
+                        {{-- The expansion is its own row, because a table
+                             cannot hold anything between two rows. The
+                             colspan has to match the six columns above it:
+                             a wrong number here shows up at once as a
+                             ragged row, which is better than a silent
+                             misalignment.
+
+                             x-collapse is NOT used here. It animates height
+                             on the element it is placed on, and a <tr> does
+                             not take a height the way a block does - the
+                             row would jump instead of opening. The div
+                             inside carries the padding, so the row has no
+                             height of its own when it is closed. --}}
+                        <tr x-show="open[{{ $member->id }}]" x-cloak class="!border-t-0">
+                            <td colspan="6" class="!p-0">
+                                @include('association.members._member-summary', ['member' => $member])
+                            </td>
+                        </tr>
                     @endforeach
                 </x-ui.table>
             </div>
+        </div>
         @endif
 
         @if ($members->hasPages())

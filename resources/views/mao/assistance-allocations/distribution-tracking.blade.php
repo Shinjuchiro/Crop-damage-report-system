@@ -27,10 +27,14 @@
         $backUrl = request()->fullUrlWithoutQuery(['selected']);
     @endphp
 
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
             <x-ui.card>
                 <x-ui.filter-bar :fields="['association_id', 'distribution_status', 'receipt_status']">
                     <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
@@ -55,14 +59,9 @@
                             <x-ui.record-card :href="$viewUrl($distribution->id)"
                                               :eyebrow="'DIST-' . str_pad($distribution->id, 3, '0', STR_PAD_LEFT)"
                                               :title="$distribution->farmer?->full_name ?? 'Unknown'"
-                                              :subtitle="$distribution->allocation?->association?->name ?? 'No association'"
-                                              :status="$distribution->receipt_status"
-                                              :fields="[
-                                                  'Assistance'     => $distribution->allocation?->display_name ?? $distribution->in_kind_description ?? '-',
-                                                  'Quantity'       => $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-',
-                                                  'Distributed on' => $distribution->distributed_at?->format('M d, Y'),
-                                                  'Distribution'   => ucwords(str_replace('_', ' ', $distribution->distribution_status)),
-                                              ]" />
+                                              :status="$distribution->receipt_status === 'confirmed_received'
+                                                  ? \App\Support\AssistanceCase::RECEIVED
+                                                  : \App\Support\AssistanceCase::DESIGNATED" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -78,15 +77,29 @@
                 <div class="hidden overflow-x-auto lg:block">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+                            {{-- FOUR COLUMNS, ONE STATUS (sections 3.1 and 11.1)
+
+                                 This table used to carry two status columns
+                                 side by side, Distribution and Receipt, which
+                                 is the exact thing section 11.1 rules out:
+                                 recording that something was handed over is
+                                 an event, not a main status, and a farmer
+                                 reading two statuses at once cannot tell
+                                 which one answers "did they get it".
+
+                                 One Status column now, in the revision's own
+                                 words: Received once the farmer has confirmed,
+                                 Designated for Assistance until then. The
+                                 hand-over date, who handed it over, the
+                                 association and the farmer's own receipt
+                                 answer are all in View, which already
+                                 printed every one of them. (The quantity
+                                 used to be in that list too; there is no
+                                 quantity any more.) --}}
                             <tr>
-                                <th class="px-5 py-3 font-medium">Distribution</th>
+                                <th class="px-5 py-3 font-medium">Distribution ID</th>
                                 <th class="px-5 py-3 font-medium">Farmer</th>
-                                <th class="px-5 py-3 font-medium">Association</th>
-                                <th class="px-5 py-3 font-medium">Assistance</th>
-                                <th class="px-5 py-3 text-right font-medium">Quantity</th>
-                                <th class="px-5 py-3 font-medium">Distributed On</th>
-                                <th class="px-5 py-3 text-center font-medium">Distribution</th>
-                                <th class="px-5 py-3 text-center font-medium">Receipt</th>
+                                <th class="px-5 py-3 text-center font-medium">Status</th>
                                 <th class="px-5 py-3 text-right font-medium">Action</th>
                             </tr>
                         </thead>
@@ -100,32 +113,27 @@
                                     <td class="px-5 py-3 font-bold text-foreground">
                                         {{ $distribution->farmer?->full_name ?? 'Unknown' }}
                                     </td>
-                                    <td class="px-5 py-3 text-muted-foreground">
-                                        {{ $distribution->allocation?->association?->name ?? '-' }}
-                                    </td>
-                                    <td class="px-5 py-3 text-muted-foreground">
-                                        {{ $distribution->allocation?->display_name ?? $distribution->in_kind_description ?? '-' }}
-                                    </td>
-                                    <td class="px-5 py-3 text-right tabular-nums text-foreground">
-                                        {{ $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-' }}
-                                    </td>
-                                    <td class="px-5 py-3 text-muted-foreground">
-                                        {{ $distribution->distributed_at?->format('M d, Y') }}
-                                        <span class="block text-xs">by {{ $distribution->distributedBy?->display_name ?? '-' }}</span>
-                                    </td>
                                     <td class="px-5 py-3 text-center">
-                                        <span class="inline-flex rounded bg-secondary px-3 py-1 text-xs font-medium text-foreground">
-                                            {{ ucwords(str_replace('_', ' ', $distribution->distribution_status)) }}
-                                        </span>
-                                    </td>
-                                    <td class="px-5 py-3 text-center">
-                                        @php $receipt = $distribution->receipt_status; @endphp
-                                        <span class="inline-flex rounded px-3 py-1 text-xs font-medium
-                                            {{ $receipt === 'confirmed_received'
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
-                                                : ($receipt === 'not_received' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300') }}">
-                                            {{ $receipt === 'pending_confirmation' ? 'Waiting' : ucwords(str_replace('_', ' ', $receipt)) }}
-                                        </span>
+                                        @php
+                                            /* Received only when the farmer has said so.
+                                               A hand-over the farmer has not confirmed,
+                                               and one they have actively disputed, both
+                                               leave the case at Designated: the dispute
+                                               is an event on the record, visible in View
+                                               and on the Disputes screen, not a fifth
+                                               main status (section 11.1). */
+                                            $case = $distribution->receipt_status === 'confirmed_received'
+                                                ? \App\Support\AssistanceCase::RECEIVED
+                                                : \App\Support\AssistanceCase::DESIGNATED;
+                                        @endphp
+
+                                        <x-ui.status :value="$case" />
+
+                                        @if ($distribution->receipt_status === 'not_received')
+                                            <span class="mt-1 block text-xs font-medium text-destructive">
+                                                Farmer reported not received
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="px-5 py-3 text-right">
                                         <x-ui.button :href="$viewUrl($distribution->id)" variant="view" size="sm">View</x-ui.button>
@@ -133,7 +141,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="px-5 py-14 text-center">
+                                    <td colspan="4" class="px-5 py-14 text-center">
                                         <p class="text-sm font-medium text-muted-foreground">No distributions recorded yet</p>
                                         <p class="mt-1 text-xs text-muted-foreground">
                                             Associations record these from their own Assistance screen.
@@ -184,15 +192,15 @@
                         <div>
                             <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assistance</dt>
                             <dd class="mt-0.5 font-medium text-foreground">
-                                {{ $selected->allocation?->display_name ?? $selected->in_kind_description ?? '-' }}
+                                {{ $selected->allocation?->display_name ?? 'Assistance' }}
                             </dd>
                         </div>
-                        <div>
-                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quantity</dt>
-                            <dd class="mt-0.5 font-medium text-foreground">
-                                {{ $selected->quantity !== null ? number_format($selected->quantity, 2) : '-' }}
-                            </dd>
-                        </div>
+                        {{-- The Quantity row was here and is gone with every
+                             other figure (Oct 2026, client decision): how
+                             much a named farmer received is a financial
+                             detail about an identifiable person. The
+                             allocation reference beside this says which
+                             batch it came from. --}}
                         <div>
                             <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Distributed</dt>
                             <dd class="mt-0.5 font-medium text-foreground">

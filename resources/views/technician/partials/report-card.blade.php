@@ -44,13 +44,6 @@
        into the inspection form. */
     $cardHref = route('technician.reports.show', $report);
 
-    /* Section 45: the technician's assessed figure once the inspection is
-       in, the farmer's estimate before that, and never the two confused
-       with each other, so the card says which one it is showing. */
-    $cardAssessed = $report->validation?->assessed_damage_percent;
-    $cardEstimate = $report->crops->avg('estimated_damage_percent');
-    $cardShown    = $cardAssessed ?? $cardEstimate;
-
     /* There used to be a coloured bar down the left edge that repeated the
        status badge. It was removed (Sept 2026): it said nothing the badge
        beside it was not already saying in words, and it made these cards
@@ -109,31 +102,10 @@
                 </div>
             </div>
 
-            {{-- Damage. Right hand column, so it carries the dividing rule. --}}
+            {{-- Submitted. Carries the dividing rule now that the damage
+                 figure has gone: lists show who and when, not the record's
+                 own measurements. The full figures are in the report. --}}
             <div class="flex min-w-0 gap-1.5 border-l border-border pl-3">
-                <svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" fill="none"
-                     stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
-                     stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3.8 18a9 9 0 1116.4 0"/>
-                    <path d="M12 18l4.2-5.4"/>
-                </svg>
-                <div class="min-w-0">
-                    <p class="text-[11px] leading-tight text-muted-foreground">Damage</p>
-                    <p class="text-sm font-semibold leading-tight text-foreground">
-                        @if ($cardShown === null)
-                            Not assessed
-                        @else
-                            {{ round($cardShown) }}%
-                            <span class="block text-[11px] font-normal text-muted-foreground">
-                                {{ $cardAssessed !== null ? 'you assessed' : 'farmer estimate' }}
-                            </span>
-                        @endif
-                    </p>
-                </div>
-            </div>
-
-            {{-- Submitted --}}
-            <div class="flex min-w-0 gap-1.5">
                 <svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" fill="none"
                      stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
                      stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
@@ -147,33 +119,7 @@
                     </p>
                 </div>
             </div>
-
-            {{-- Photos --}}
-            <div class="flex min-w-0 gap-1.5 border-l border-border pl-3">
-                <svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" fill="none"
-                     stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
-                     stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 6.5h11.5a1 1 0 011 1v9a1 1 0 01-1 1H8a1 1 0 01-1-1v-9a1 1 0 011-1z"/>
-                    <path d="M4 9.5v9a1 1 0 001 1h11"/>
-                    <path d="M20.5 14.5L17 11l-5 5"/>
-                </svg>
-                <div class="min-w-0">
-                    <p class="text-[11px] leading-tight text-muted-foreground">Photos</p>
-                    <p class="text-sm font-semibold leading-tight text-foreground">
-                        {{ $report->photos_count ?? 0 }}
-                    </p>
-                </div>
-            </div>
         </div>
-
-        {{-- Crops --}}
-        @if ($report->crops->isNotEmpty())
-            <div class="mt-3 flex flex-wrap gap-1">
-                @foreach ($report->crops as $crop)
-                    <x-ui.badge variant="primary">{{ $crop->crop_specify ?: $crop->crop?->name }}</x-ui.badge>
-                @endforeach
-            </div>
-        @endif
 
         {{-- Section 62's cross-check. A match signal only, never an
              eligible/ineligible label: a report with no matching planting

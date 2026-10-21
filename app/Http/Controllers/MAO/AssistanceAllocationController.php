@@ -3,18 +3,19 @@
 namespace App\Http\Controllers\MAO;
 
 use App\Http\Controllers\Controller;
-use App\Models\Assistance;
 use App\Models\AssistanceAllocation;
 use App\Models\AssistanceAllocationBeneficiary;
 use App\Models\AssistanceAllocationDocument;
+use App\Models\AssistanceDecision;
 use App\Models\AssistanceDistribution;
 use App\Models\Association;
 use App\Models\AuditLog;
-use App\Models\Crop;
 use App\Models\DamageReport;
 use App\Models\Disaster;
+use App\Models\Farmer;
 use App\Models\NotificationBroadcast;
 use App\Models\Validation;
+use App\Support\AssistanceCase;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
@@ -24,11 +25,54 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
- * MAO allocates assistance to a Farmers' Association, never to a farmer
- * directly. The association then records what it hands out to each member,
- * and the farmer separately confirms whether they actually received it.
+ * MAO decides which farmers are valid for a batch of assistance, records
+ * handing it over, and the farmer separately confirms whether they actually
+ * received it.
+ *
+ * AN ALLOCATION IS A BATCH OF FARMERS (Oct 2026, client decision)
+ *
+ * It used to be a parcel addressed to one Farmers' Association. Assistance
+ * arrives at the office from time to time, and the office decides who is
+ * valid for it; those farmers can belong to any association. So an
+ * allocation now names farmers directly, chosen from every verified report
+ * in the municipality, and association_id is nullable and no longer what an
+ * allocation is addressed to (migration 2024_01_22_000001).
+ *
+ * The associations are still told, and that is the point rather than a
+ * courtesy: the office does not hand assistance out on a schedule, so there
+ * is no date to give a farmer. The association is told which of its members
+ * were designated and tells them when to come and collect. Both are
+ * notified when an allocation is created - see notifyDesignated().
+ *
+ * NO NAME, NO TYPE, NO FIGURE (Oct 2026, client decision)
+ *
+ * An allocation says assistance is being given and nothing else. It is not
+ * cash or in-kind, it names no catalogue item, and it carries no amount or
+ * quantity. The figures went for privacy; the rest went because the office
+ * does not work that way. See the notes on App\Models\Assistance and
+ * App\Models\AssistanceAllocation. This departs from the master prompt's
+ * sections 63, 65 and 75, at the client's request.
+ *
+ * THE OFFICE HANDS OVER NOW, NOT THE ASSOCIATION (Oct 2026, client decision)
+ *
+ * The association used to record each hand-out on its own Distribute
+ * screen. The office does it here instead, and the association monitors.
+ * That is closer to the master prompt than what it replaced: section 61
+ * only ever gave the association monitoring, and the Distribute screen was
+ * added later because otherwise nothing could write an
+ * assistance_distributions row at all.
+ *
+ * NO AMOUNTS, NO CASH OR IN-KIND (Oct 2026, client decision)
+ *
+ * An allocation is a name and a list of designated farmers. It carries no
+ * figure and is not classified. The reason is privacy: how much a named
+ * farmer received is a financial detail about an identifiable person, and
+ * the people who work these screens have no need to see it. See the note on
+ * App\Models\Assistance; this departs from the master prompt's sections 63,
+ * 65 and 75, at the client's request.
  *
  * This controller covers three screens plus one JSON endpoint:
  *
@@ -37,9 +81,12 @@ use Illuminate\Validation\Rule;
  *                           allocation, and the shortcut to create one
  *   history()               every allocation ever made, searchable
  *   distributionTracking()  every association -> farmer hand-out, office-wide
- *   eligibleBeneficiaries()  JSON: who qualifies for a given association +
- *                           disaster, used to fill the allocation modal's
- *                           checklist without a full page reload
+ *
+ * eligibleBeneficiaries() was removed in Oct 2026. It was a JSON endpoint
+ * that filled the modal's checklist once an association had been chosen.
+ * The checklist is not scoped to an association any more, so there is
+ * nothing to wait for and the whole eligible list is rendered with the
+ * page.
  *
  * disputes() closes a gap flagged after the Association module was built
  * (see BUILD-STATUS.md section 12): a farmer marking a distribution
@@ -53,24 +100,39 @@ class AssistanceAllocationController extends Controller
     public const STATUSES = ['pending', 'allocated', 'distributed', 'completed', 'cancelled'];
 
     /**
-     * A report sitting here has been inspected by a technician but MAO has
-     * not decided anything about it yet. This is the "Total Verified
-     * Farmers" stat - farmers waiting on an MAO decision, not (yet) farmers
-     * who qualify for assistance. See section 31.
+     * Reports still somewhere in the inspection pipeline: filed, assigned,
+     * being inspected, or flagged for another look. Nobody in here is
+     * eligible for assistance yet, because no technician has finished with
+     * them.
+     *
+     * THIS USED TO BE 'verified' (changed Oct 2026)
+     *
+     * Eligibility now starts at verified rather than at approved, which is
+     * the client's decision: a technician's completed inspection is enough,
+     * and waiting for the office's separate approval of the report was
+     * holding up assistance the office had already made its mind up about.
+     *
+     * That change forced this one. Section 31 fixed a bug where the first
+     * two stat cards counted the same reports, and the fix was to keep the
+     * two stages disjoint: stage one was 'verified', stage two 'approved'.
+     * Adding 'verified' to stage two would have put the overlap straight
+     * back. So stage one moved one step earlier, to everything BEFORE a
+     * completed inspection, and the two are disjoint again by construction:
+     * a report is either still being inspected or it is eligible, never
+     * both.
      */
-    private const PENDING_REVIEW_STATUS = 'verified';
+    private const AWAITING_INSPECTION_STATUSES = ['pending', 'assigned', 'under_verification', 'flagged'];
 
     /**
-     * A damage report only counts toward assistance eligibility once MAO
-     * has actually approved it. "Verified" on its own just means a
-     * technician inspected the report - it does not mean MAO agreed the
-     * farmer should receive help, so it used to also appear here, which
-     * made "Total Verified Farmers" and "Qualified Beneficiaries" count the
-     * exact same reports (section 31). Kept as one constant so the
-     * allocation modal, the stat cards and the export all agree on exactly
-     * the same rule.
+     * A damage report counts toward assistance eligibility once a
+     * technician has completed the inspection. 'approved' stays in the list
+     * because the office approving a report obviously does not make the
+     * farmer less eligible.
+     *
+     * Kept as one constant so the allocation modal, the stat cards and the
+     * export can never disagree about who qualifies.
      */
-    private const QUALIFYING_REPORT_STATUSES = ['approved'];
+    private const QUALIFYING_REPORT_STATUSES = ['verified', 'approved'];
 
     /* =====================================================================
      | Assistance Allocation (the working screen)
@@ -91,11 +153,12 @@ class AssistanceAllocationController extends Controller
 
         return view('mao.assistance-allocations.index', $overview + [
             'selected'     => $selected,
-            'assistances'  => Assistance::where('status', 'active')->orderBy('name')->get(),
             'associations' => Association::active()->orderBy('name')->get(),
-            'disasters'    => Disaster::active()->orderByDesc('date_start')->get(),
-            'crops'        => Crop::active()->orderBy('name')->get(),
-            'types'        => AssistanceController::TYPES,
+            /* The whole checklist, rendered with the page. It used to be
+               fetched over JSON once an association had been chosen; there
+               is no association to choose any more, so there is nothing to
+               wait for. */
+            'eligible'     => $this->eligibleForChecklist(),
             'disputeCount' => AssistanceDistribution::where('receipt_status', 'not_received')->count(),
         ]);
     }
@@ -120,7 +183,9 @@ class AssistanceAllocationController extends Controller
         $disasterId = $request->filled('disaster_id') ? (int) $request->input('disaster_id') : null;
 
         $associationId = $request->filled('association_id') ? (int) $request->input('association_id') : null;
-        $assistanceId  = $request->filled('assistance_id') ? (int) $request->input('assistance_id') : null;
+        /* The assistance filter went with the assistance name (Oct 2026):
+           an allocation no longer names an item, so there is nothing to
+           filter by. */
         $rowStatus     = $request->filled('status') ? $request->input('status') : null;
 
         $selectedDisaster = $disasterId ? $disasters->firstWhere('id', $disasterId) : null;
@@ -129,38 +194,63 @@ class AssistanceAllocationController extends Controller
         |--------------------------------------------------------------------
         | Two disjoint pipeline stages (section 31)
         |--------------------------------------------------------------------
-        | "Total Verified Farmers" = a technician has inspected the report
-        | but MAO has not decided anything yet (status "verified" only - see
-        | self::PENDING_REVIEW_STATUS). "Qualified Beneficiaries" = MAO has
-        | approved the report AND it is not already spoken for by another,
-        | still-active allocation (see self::QUALIFYING_REPORT_STATUSES and
-        | the whereDoesntHave() clause inside qualifiedReports()). A report
-        | only ever counts toward one of these two stats, never both, and a
-        | farmer drops out of "Qualified Beneficiaries" the moment MAO
-        | includes them in a new allocation - they do not need to wait for
-        | the association to actually distribute anything.
+        | "Awaiting Inspection" = the report is filed, assigned, being
+        | inspected or flagged, so nobody in it is eligible yet (see
+        | self::AWAITING_INSPECTION_STATUSES). "Qualified Beneficiaries" = a
+        | technician has completed the inspection AND the report is not
+        | already spoken for by another still-active allocation (see
+        | self::QUALIFYING_REPORT_STATUSES and the whereDoesntHave() clause
+        | inside qualifiedReports()). A report only ever counts toward one of
+        | these two, never both, which is section 31's rule kept intact
+        | across the Oct 2026 change to when eligibility starts. A farmer
+        | drops out of "Qualified Beneficiaries" the moment the office
+        | includes them in a new allocation.
         */
-        $pendingReviewReports = $this->pendingReviewReports($disasterId);
+        $awaitingInspection = $this->awaitingInspectionReports($disasterId);
         $qualifiedReports = $this->qualifiedReports($disasterId)
             ->filter(fn ($report) => $report->farmer->association_id !== null)
             ->values();
         $qualifiedByAssociation = $qualifiedReports->groupBy(fn ($report) => $report->farmer->association_id);
 
+        /* WHICH ASSOCIATIONS AN ALLOCATION CONCERNS (Oct 2026)
+
+           This used to be one groupBy on the allocation's own
+           association_id. That column is not what an allocation is
+           addressed to any more (migration 2024_01_22_000001), so the
+           answer comes from the designated farmers instead: an allocation
+           concerns every association that has a member on it, and it can
+           concern several at once, which the column could never say.
+
+           Deliberately NOT filtered by disaster, unlike the qualified
+           reports above. New allocations carry no disaster_id at all, so
+           filtering them by one would empty this table the moment anybody
+           picked an event from the filter, and the table would look broken
+           rather than filtered. */
         $allocationsInScope = AssistanceAllocation::query()
-            ->when($disasterId, fn ($q) => $q->where('disaster_id', $disasterId))
-            ->when($assistanceId, fn ($q) => $q->where('assistance_id', $assistanceId))
             ->where('status', '!=', 'cancelled')
-            ->with('assistance')
+            ->with('beneficiaries.farmer:id,association_id')
             ->orderByDesc('allocated_at')
-            ->get()
-            ->groupBy('association_id');
+            ->get();
+
+        $allocationsByAssociation = collect();
+
+        foreach ($allocationsInScope as $allocation) {
+            $associationIds = $allocation->beneficiaries
+                ->pluck('farmer.association_id')
+                ->filter()
+                ->unique();
+
+            foreach ($associationIds as $id) {
+                $allocationsByAssociation[$id] = ($allocationsByAssociation[$id] ?? collect())->push($allocation);
+            }
+        }
 
         $stats = [
-            'total_verified_farmers'  => $pendingReviewReports->count(),
-            'verified_from_associations' => $pendingReviewReports->pluck('farmer.association_id')->filter()->unique()->count(),
+            'awaiting_inspection'        => $awaitingInspection->count(),
+            'awaiting_from_associations' => $awaitingInspection->pluck('farmer.association_id')->filter()->unique()->count(),
             'qualified_beneficiaries' => $qualifiedReports->count(),
-            'pending_allocation'      => $qualifiedByAssociation->keys()->diff($allocationsInScope->keys())->count(),
-            'total_associations'      => $allocationsInScope->keys()->filter()->count(),
+            'pending_allocation'      => $qualifiedByAssociation->keys()->diff($allocationsByAssociation->keys())->count(),
+            'total_associations'      => $allocationsByAssociation->keys()->count(),
         ];
 
         /*
@@ -168,9 +258,9 @@ class AssistanceAllocationController extends Controller
         | Association Allocation Overview (paginated, filterable by status)
         |--------------------------------------------------------------------
         */
-        $rows = Association::active()->orderBy('name')->get()->map(function ($association) use ($qualifiedByAssociation, $allocationsInScope) {
+        $rows = Association::active()->orderBy('name')->get()->map(function ($association) use ($qualifiedByAssociation, $allocationsByAssociation) {
             $qualifiedCount = $qualifiedByAssociation->get($association->id, collect())->count();
-            $allocation     = $allocationsInScope->get($association->id)?->first();
+            $allocation     = $allocationsByAssociation->get($association->id)?->first();
 
             return (object) [
                 'association'     => $association,
@@ -200,7 +290,7 @@ class AssistanceAllocationController extends Controller
         | Recent Allocations - a short activity feed, independent of filters
         |--------------------------------------------------------------------
         */
-        $recentAllocations = AssistanceAllocation::with(['assistance', 'association'])
+        $recentAllocations = AssistanceAllocation::with(['beneficiaries.farmer.association'])
             ->withCount('beneficiaries')
             ->latest('allocated_at')
             ->take(5)
@@ -209,6 +299,10 @@ class AssistanceAllocationController extends Controller
         return [
             'stats'              => $stats,
             'overviewRows'       => $overviewRows,
+            /* The cases still owed an answer. Built here rather than in
+               index() so exportOverview(), which shares this method, can
+               carry the same figure if it ever needs to. */
+            'awaitingDecision'   => $this->casesAwaitingDecision($disasterId),
             // The same rows, unpaginated - exportOverview() downloads all of
             // them, not just the page currently on screen.
             'allOverviewRows'    => $rows,
@@ -218,7 +312,6 @@ class AssistanceAllocationController extends Controller
             'filters'            => [
                 'disaster_id'    => $request->has('disaster_id') ? $request->input('disaster_id') : $disasterId,
                 'association_id' => $associationId,
-                'assistance_id'  => $assistanceId,
                 'status'         => $rowStatus,
             ],
         ];
@@ -236,7 +329,7 @@ class AssistanceAllocationController extends Controller
 
         return response()->streamDownload(function () use ($overview) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Association', 'Qualified Beneficiaries', 'Assistance', 'Status']);
+            fputcsv($out, ['Association', 'Qualified Beneficiaries', 'Allocation', 'Status']);
 
             // The full filtered list, not just the page currently on screen -
             // a paginated CSV would be a strange thing to hand someone.
@@ -244,7 +337,8 @@ class AssistanceAllocationController extends Controller
                 fputcsv($out, [
                     $row->association->name,
                     $row->qualified_count,
-                    $row->allocation?->display_name ?? '-',
+                    // The reference, not a name: an allocation has no name.
+                    $row->allocation ? 'AA-' . str_pad($row->allocation->id, 3, '0', STR_PAD_LEFT) : '-',
                     ucwords(str_replace('_', ' ', $row->status)),
                 ]);
             }
@@ -254,41 +348,38 @@ class AssistanceAllocationController extends Controller
     }
 
     /**
-     * JSON: which farmers in this association qualify for this disaster.
-     * Feeds the "Select Beneficiaries" checklist in the Allocate Assistance
-     * modal without a full page reload.
+     * Everyone eligible right now, as rows the checklist can render.
+     *
+     * Not scoped to an association, which is the change the office asked
+     * for: assistance arrives from time to time and the office picks who is
+     * valid for it from across the municipality, not from one association's
+     * membership. A farmer with no association at all is included, because
+     * nothing about being unaffiliated makes their crop damage less real;
+     * the association notice simply has nobody to go to for them.
+     *
+     * Eligible means a technician has completed the inspection
+     * (self::QUALIFYING_REPORT_STATUSES) and the farmer is not already
+     * designated on another live allocation. Both rules live in
+     * qualifiedReports(), so this list and the server-side re-check in
+     * store() can never disagree about who qualifies.
      */
-    public function eligibleBeneficiaries(Request $request)
+    private function eligibleForChecklist()
     {
-        $data = $request->validate([
-            'association_id' => ['required', 'exists:associations,id'],
-            // Optional (see qualifiedReports()): the modal can build the
-            // whole-association checklist without a disaster being picked
-            // at all.
-            'disaster_id'    => ['nullable', 'exists:disasters,id'],
-        ]);
-
-        $association = Association::findOrFail($data['association_id']);
-
-        $beneficiaries = $this->qualifiedReports(
-                isset($data['disaster_id']) ? (int) $data['disaster_id'] : null,
-                (int) $data['association_id']
-            )
+        return $this->qualifiedReports(null)
             ->map(fn ($report) => [
                 'farmer_id'        => $report->farmer_id,
                 'damage_report_id' => $report->id,
                 'name'             => $report->farmer->full_name,
                 'barangay'         => $report->farmer->barangay?->name ?? '-',
-                'severity_label'   => $report->validation && $report->validation->severity
-                    ? (Validation::SEVERITY_SCALE[$report->validation->severity]['label'] ?? '-')
-                    : '-',
+                // Both the id and the name: the name is shown, and the id is
+                // what the overview table's per-association Allocate button
+                // ticks with.
+                'association_id'   => $report->farmer->association_id,
+                'association'      => $report->farmer->association?->name ?? 'No association',
+                'reference'        => $report->reference,
+                'severity_label'   => Validation::severityLabel($report->validation?->severity) ?? '-',
             ])
             ->values();
-
-        return response()->json([
-            'association'   => ['id' => $association->id, 'name' => $association->name],
-            'beneficiaries' => $beneficiaries,
-        ]);
     }
 
     /**
@@ -296,8 +387,10 @@ class AssistanceAllocationController extends Controller
      * Restricting to a disaster and/or one association is optional, so the
      * same method backs both the office-wide stat cards and the modal's
      * per-association checklist. Shared by qualifiedReports() and
-     * pendingReviewReports() so the two stages never quietly drift apart -
-     * see section 31.
+     * awaitingInspectionReports() so the two stages never quietly drift
+     * apart - see section 31, and the note on
+     * self::AWAITING_INSPECTION_STATUSES for how that rule survived
+     * eligibility moving earlier.
      *
      * A disaster link was never required on the farmer's own report
      * (decision 11, section 8) and an allocation is no longer required to
@@ -336,19 +429,50 @@ class AssistanceAllocationController extends Controller
     }
 
     /**
-     * Farmers waiting on an MAO decision: a technician has verified the
-     * report, but MAO has not approved, rejected or flagged it yet. Feeds
-     * the "Total Verified Farmers" stat only - see section 31.
+     * The cases the office still owes an answer on (section 11.2).
+     *
+     * A report a technician has finished with, that the office has not
+     * designated and has not refused: no decision row, and not already a
+     * beneficiary of a live allocation. These are the rows that can be
+     * marked Not Designated, which is the one of the four statuses that had
+     * no way of being recorded before.
+     *
+     * Both verified AND approved reports are here on purpose. Approving a
+     * report says the damage is real; it does not say the farmer gets
+     * assistance (section 11.2), so an approved report with nothing
+     * allocated against it is still a case awaiting an answer.
      */
-    private function pendingReviewReports(?int $disasterId, ?int $associationId = null): Collection
+    private function casesAwaitingDecision(?int $disasterId): Collection
     {
-        return $this->reportsByStatus([self::PENDING_REVIEW_STATUS], $disasterId, $associationId);
+        return DamageReport::query()
+            ->whereIn('status', ['verified', 'approved'])
+            ->whereDoesntHave('assistanceDecision')
+            ->whereDoesntHave('allocationBeneficiaries', fn ($b) => $b
+                ->whereHas('allocation', fn ($a) => $a->where('status', '!=', 'cancelled')))
+            ->when($disasterId, fn ($q) => $q
+                ->whereHas('disasters', fn ($d) => $d->where('disasters.id', $disasterId)))
+            ->with(['farmer.barangay', 'farmer.association', 'validation'])
+            ->latest('created_at')
+            ->get();
     }
 
     /**
-     * Farmers who actually qualify for assistance right now: MAO has
-     * approved their report and it is not already covered by another
-     * active allocation. Feeds "Qualified Beneficiaries", the
+     * Farmers whose report has not been inspected yet, or is being
+     * inspected, or was flagged. Nobody here is eligible, and that is the
+     * point of the first stat card: it is the queue feeding the second one.
+     *
+     * Was pendingReviewReports(), which meant something different - see the
+     * note on self::AWAITING_INSPECTION_STATUSES.
+     */
+    private function awaitingInspectionReports(?int $disasterId, ?int $associationId = null): Collection
+    {
+        return $this->reportsByStatus(self::AWAITING_INSPECTION_STATUSES, $disasterId, $associationId);
+    }
+
+    /**
+     * Farmers who qualify for assistance right now: a technician has
+     * completed the inspection and the report is not already covered by
+     * another active allocation. Feeds "Qualified Beneficiaries", the
      * per-association overview and the Allocate Assistance modal.
      */
     private function qualifiedReports(?int $disasterId, ?int $associationId = null): Collection
@@ -362,16 +486,22 @@ class AssistanceAllocationController extends Controller
 
     public function history(Request $request)
     {
+        /* The association and assistance filters here both changed in Oct
+           2026. An allocation is not addressed to an association any more,
+           so filtering by one means "allocations with a member of that
+           association on them", which is a whereHas through the designated
+           farmers. And it names no assistance item, so that filter and the
+           search that went with it are gone: there is no name to search
+           for. */
         $allocations = AssistanceAllocation::query()
-            ->with(['assistance', 'association', 'disaster', 'crop', 'allocatedBy'])
-            ->withCount(['distributions', 'beneficiaries'])
+            ->with(['allocatedBy', 'beneficiaries.farmer.association'])
+            // No withCount: the list is four columns now and prints neither
+            // figure. The detail panel counts for itself, through
+            // detailRelations(), on its own query.
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
-            ->when($request->filled('association_id'),
-                fn ($q) => $q->where('association_id', $request->association_id))
-            ->when($request->filled('assistance_id'),
-                fn ($q) => $q->where('assistance_id', $request->assistance_id))
-            ->when($request->filled('search'), fn ($q) => $q
-                ->whereHas('assistance', fn ($a) => $a->where('name', 'like', '%' . $request->search . '%')))
+            ->when($request->filled('association_id'), fn ($q) => $q
+                ->whereHas('beneficiaries.farmer',
+                    fn ($f) => $f->where('association_id', $request->association_id)))
             ->latest('allocated_at')
             ->paginate(15)
             ->withQueryString();
@@ -393,7 +523,8 @@ class AssistanceAllocationController extends Controller
             'selected'     => $selected,
             'statuses'     => self::STATUSES,
             'associations' => Association::orderBy('name')->get(),
-            'assistances'  => Assistance::orderBy('name')->get(),
+            // No 'assistances': the history filter by assistance item went
+            // with the item itself (Oct 2026).
             'summary'      => [
                 'pending'  => (int) $statusCounts->get('pending', 0),
                 'approved' => (int) $statusCounts->get('allocated', 0),
@@ -490,149 +621,105 @@ class AssistanceAllocationController extends Controller
 
     public function create()
     {
-        return view('mao.assistance-allocations.form', [
-            'types'        => AssistanceController::TYPES,
-            'assistances'  => Assistance::where('status', 'active')->orderBy('name')->get(),
-            'associations' => Association::active()->orderBy('name')->get(),
-            'disasters'    => Disaster::active()->orderByDesc('date_start')->get(),
-            'crops'        => Crop::active()->orderBy('name')->get(),
-        ]);
+        /* ONE ALLOCATE FORM, AND IT IS THE MODAL (Oct 2026)
+
+           There were two: this standalone page and the Allocate Assistance
+           modal on the index, both posting to store() and both asking the
+           same questions. Two copies of one form is two copies to keep in
+           step, and in the Oct 2026 rework they drifted within a single
+           day - the same failure the association's duplicate Crop
+           Management page had (BUILD-STATUS section 52).
+
+           The route is kept rather than removed so an old bookmark still
+           lands somewhere sensible, and it opens the modal on arrival.
+           resources/views/mao/assistance-allocations/form.blade.php is now
+           an orphan and can be git rm'd. */
+        return redirect()
+            ->route('mao.assistance-allocations.index', ['allocate' => 1]);
     }
 
-    /**
-     * The value the in-kind item dropdown uses for "not one of these -
-     * let me describe it". Not an id, so it can never collide with a real
-     * assistances row.
-     */
-    public const OTHER_IN_KIND = '__other__';
+    /* OTHER_ASSISTANCE is gone, and OTHER_IN_KIND before it. Both were the
+       sentinel the assistance dropdown used for "not one of these, let me
+       type it". There is no assistance dropdown: an allocation does not
+       name what is being given (Oct 2026, client decision). */
 
     public function store(Request $request)
     {
-        // A disaster event is optional from either source now (Section 8's
-        // rule for the farmer's own damage report applies here too: not
-        // every assistance item is tied to one specific declared event - a
-        // general seed subsidy or a routine input give-away has nowhere
-        // sensible to attach a disaster_id). Picking one narrows the
-        // qualified-beneficiary checklist below to reports citing that
-        // event; leaving it blank still builds a real checklist, of every
-        // verified/approved farmer in the association regardless of
-        // disaster - see qualifiedReports() and section 29.
+        /* ONE QUESTION: WHO (Oct 2026, client decision)
 
-        // Sept 2026: the modal no longer lets an officer define a brand-new
-        // catalogue item on the spot ("+ Create a new assistance item" is
-        // gone). The Assistance Type field is now Cash or In-Kind first;
-        // In-Kind then either points at an existing catalogue row or, via
-        // Other, carries its own typed description with no catalogue link
-        // at all. See the migration that made assistance_id nullable for
-        // why that link is no longer mandatory.
+           This form used to ask which association, which assistance, cash
+           or in-kind, how much, for which disaster, for which crop and from
+           what date. The office does not work that way. Assistance arrives
+           from time to time, the office decides which farmers are valid for
+           it, and that is the whole decision.
+
+           So what is validated here is a list of farmers and nothing else
+           that identifies the assistance. The allocation is dated the day
+           it is made, carries no name, no figure and no association, and
+           the associations concerned are worked out from the farmers
+           chosen. */
         $data = $request->validate([
-            'assistance_type' => ['required', Rule::in(AssistanceController::TYPES)],
-
-            // Only meaningful (and only required) for In-Kind: either an
-            // existing assistances id, or the Other sentinel.
-            'in_kind_item' => [
-                Rule::requiredIf(fn () => $request->input('assistance_type') === 'in_kind'),
-                'nullable', 'string',
-                function ($attribute, $value, $fail) use ($request) {
-                    if ($request->input('assistance_type') !== 'in_kind'
-                        || $value === null || $value === self::OTHER_IN_KIND) {
-                        return;
-                    }
-
-                    if (! Assistance::where('id', $value)->where('type', 'in_kind')->exists()) {
-                        $fail('Please choose a valid in-kind item.');
-                    }
-                },
-            ],
-
-            // Required only when In-Kind + Other was chosen.
-            'in_kind_description' => [
-                Rule::requiredIf(fn () => $request->input('assistance_type') === 'in_kind'
-                    && $request->input('in_kind_item') === self::OTHER_IN_KIND),
-                'nullable', 'string', 'max:255',
-            ],
-
-            'association_id' => ['required', 'exists:associations,id'],
-            'disaster_id'    => ['nullable', 'exists:disasters,id'],
-            'crop_id'        => ['nullable', 'exists:crops,id'],
-
-            'allocated_quantity'  => ['nullable', 'numeric', 'min:0'],
-            'start_date'          => ['nullable', 'date'],
-            'remarks'             => ['nullable', 'string', 'max:1000'],
-
-            // The MAO-reviewed beneficiary list. Optional even when the
-            // modal is the source, since MAO can uncheck every name and
-            // still send the pool to the association.
-            'beneficiary_ids'   => ['nullable', 'array'],
+            /* Required, unlike before. An allocation with nobody on it used
+               to be meaningful - it was a pool sent to an association to
+               divide up. It is meaningless now: an allocation IS its list
+               of farmers, so an empty one would be a record of nothing, and
+               nobody would be told anything. */
+            'beneficiary_ids'   => ['required', 'array', 'min:1'],
             'beneficiary_ids.*' => ['integer', 'exists:farmers,id'],
 
+            'remarks'     => ['nullable', 'string', 'max:1000'],
             'documents'   => ['nullable', 'array', 'max:5'],
             'documents.*' => ['file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ], [
-            'assistance_type.required'   => 'Please choose Cash or In-Kind.',
-            'in_kind_item.required'      => 'Please choose which in-kind item is being given.',
-            'in_kind_description.required' => 'Please describe what this in-kind item is.',
-            'documents.*.max'            => 'Each file must be 10 MB or smaller.',
-            'documents.*.mimes'          => 'Only PDF, JPG or PNG files are accepted.',
+            'beneficiary_ids.required' => 'Please select at least one farmer to receive this assistance.',
+            'beneficiary_ids.min'      => 'Please select at least one farmer to receive this assistance.',
+            'documents.*.max'          => 'Each file must be 10 MB or smaller.',
+            'documents.*.mimes'        => 'Only PDF, JPG or PNG files are accepted.',
         ]);
 
         $allocation = DB::transaction(function () use ($data, $request) {
 
-            // Cash: no catalogue link, no description - just its type.
-            // In-Kind + a real catalogue item: link to it, no free text.
-            // In-Kind + Other: no catalogue link, the typed text is all
-            // there is.
-            $assistanceId = null;
-            $inKindDescription = null;
-
-            if ($data['assistance_type'] === 'in_kind') {
-                if (($data['in_kind_item'] ?? null) === self::OTHER_IN_KIND) {
-                    $inKindDescription = $data['in_kind_description'];
-                } else {
-                    $assistanceId = (int) $data['in_kind_item'];
-                }
-            }
-
-            $allocation = AssistanceAllocation::create(Arr::only($data, [
-                'association_id', 'disaster_id', 'crop_id', 'allocated_quantity', 'remarks',
-            ]) + [
-                'assistance_id'       => $assistanceId,
-                'type'                => $data['assistance_type'],
-                'in_kind_description' => $inKindDescription,
-                'allocated_by'        => Auth::id(),
-                'allocated_at'        => ! empty($data['start_date']) ? Carbon::parse($data['start_date']) : now(),
-                'status'              => 'allocated',
+            /* association_id, assistance_id, disaster_id, crop_id and the
+               date are all left out. The first four no longer describe an
+               allocation (see the class docblock) and the date is simply
+               today: the office allocates when the assistance arrives, so
+               there is no separate start date to record, and promising one
+               would be promising the farmer a collection date the office
+               cannot keep. */
+            $allocation = AssistanceAllocation::create(Arr::only($data, ['remarks']) + [
+                'allocated_by' => Auth::id(),
+                'allocated_at' => now(),
+                'status'       => 'allocated',
             ]);
 
-            // The MAO-reviewed beneficiary list. Re-checked against the same
-            // eligibility rule the modal used to build the checklist -
-            // never trust ids a form posted back without verifying them
-            // server-side. A disaster is not required for this check any
-            // more than it is in qualifiedReports() itself - an allocation
-            // with no disaster_id can still have a real, MAO-reviewed
-            // beneficiary list.
-            $beneficiaryIds = $data['beneficiary_ids'] ?? [];
+            /* Re-checked against the same eligibility rule that built the
+               checklist, because ids a form posted back are a claim, not a
+               fact. Anything no longer eligible by the time this runs -
+               designated on another allocation a minute ago, say - is
+               silently dropped rather than written, which is why
+               $designated below is counted from what was actually created
+               and not from what was submitted. */
+            $eligible = $this->qualifiedReports(null);
 
-            if (! empty($beneficiaryIds)) {
-                $eligible = $this->qualifiedReports(
-                    ! empty($data['disaster_id']) ? (int) $data['disaster_id'] : null,
-                    (int) $data['association_id']
-                );
+            $designated = 0;
 
-                foreach ($eligible->whereIn('farmer_id', $beneficiaryIds) as $report) {
-                    AssistanceAllocationBeneficiary::create([
-                        'assistance_allocation_id' => $allocation->id,
-                        'farmer_id'                => $report->farmer_id,
-                        'damage_report_id'         => $report->id,
-                        'created_at'               => now(),
-                    ]);
-                }
+            foreach ($eligible->whereIn('farmer_id', $data['beneficiary_ids']) as $report) {
+                AssistanceAllocationBeneficiary::create([
+                    'assistance_allocation_id' => $allocation->id,
+                    'farmer_id'                => $report->farmer_id,
+                    'damage_report_id'         => $report->id,
+                    'created_at'               => now(),
+                ]);
+
+                $designated++;
             }
 
             // Supporting documents (the MAO endorsement memo, a beneficiary
             // list PDF, etc.) - all optional.
             foreach ($request->file('documents', []) as $file) {
-                $path = $file->store('assistance-allocation-documents', 'public');
+                // Private disk, office-only route (revision section 3.4).
+                // See AttachmentController::allocationDocument().
+                $path = $file->store('assistance-allocation-documents', 'local');
 
                 AssistanceAllocationDocument::create([
                     'assistance_allocation_id' => $allocation->id,
@@ -648,8 +735,7 @@ class AssistanceAllocationController extends Controller
             AuditLog::create([
                 'user_id'      => Auth::id(),
                 'action'       => 'Allocated assistance AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT)
-                    . ' to ' . ($allocation->association?->name ?? 'an association')
-                    . (count($beneficiaryIds) ? ' for ' . count($beneficiaryIds) . ' beneficiary/beneficiaries' : ''),
+                    . ' to ' . $designated . ' ' . ($designated === 1 ? 'farmer' : 'farmers'),
                 'target_table' => 'assistance_allocations',
                 'target_id'    => $allocation->id,
                 'created_at'   => now(),
@@ -658,48 +744,130 @@ class AssistanceAllocationController extends Controller
             return $allocation;
         });
 
-        $this->notifyAssociationOfAllocation($allocation);
+        $this->notifyDesignated($allocation->fresh(['beneficiaries.farmer.association']));
 
         return redirect()->route('mao.assistance-allocations.show', $allocation)
-            ->with('status', 'Assistance allocated successfully.');
+            ->with('status', 'Assistance allocated. The farmers and their associations have been notified.');
     }
 
     /**
-     * Proposal section 66: an association should be told about "assistance
-     * allocation/distribution updates" - this was previously missing (only
-     * the association's own later distribution step notified anyone, the
-     * farmer). Runs after the transaction above has already committed, and
-     * never throws - the allocation itself must never appear to fail just
-     * because a notification could not be sent.
+     * Tell the designated farmers, and tell their associations.
      *
-     * 'important' priority (in-app only, section 68 reserves SMS for urgent/
-     * critical matters): real work waiting for the association (deciding who
-     * to distribute it to), more than routine but not an emergency.
-     * link_type/link_id let the association's bell open this exact
-     * allocation (NotificationBroadcast::linkUrl()).
+     * WHY BOTH, AND WHY THEY SAY DIFFERENT THINGS (Oct 2026, client
+     * decision)
+     *
+     * The office does not hand assistance out on a schedule. Assistance
+     * arrives, the office decides who is valid for it, and the collection
+     * day is arranged afterwards by the association that the farmer
+     * actually knows and can walk to. So there are two notices with two
+     * jobs.
+     *
+     * The farmer is told they have been designated and, explicitly, that
+     * there is no date yet and their association will tell them when to
+     * come. Saying that plainly is the point: a farmer told only that
+     * assistance is coming will turn up at the office asking when, which is
+     * the phone call this notice exists to prevent.
+     *
+     * The association is told which of its members were designated, by
+     * name, and that telling them when to collect is its job. That is real
+     * work landing on the officer, which is why this one is 'important'
+     * while the farmer's is 'normal' - section 68 keeps SMS for urgent and
+     * critical only, so both are in-app either way.
+     *
+     * A farmer with no association gets their notice and nobody gets the
+     * other one. They are not dropped from the allocation for it; the
+     * office will have to reach them directly, and the audit log and the
+     * allocation's own page both show they were designated.
+     *
+     * Runs after the transaction has committed and never throws. The
+     * allocation is real by the time this is called, and a notification
+     * that could not be sent must not make it look otherwise.
      */
-    private function notifyAssociationOfAllocation(AssistanceAllocation $allocation): void
+    private function notifyDesignated(AssistanceAllocation $allocation): void
     {
+        $reference = 'AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT);
+
+        foreach ($allocation->beneficiaries as $beneficiary) {
+            if (! $beneficiary->farmer) {
+                continue;
+            }
+
+            $this->sendAlert(
+                'You Have Been Selected for Assistance',
+                'The Municipal Agriculture Office has selected you to receive assistance. '
+                    . 'There is no collection date yet. Your Farmers\' Association will tell you when and '
+                    . 'where to collect it, so please wait for them to contact you. '
+                    . 'Wala pa pong takdang petsa. Ang inyong asosasyon po ang magsasabi kung kailan '
+                    . 'at saan ito kukunin.',
+                'normal',
+                'specific_farmer',
+                $beneficiary->farmer_id,
+                $allocation->id,
+                'farmer ' . $beneficiary->farmer_id
+            );
+        }
+
+        /* One notice per association, listing its own members and nobody
+           else's. Grouping first is what keeps it to one: an officer whose
+           association has nine designated members should get one message
+           naming nine people, not nine messages. */
+        $byAssociation = $allocation->beneficiaries
+            ->filter(fn ($beneficiary) => $beneficiary->farmer?->association_id)
+            ->groupBy(fn ($beneficiary) => $beneficiary->farmer->association_id);
+
+        foreach ($byAssociation as $associationId => $members) {
+            $names = $members
+                ->map(fn ($beneficiary) => $beneficiary->farmer->full_name)
+                ->sort()
+                ->join(', ', ' and ');
+
+            $this->sendAlert(
+                'Your Members Have Been Selected for Assistance',
+                'The Municipal Agriculture Office has selected ' . $members->count() . ' of your '
+                    . ($members->count() === 1 ? 'members' : 'members') . ' to receive assistance ('
+                    . $reference . '): ' . $names . '. '
+                    . 'There is no collection date set. Please tell them when and where to collect it.',
+                'important',
+                'specific_association',
+                (int) $associationId,
+                $allocation->id,
+                'association ' . $associationId
+            );
+        }
+    }
+
+    /**
+     * One in-app alert, through the broadcast pipeline the notifications
+     * table requires (notification_broadcast_id is NOT NULL, so writing to
+     * notifications directly is not an option).
+     *
+     * link_type/link_id let the recipient's bell open this exact allocation
+     * (NotificationBroadcast::linkUrl()).
+     */
+    private function sendAlert(
+        string $title,
+        string $message,
+        string $priority,
+        string $targetType,
+        int $targetId,
+        int $allocationId,
+        string $who
+    ): void {
         try {
-            $alert = NotificationBroadcast::create([
-                'title'       => 'Assistance Allocated',
-                'message'     => 'The Municipal Agriculture Office has allocated '
-                    . $allocation->display_name . ' to your association. '
-                    . 'Please review it and distribute it to your eligible members.',
+            NotificationBroadcast::create([
+                'title'       => $title,
+                'message'     => $message,
                 'category'    => 'assistance',
-                'priority'    => 'important',
-                'target_type' => 'specific_association',
-                'target_id'   => $allocation->association_id,
+                'priority'    => $priority,
+                'target_type' => $targetType,
+                'target_id'   => $targetId,
                 'link_type'   => 'assistance_allocation',
-                'link_id'     => $allocation->id,
+                'link_id'     => $allocationId,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
-            ]);
-
-            $alert->dispatchToRecipients();
+            ])->dispatchToRecipients();
         } catch (\Throwable $e) {
-            Log::warning('Could not notify association ' . $allocation->association_id
-                . ' of allocation ' . $allocation->id . ': ' . $e->getMessage());
+            Log::warning('Could not notify ' . $who . ' of allocation ' . $allocationId . ': ' . $e->getMessage());
         }
     }
 
@@ -718,18 +886,276 @@ class AssistanceAllocationController extends Controller
     private static function detailRelations(): array
     {
         return [
-            'assistance',
+            /* 'assistance', 'disaster' and 'crop' were dropped in Oct 2026:
+               an allocation no longer names any of the three. 'association'
+               stays, because a row created before that change still records
+               the one association it was addressed to and the panel still
+               shows it where it is set. */
             'association',
-            'disaster',
-            'crop',
             'allocatedBy',
             'distributedBy',
             'distributions.farmer',
             'distributions.damageReport',
             'distributions.distributedBy',
             'beneficiaries.farmer.barangay',
+            'beneficiaries.farmer.association',
             'documents.uploadedBy',
         ];
+    }
+
+    /* =====================================================================
+     | Handing assistance over to a farmer  (Oct 2026, client decision)
+     |
+     | This was the association's job, on its own Distribute screen. The
+     | office does it here now and the association monitors, which is what
+     | the master prompt's section 61 always said the association does. The
+     | eligibility rule is unchanged in substance - the office may only hand
+     | over to a farmer it designated on THIS allocation - and the quantity
+     | half of the old flow is gone with every other figure.
+     ===================================================================== */
+
+    /** The form for handing one designated farmer their assistance. */
+    public function distribute(AssistanceAllocation $allocation)
+    {
+        if (in_array($allocation->status, ['completed', 'cancelled'], true)) {
+            return redirect()
+                ->route('mao.assistance-allocations.show', $allocation)
+                ->withErrors(['allocation' => 'This allocation is closed, so nothing more can be handed out from it.']);
+        }
+
+        return view('mao.assistance-allocations.distribute', [
+            'allocation' => $allocation->load(['beneficiaries.farmer.association']),
+            'eligible'   => $this->designatedFarmers($allocation),
+        ]);
+    }
+
+    /**
+     * Record that assistance was handed to a farmer.
+     *
+     * Section 91.9: reviewed on screen, confirmed in the dialog, and only
+     * then written. Everything here is the server checking the same things
+     * again, because a dropdown is a suggestion once the form has been
+     * posted.
+     */
+    public function storeDistribution(Request $request, AssistanceAllocation $allocation)
+    {
+        if (in_array($allocation->status, ['completed', 'cancelled'], true)) {
+            return back()->withErrors(['allocation' => 'This allocation is closed.']);
+        }
+
+        $data = $request->validate([
+            'farmer_id' => ['required', Rule::exists('farmers', 'id')],
+
+            // Section 64: every hand-over cites the damage report that made
+            // the farmer eligible, so assistance can always be traced back
+            // to the damage it answers.
+            'damage_report_id' => ['required', Rule::exists('damage_reports', 'id')],
+
+            'remarks'        => ['nullable', 'string', 'max:1000'],
+            'distributed_at' => ['required', 'date', 'before_or_equal:today'],
+
+            'photos'   => ['nullable', 'array', 'max:' . self::MAX_HANDOVER_PHOTOS],
+            'photos.*' => ['image', 'mimes:jpg,jpeg,png,webp,heic', 'max:5120'],
+        ], [
+            'farmer_id.required'        => 'Please choose the farmer who received the assistance.',
+            'damage_report_id.required' => 'Please choose which damage report this assistance is for.',
+            'distributed_at.required'   => 'Please give the date it was handed over.',
+            'distributed_at.before_or_equal' => 'The hand-over date cannot be in the future.',
+            'photos.*.max'              => 'Each photo must be 5 MB or smaller.',
+        ]);
+
+        $farmer = Farmer::findOrFail($data['farmer_id']);
+        $report = DamageReport::findOrFail($data['damage_report_id']);
+
+        $this->assertCanReceive($farmer, $report, $allocation);
+
+        DB::transaction(function () use ($request, $allocation, $farmer, $report, $data) {
+
+            $distribution = AssistanceDistribution::create([
+                'assistance_allocation_id' => $allocation->id,
+                'farmer_id'                => $farmer->id,
+                'damage_report_id'         => $report->id,
+
+                /* No quantity and no description. The allocation's own name
+                   says what this is, and nothing records how much. The
+                   columns are still on the table and are left null; see the
+                   note on App\Models\Assistance for why they were not
+                   dropped. */
+
+                'distributed_by' => Auth::id(),
+                'distributed_at' => $data['distributed_at'],
+                'remarks'        => $data['remarks'] ?? null,
+
+                // Two separate tracks. The office has handed it over;
+                // whether the farmer agrees they received it is their own
+                // answer to give, on their own Assistance page.
+                'distribution_status' => 'distributed',
+                'receipt_status'      => 'pending_confirmation',
+            ]);
+
+            /* The office's own proof, kept apart from anything the farmer
+               uploads later.
+
+               Private disk (revision section 3.4). These are the most
+               sensitive files in the module: a photograph of a named farmer
+               receiving assistance is a fact about that person's
+               circumstances, and on the public disk it was readable without
+               logging in. */
+            foreach ($request->file('photos', []) as $photo) {
+                $distribution->photos()->create([
+                    'photo_type'  => 'receipt',
+                    'file_path'   => $photo->store('distributions/' . $distribution->id, 'local'),
+                    'uploaded_at' => now(),
+                ]);
+            }
+
+            $this->refreshAllocationProgress($allocation);
+            $this->notifyFarmerOfHandover($farmer, $allocation, $data['distributed_at']);
+
+            AuditLog::create([
+                'user_id'      => Auth::id(),
+                'action'       => 'Handed ' . $allocation->display_name . ' to ' . $farmer->full_name
+                    . ' for ' . $report->reference,
+                'target_table' => 'assistance_distributions',
+                'target_id'    => $distribution->id,
+                'created_at'   => now(),
+            ]);
+        });
+
+        return redirect()
+            ->route('mao.assistance-allocations.show', $allocation)
+            ->with('status', 'Hand-over recorded for ' . $farmer->full_name
+                . '. They will be asked to confirm they received it.');
+    }
+
+    /** How many photos the office may attach as proof of one hand-over. */
+    private const MAX_HANDOVER_PHOTOS = 6;
+
+    /**
+     * The farmers this allocation designated, with the reports that made
+     * them eligible, so the form can offer them.
+     *
+     * Scoped to THIS allocation's own beneficiary rows and not to "anyone
+     * with an eligible report", which is the rule BUILD-STATUS section 32
+     * established and the reason the designation step means anything at all.
+     */
+    private function designatedFarmers(AssistanceAllocation $allocation)
+    {
+        $reportIds = $allocation->beneficiaries()->pluck('damage_report_id');
+
+        return Farmer::whereHas('damageReports', fn ($q) => $q->whereIn('id', $reportIds))
+            ->with([
+                'barangay',
+                'association',
+                'damageReports' => fn ($q) => $q->whereIn('id', $reportIds)
+                    ->with(['crops.crop', 'validation'])
+                    ->latest(),
+            ])
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
+    }
+
+    /**
+     * May this farmer receive from THIS allocation?
+     *
+     * Three things have to hold, checked here rather than trusted to the
+     * form. The last is the one that matters: it is not enough that the
+     * farmer has an eligible report somewhere, the office has to have
+     * designated them on this specific allocation.
+     */
+    private function assertCanReceive(Farmer $farmer, DamageReport $report, AssistanceAllocation $allocation): void
+    {
+        if ($report->farmer_id !== $farmer->id) {
+            throw ValidationException::withMessages([
+                'damage_report_id' => 'That damage report belongs to a different farmer.',
+            ]);
+        }
+
+        if (! in_array($report->status, self::QUALIFYING_REPORT_STATUSES, true)) {
+            throw ValidationException::withMessages([
+                'damage_report_id' => 'Report ' . $report->reference . ' has not been inspected yet, '
+                    . 'so assistance cannot be recorded against it.',
+            ]);
+        }
+
+        $isDesignated = AssistanceAllocationBeneficiary::where('assistance_allocation_id', $allocation->id)
+            ->where('farmer_id', $farmer->id)
+            ->where('damage_report_id', $report->id)
+            ->exists();
+
+        if (! $isDesignated) {
+            throw ValidationException::withMessages([
+                'farmer_id' => $farmer->full_name . ' was not designated on this allocation, so assistance '
+                    . 'cannot be recorded against them from it.',
+            ]);
+        }
+    }
+
+    /**
+     * Move the allocation's own status along after a hand-over.
+     *
+     * COMPLETE MEANS EVERY DESIGNATED FARMER HAS THEIRS
+     *
+     * This used to compare a running quantity total against the allocated
+     * quantity, which is how "completed" was decided. With no quantities
+     * there is nothing to compare, and the obvious replacement is better
+     * than what it replaces: an allocation is finished when every farmer it
+     * designated has been handed something, which is a fact about people
+     * rather than about arithmetic, and is what an officer means when they
+     * say the batch is done.
+     *
+     * An allocation that designated nobody can never complete this way and
+     * stays at 'distributed', which is correct: there is nobody to finish
+     * with. The office can still close it by hand from updateStatus().
+     *
+     * Recalculated from the rows every time rather than incremented, so it
+     * cannot drift.
+     */
+    private function refreshAllocationProgress(AssistanceAllocation $allocation): void
+    {
+        $designated = $allocation->beneficiaries()->count();
+
+        $handedTo = $allocation->distributions()
+            ->whereIn('distribution_status', ['distributed', 'completed'])
+            ->distinct('farmer_id')
+            ->count('farmer_id');
+
+        $allocation->update([
+            'status' => ($designated > 0 && $handedTo >= $designated) ? 'completed' : 'distributed',
+            'distributed_to_association_at' => $allocation->distributed_to_association_at ?? now(),
+            'distributed_by'                => $allocation->distributed_by ?? Auth::id(),
+        ]);
+    }
+
+    /**
+     * Tell the farmer, in the app (proposal section 66).
+     *
+     * No figure in the message, which is the whole point of the change: the
+     * farmer is told what they were given and when, and asked to confirm.
+     * 'normal' priority, because this is good news rather than an emergency
+     * and section 68 reserves SMS for urgent matters.
+     */
+    private function notifyFarmerOfHandover(Farmer $farmer, AssistanceAllocation $allocation, string $when): void
+    {
+        try {
+            NotificationBroadcast::create([
+                'title'       => 'Assistance recorded: ' . $allocation->display_name,
+                'message'     => 'The Municipal Agriculture Office recorded giving you '
+                    . $allocation->display_name . ' on ' . Carbon::parse($when)->format('F d, Y')
+                    . '. Please open your Assistance page and confirm whether you received it. '
+                    . 'Pakikumpirma po sa inyong Assistance page kung natanggap ninyo ito.',
+                'category'    => 'assistance',
+                'priority'    => 'normal',
+                'target_type' => 'specific_farmer',
+                'target_id'   => $farmer->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ])->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify farmer ' . $farmer->id
+                . ' of an assistance hand-over: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -739,9 +1165,8 @@ class AssistanceAllocationController extends Controller
     public function updateStatus(Request $request, AssistanceAllocation $allocation)
     {
         $data = $request->validate([
-            'status'              => ['required', Rule::in(['distributed', 'completed', 'cancelled'])],
-            'distributed_quantity'=> ['nullable', 'numeric', 'min:0'],
-            'remarks'             => ['nullable', 'string', 'max:1000'],
+            'status'  => ['required', Rule::in(['distributed', 'completed', 'cancelled'])],
+            'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
         if ($allocation->status === 'completed') {
@@ -754,8 +1179,9 @@ class AssistanceAllocationController extends Controller
             if ($data['status'] === 'distributed') {
                 $changes['distributed_to_association_at'] = now();
                 $changes['distributed_by']                = Auth::id();
-                $changes['distributed_quantity']          = $data['distributed_quantity']
-                    ?? $allocation->allocated_quantity;
+                // No distributed_quantity: there is no quantity to carry
+                // over. The date and the officer are the whole record of
+                // this step now.
             }
 
             if (! empty($data['remarks'])) {
@@ -775,5 +1201,155 @@ class AssistanceAllocationController extends Controller
         });
 
         return back()->with('status', 'Allocation marked as ' . $data['status'] . '.');
+    }
+
+    /* ==================================================================
+     | The office's assistance decision on one case  (section 11.1, 11.2)
+     ================================================================== */
+
+    /**
+     * Record that this farmer is, or is not, designated for assistance.
+     *
+     * WHY THIS EXISTS SEPARATELY FROM ALLOCATING
+     *
+     * Saying yes already had a home: include the farmer in an allocation and
+     * a beneficiary row is written. Saying no had none. A farmer the office
+     * had considered and passed over looked exactly like a farmer nobody had
+     * read yet, so the queue never emptied and the farmer never got an
+     * answer. Section 11.1 makes Not Designated one of the four statuses,
+     * which means the office needs a way to put it on the record.
+     *
+     * A reason is required for a refusal and optional for a designation.
+     * That asymmetry is deliberate: the allocation itself explains a yes,
+     * while a no leaves nothing behind unless somebody writes it down, and
+     * an officer asked about it three months later will have only this.
+     *
+     * WHAT IT REFUSES TO DO
+     *
+     * It will not decide a case the farmer has already confirmed receiving,
+     * and it will not decide a report no technician has verified. The first
+     * would let a click rewrite something that has already happened in the
+     * real world; the second would have the office deciding on damage nobody
+     * has been out to see (section 10.5 keeps those stages apart).
+     */
+    public function decide(Request $request, DamageReport $damageReport)
+    {
+        $data = $request->validate([
+            'decision' => ['required', Rule::in([
+                AssistanceDecision::DESIGNATED,
+                AssistanceDecision::NOT_DESIGNATED,
+            ])],
+            // Required when refusing. Rule::requiredIf rather than a second
+            // validate() call, so the farmer-facing message and the field
+            // name stay with the rest of the rules.
+            'remarks'  => [
+                Rule::requiredIf(fn () => $request->input('decision') === AssistanceDecision::NOT_DESIGNATED),
+                'nullable', 'string', 'max:1000',
+            ],
+        ], [
+            'remarks.required' => 'Please give the reason this farmer is not designated. It is kept on the record and shown to them.',
+        ]);
+
+        $damageReport->load(AssistanceCase::eagerLoad());
+
+        if (AssistanceCase::forReport($damageReport) === AssistanceCase::RECEIVED) {
+            return back()->withErrors([
+                'decision' => 'This farmer has already confirmed receiving assistance for this report, so the decision can no longer be changed.',
+            ]);
+        }
+
+        if (! in_array($damageReport->status, ['verified', 'approved'], true)) {
+            return back()->withErrors([
+                'decision' => 'This report has not been verified by a technician yet, so there is nothing to decide on.',
+            ]);
+        }
+
+        $designated = $data['decision'] === AssistanceDecision::DESIGNATED;
+
+        DB::transaction(function () use ($damageReport, $data, $designated) {
+            // updateOrCreate, not create: the office may have been waiting
+            // on a document and is now answering properly. One row per
+            // report is enforced by a unique index as well, so a double
+            // submit cannot leave two contradictory answers behind.
+            AssistanceDecision::updateOrCreate(
+                ['damage_report_id' => $damageReport->id],
+                [
+                    'farmer_id'  => $damageReport->farmer_id,
+                    'decision'   => $data['decision'],
+                    'decided_by' => Auth::id(),
+                    'decided_at' => now(),
+                    'remarks'    => $data['remarks'] ?: null,
+                ]
+            );
+
+            AuditLog::create([
+                'user_id'      => Auth::id(),
+                'action'       => ($designated ? 'Designated' : 'Did not designate')
+                    . ' ' . ($damageReport->farmer?->full_name ?? 'a farmer')
+                    . ' for assistance on report ' . $damageReport->reference,
+                'target_table' => 'assistance_decisions',
+                'target_id'    => $damageReport->id,
+                'created_at'   => now(),
+            ]);
+        });
+
+        $this->notifyFarmerOfDecision($damageReport, $designated, $data['remarks'] ?: null);
+
+        return back()->with('status', $designated
+            ? 'Farmer designated for assistance.'
+            : 'Recorded as not designated for assistance.');
+    }
+
+    /**
+     * Tell the farmer what was decided.
+     *
+     * Section 11.2 asks for the farmer and the association to be notified of
+     * an assistance decision, and a refusal is exactly the case where
+     * silence is worst: the farmer is waiting, and without this they wait
+     * indefinitely for an answer that has in fact been given.
+     *
+     * 'important' priority, so in-app only and no SMS. Section 68 keeps SMS
+     * for urgent and critical matters, and a decision the farmer can read
+     * the next time they open the app is neither. The refusal carries its
+     * reason in the message, because a "no" with no reason reads as a
+     * mistake and generates a phone call to the office.
+     *
+     * Runs after the transaction has committed and never throws: a
+     * notification failure must not make a decision that is already saved
+     * look as though it failed.
+     */
+    private function notifyFarmerOfDecision(DamageReport $damageReport, bool $designated, ?string $remarks): void
+    {
+        if (! $damageReport->farmer_id) {
+            return;
+        }
+
+        try {
+            $alert = NotificationBroadcast::create([
+                'title'   => $designated
+                    ? 'Designated for Assistance'
+                    : 'Not Designated for Assistance',
+                'message' => $designated
+                    ? 'The Municipal Agriculture Office has designated you for assistance on report '
+                        . $damageReport->reference . '. Nothing has been handed over yet; you will be '
+                        . 'notified again when your association distributes it.'
+                    : 'The Municipal Agriculture Office has reviewed report ' . $damageReport->reference
+                        . ' and you were not designated for assistance on this allocation.'
+                        . ($remarks ? ' Reason: ' . $remarks : ''),
+                'category'    => 'system',
+                'priority'    => 'important',
+                'target_type' => 'specific_farmer',
+                'target_id'   => $damageReport->farmer_id,
+                'link_type'   => 'damage_report',
+                'link_id'     => $damageReport->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ]);
+
+            $alert->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify farmer ' . $damageReport->farmer_id
+                . ' of the assistance decision on report ' . $damageReport->id . ': ' . $e->getMessage());
+        }
     }
 }

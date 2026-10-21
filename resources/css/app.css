@@ -1,6 +1,27 @@
 @import 'tailwindcss';
 
 /*
+    WHY `dark:` IS BOUND TO A CLASS NOBODY SETS
+    -------------------------------------------------------------------
+    Out of the box Tailwind's `dark:` variant means "the device is set to
+    dark mode". This app has no dark palette: the tokens below are one
+    light scheme, and :root sets color-scheme: light.
+
+    The result was a half-applied dark mode on any phone or laptop whose
+    OS is in dark mode. Hundreds of `dark:` classes scattered through the
+    views fired on top of the light palette, so a View button rendered as
+    near-white text on a pale blue fill, and status badges inverted on
+    white cards. The user never chose dark mode in this app; their phone
+    chose it for them, for an app that does not have one.
+
+    Rebinding the variant to a `.dark` class, which nothing in this app
+    ever adds, switches all of that off in one line while leaving the
+    `dark:` classes harmlessly in place. If a real dark theme is ever
+    built, give :root.dark its own token values and add the class.
+*/
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
     THE FONT: INTER, SELF HOSTED
 
     One typeface everywhere, shipped with the app rather than fetched from
@@ -320,6 +341,192 @@
 }
 
 [x-cloak] { display: none !important; }
+
+/* =====================================================================
+   SCROLLBARS
+   ---------------------------------------------------------------------
+   A browser's own scrollbar is a wide light grey trough with a grey
+   handle, drawn from the operating system and with no idea what it is
+   sitting on. Against the sidebar that is the worst case: a thick pale
+   bar running down a dark green panel, which is the first thing the eye
+   lands on when the menu is long enough to scroll.
+
+   So every scrollbar in the system is drawn here instead: no trough at
+   all, and a thin green handle, four visible pixels of it. The handle is
+   given a transparent border rather than simply being made narrow, so
+   the part the pointer can grab stays a comfortable ten pixels wide
+   while the part you can see is a hairline.
+
+   THE SIDEBAR IS QUIETER STILL
+
+   The menu is read far more often than it is scrolled, so its handle is
+   invisible until the pointer is over the sidebar (or something inside
+   it has keyboard focus, so a keyboard user is not left guessing). The
+   width is reserved either way, so nothing shifts sideways when it
+   appears. Its green is the lighter --sidebar-primary rather than the
+   page's dark green, because a dark green handle on the dark green
+   sidebar would be no more visible than no handle at all.
+
+   TWO ENGINES, TWO SPELLINGS
+
+   Firefox has scrollbar-width and scrollbar-color, and they inherit, so
+   setting them once on the document reaches every scroller on the page.
+   Chrome, Edge, Safari and Opera use the ::-webkit-scrollbar pseudo
+   elements, which do not inherit and so are written against everything.
+   Both are given, and a browser that honours neither simply keeps its
+   own scrollbar: nothing here is load bearing.
+
+   iOS Safari and Android Chrome draw overlay scrollbars that ignore all
+   of this. That is fine - an overlay scrollbar is already a thin dark
+   line that fades out on its own.
+   ===================================================================== */
+
+:root {
+    --scrollbar-size:        10px;      /* the grabbable width */
+    --scrollbar-inset:       3px;       /* leaves 4px of visible handle */
+    --scrollbar-thumb:       #166534;   /* the system's green */
+    --scrollbar-thumb-hover: #0d3d1b;   /* the darker banner green */
+
+    /* On the sidebar the ground is already #0d3d1b, so the handle lifts
+       out of it rather than sitting on it. */
+    --sidebar-scrollbar:       #2e6b41;
+    --sidebar-scrollbar-hover: #46965f;
+}
+
+html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* The little up and down arrows at the ends of the bar. Windows draws
+   them by default and they are the most of what makes a scrollbar look
+   like a piece of the operating system that landed on the page: two grey
+   boxes with a white ground, which on the sidebar sit on dark green. They
+   are also the one part of a scrollbar nobody uses. */
+::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    /* The border is transparent and the background is clipped inside it,
+       which is how the handle ends up thinner than the track it lives in
+       without losing any of its hit area. */
+    border: var(--scrollbar-inset) solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+}
+
+/* The sidebar menu: reserved, invisible, and green only while pointed at.
+   .sidebar-shell is the <aside>, .sidebar-scroll the <nav> inside it that
+   actually scrolls - see layouts/app.blade.php.
+
+   The handle is a green lifted a little out of the sidebar's own, not the
+   bright green of the active item: it should read as part of the panel
+   that has surfaced, not as a fifth thing competing with the menu. */
+.sidebar-scroll {
+    scrollbar-color: transparent transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: transparent;
+}
+
+.sidebar-shell:hover .sidebar-scroll,
+.sidebar-scroll:focus-within {
+    scrollbar-color: var(--sidebar-scrollbar) transparent;
+}
+
+.sidebar-shell:hover .sidebar-scroll::-webkit-scrollbar-thumb,
+.sidebar-scroll:focus-within::-webkit-scrollbar-thumb {
+    background-color: var(--sidebar-scrollbar);
+}
+
+.sidebar-shell:hover .sidebar-scroll::-webkit-scrollbar-thumb:hover,
+.sidebar-scroll:focus-within::-webkit-scrollbar-thumb:hover {
+    background-color: var(--sidebar-scrollbar-hover);
+}
+
+/* =====================================================================
+   SIGN-IN SCREENS THAT FIT THE DEVICE
+   ---------------------------------------------------------------------
+   Login and Register are single screens with nothing below the fold
+   worth scrolling to, so on a laptop with a notification bar, or a phone
+   held sideways, a scrollbar on them reads as the page not fitting
+   rather than as there being more to see.
+
+   These three classes are what makes them fit. They do nothing on their
+   own: the work is started by layouts/partials/fit-screen.blade.php,
+   which adds .fit-on to <html> once it has measured the screen. Until
+   then - and if the script never runs at all, or the content turns out
+   to be too tall to shrink into the space - the page keeps its ordinary
+   full-height-and-scroll behaviour, so nothing can end up clipped and
+   out of reach.
+
+     .fit-shell   the screen itself, exactly as tall as the viewport
+     .fit-zoom    content that scales down as one piece to fit
+     .fit-card    a single centred card that shrinks in place
+
+   .fit-zoom is the interesting one. Scaling alone would leave the
+   content narrower than the screen with a gap down each side, so the
+   element is first widened by the same factor it is about to be shrunk
+   by: at 0.8 it lays itself out at 125% width, then scales to 0.8, and
+   lands at exactly the width it started with, with everything on it
+   proportionally smaller. It is the same thing as zooming the page out,
+   which is what a farmer with a short screen would otherwise have to do
+   by hand.
+
+   dvh rather than vh: on a phone, vh is the height the viewport would
+   have if the browser's address bar were hidden, so a vh-tall screen is
+   always a little taller than what you can actually see. dvh is what is
+   on screen right now. vh is written first for the browsers that predate
+   dvh and would otherwise ignore the line.
+   ===================================================================== */
+
+.fit-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+.fit-on,
+.fit-on body {
+    height: 100%;
+    overflow: hidden;
+}
+
+.fit-on .fit-shell {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.fit-zoom {
+    transform-origin: top left;
+    width: calc(100% / var(--fit, 1));
+    transform: scale(var(--fit, 1));
+}
+
+.fit-card {
+    transform-origin: center center;
+    transform: scale(var(--fit-card, 1));
+}
 
 /* =====================================================================
    THE LAYERING SCALE

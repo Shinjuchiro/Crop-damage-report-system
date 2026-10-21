@@ -41,13 +41,14 @@
                    icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3l4.5-2.2L12 18l4.5-2.2L21 18v3" />
     </div>
 
-    {{-- List + detail. Side by side from lg up; on a phone only one half
-         shows at a time - the list, or (once a row's View is followed)
-         the detail panel full-screen with its own Back link. --}}
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
             <x-ui.card title="Allocation History" description="Every assistance allocation MAO has ever made, searchable and filterable.">
                 <x-slot:actions>
                     <a href="{{ route('mao.assistance-allocations.index') }}"
@@ -66,13 +67,28 @@
                     <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()" class="sm:w-48"
                                  :selected="request('association_id')" :options="$associations->pluck('name', 'id')" />
 
-                    <x-ui.select name="assistance_id" placeholder="All Assistance" onchange="this.form.submit()" class="sm:w-48"
-                                 :selected="request('assistance_id')" :options="$assistances->pluck('name', 'id')" />
+                    {{-- TWO FILTERS WERE REMOVED HERE (Oct 2026)
 
-                    <x-ui.input name="search" placeholder="Search assistance name" value="{{ request('search') }}"
-                                class="sm:min-w-[14rem] sm:flex-1" />
+                         "All Assistance" and "Search assistance name" were
+                         left behind when the assistance ITEM went out of the
+                         module (see App\Models\Assistance). An allocation no
+                         longer names what is being given, so there is no item
+                         to filter by and no name to search.
 
-                    @if (request()->hasAny(['status', 'association_id', 'assistance_id', 'search']))
+                         The assistance one was not merely dead, it was fatal:
+                         it read $assistances->pluck('name', 'id') and
+                         history() had already stopped passing $assistances -
+                         its own comment says so - which made this a "Call to
+                         a member function pluck() on null" and a 500 on every
+                         load of this page. The search box was the quieter
+                         half of the same mistake: it submitted ?search= and
+                         history() filters on nothing but status and
+                         association_id, so it silently did nothing.
+
+                         Found by a static check for variables a view uses
+                         that its controller does not pass. --}}
+
+                    @if (request()->hasAny(['status', 'association_id']))
                         <a href="{{ route('mao.assistance-allocations.history') }}"
                            class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
                     @endif
@@ -80,8 +96,8 @@
 
                 {{-- Table --}}
                 {{-- ---------- PHONE: one card per allocation ----------
-                     503px of this nine-column table is off-screen on a
-                     phone. Cards below sm, table from sm up. --}}
+                     The same four facts the table carries, with the card
+                     itself as the tap that opens the allocation. --}}
                 <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($allocations as $allocation)
                         <li>
@@ -89,14 +105,7 @@
                                               :eyebrow="'AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT)"
                                               :title="$allocation->display_name"
                                               :subtitle="$allocation->association?->name ?? 'No association'"
-                                              :status="$allocation->status"
-                                              :fields="[
-                                                  'Disaster'      => $allocation->disaster?->name ?? 'Not tied to an event',
-                                                  'Quantity'      => $allocation->allocated_quantity !== null
-                                                        ? number_format($allocation->allocated_quantity, 2) : '-',
-                                                  'Beneficiaries' => $allocation->beneficiaries_count,
-                                                  'Allocated on'  => $allocation->allocated_at?->format('M d, Y'),
-                                              ]" />
+                                              :status="$allocation->status" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -109,15 +118,30 @@
                 <div class="hidden overflow-x-auto lg:block">
                     <table class="w-full text-left">
                         <thead>
+                            {{-- FOUR COLUMNS (revision section 3.1)
+
+                                 The disaster, the beneficiary count and the
+                                 date allocated are all in View, along with
+                                 the assistance, the quantity, who allocated
+                                 it, the supporting documents and every
+                                 distribution made from it.
+
+                                 "Allocation Status", not "Status", and the
+                                 word matters. This column tracks a BATCH the
+                                 office sent to an association, which has its
+                                 own life: pending, allocated, distributed to
+                                 the association, completed, cancelled. It is
+                                 NOT one of the four assistance statuses in
+                                 section 11.1, which describe one farmer's
+                                 case. Read as a farmer's status, a row here
+                                 saying "Distributed" would look like a
+                                 promise that somebody received something,
+                                 when all it means is that a sack of seed
+                                 left the office. --}}
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">
                                 <th class="px-3 py-3">Allocation ID</th>
-                                <th class="px-3 py-3">Assistance</th>
                                 <th class="px-3 py-3">Association</th>
-                                <th class="px-3 py-3">Disaster</th>
-                                <th class="px-3 py-3 text-right">Quantity</th>
-                                <th class="px-3 py-3 text-right">Beneficiaries</th>
-                                <th class="px-3 py-3">Date Allocated</th>
-                                <th class="px-3 py-3 text-center">Status</th>
+                                <th class="px-3 py-3 text-center">Allocation Status</th>
                                 <th class="px-3 py-3 text-center">Action</th>
                             </tr>
                         </thead>
@@ -125,14 +149,7 @@
                             @forelse ($allocations as $allocation)
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $allocation->id ? 'bg-muted/60' : '' }}">
                                     <td class="px-3 py-4 text-foreground">AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}</td>
-                                    <td class="px-3 py-4 font-medium text-foreground">{{ $allocation->display_name }}</td>
                                     <td class="px-3 py-4 text-muted-foreground">{{ $allocation->association?->name ?? '-' }}</td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</td>
-                                    <td class="px-3 py-4 text-right tabular-nums text-foreground">
-                                        {{ $allocation->allocated_quantity !== null ? number_format($allocation->allocated_quantity, 2) : '-' }}
-                                    </td>
-                                    <td class="px-3 py-4 text-right tabular-nums text-foreground">{{ $allocation->beneficiaries_count }}</td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</td>
                                     <td class="px-3 py-4 text-center">
                                         <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $statusBadges[$allocation->status] ?? $statusBadges['pending'] }}">
                                             {{ ucfirst($allocation->status) }}
@@ -144,7 +161,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="px-3 py-14 text-center">
+                                    <td colspan="4" class="px-3 py-14 text-center">
                                         <p class="text-sm font-medium text-muted-foreground">No allocations yet</p>
                                         <p class="mt-1 text-xs text-muted-foreground">
                                             Use Allocate Assistance on the main page to send assistance to a Farmers' Association.

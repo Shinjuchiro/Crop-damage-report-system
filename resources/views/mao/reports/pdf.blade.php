@@ -15,6 +15,17 @@
     th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
     th { background: #f1f5f1; font-weight: bold; }
     .num { text-align: right; }
+    /* The listings. Smaller type than the summaries above, because a damage
+       report row carries seventeen columns and the alternative is a table
+       nobody can read across. */
+    .records { page-break-before: always; }
+    .records h2 { margin-bottom: 2pt; }
+    .records .count { margin: 0 0 6pt; font-size: 8pt; color: #6b7280; }
+    .records .empty { margin: 0 0 10pt; font-size: 9pt; color: #6b7280; font-style: italic; }
+
+    table.list { font-size: 7pt; table-layout: fixed; width: 100%; }
+    table.list th, table.list td { padding: 3pt 4pt; word-wrap: break-word; }
+    table.list tbody tr:nth-child(even) td { background: #f5f7f6; }
 </style>
 </head>
 <body>
@@ -171,14 +182,67 @@
     <h2>Assistance Summary</h2>
     <table>
         <tr><th>Metric</th><th class="num">Value</th></tr>
-        <tr><td>Cash Allocated</td><td class="num">{{ number_format($data['assistance']['cash_allocated'], 2) }}</td></tr>
-        <tr><td>In-Kind Allocated</td><td class="num">{{ number_format($data['assistance']['in_kind_allocated'], 2) }}</td></tr>
+        {{-- Cash Allocated and In-Kind Allocated were here, with Total
+             Distributed below. Every amount left the system in Oct 2026, at
+             the client's request, for privacy. --}}
+        <tr><td>Farmers Selected</td><td class="num">{{ $data['assistance']['farmers_designated'] }}</td></tr>
         <tr><td>Allocations Made</td><td class="num">{{ $data['assistance']['total_allocated'] }}</td></tr>
         <tr><td>Distributions Recorded</td><td class="num">{{ $data['assistance']['distributions_recorded'] }}</td></tr>
-        <tr><td>Total Distributed</td><td class="num">{{ number_format($data['assistance']['total_distributed_quantity'], 2) }}</td></tr>
         <tr><td>Beneficiaries</td><td class="num">{{ $data['assistance']['beneficiaries'] }}</td></tr>
         <tr><td>Confirmed Received</td><td class="num">{{ $data['assistance']['confirmed_received'] }}</td></tr>
         <tr><td>Not Received</td><td class="num">{{ $data['assistance']['not_received'] }}</td></tr>
     </table>
+
+    {{-- ============================================================
+         THE RECORDS THEMSELVES
+
+         Everything above is a count. These are the rows behind those
+         counts, every one of them named: who registered, who planted
+         what, who reported damage and what it cost them, which technician
+         inspected it, who was allocated assistance and who signed for it.
+         Proposal section 76 asks for exactly these listings, and until now
+         this document could be read end to end without one person's name
+         in it.
+
+         They come after the summaries, so the first page is still the page
+         somebody can hand across a table.
+
+         page-break-before keeps a listing from starting three rows above
+         the bottom of a page, and the <thead> is repeated by Dompdf on
+         every page by itself, which is what keeps a long listing readable
+         after the first page.
+    ============================================================= --}}
+    @foreach ($data['records'] ?? [] as $listing)
+        <div class="records">
+            <h2>{{ $listing['title'] }}</h2>
+
+            @if (count($listing['rows']) === 0)
+                <p class="empty">No records in this period.</p>
+            @else
+                <p class="count">{{ number_format(count($listing['rows'])) }}
+                    {{ \Illuminate\Support\Str::plural('record', count($listing['rows'])) }}</p>
+
+                <table class="list">
+                    <thead>
+                        <tr>
+                            @foreach ($listing['headings'] as $heading)
+                                <th>{{ $heading }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($listing['rows'] as $row)
+                            <tr>
+                                @foreach ($row as $cell)
+                                    <td>{{ $cell === '' || $cell === null ? '-' : $cell }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+        </div>
+    @endforeach
+
 </body>
 </html>

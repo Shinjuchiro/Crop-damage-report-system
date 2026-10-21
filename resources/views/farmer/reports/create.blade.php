@@ -83,7 +83,8 @@
         @js((float) ($farmer->farm_size_hectares ?? 0)),
         @js($causes),
         @js($weatherCauses),
-        @js(array_values(array_intersect($causesWithEvents, $weatherCauses)))
+        @js(array_values(array_intersect($causesWithEvents, $weatherCauses))),
+        @js($maxCrops)
      )">
 
     @if ($errors->any())
@@ -297,7 +298,11 @@
                         </div>
                     </template>
 
-                    <button type="button" @click="addCrop()"
+                    {{-- The button goes away at the limit and is replaced by
+                         the line below, rather than sitting there greyed out.
+                         A disabled button that does nothing when pressed is
+                         read as a fault; a sentence saying why is not. --}}
+                    <button type="button" @click="addCrop()" x-show="canAddCrop()"
                             class="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed
                                    border-input px-4 py-4 text-sm font-medium text-muted-foreground
                                    transition-colors hover:border-primary hover:bg-accent hover:text-accent-foreground">
@@ -307,6 +312,15 @@
                         </svg>
                         Add another crop &middot; Magdagdag pa
                     </button>
+
+                    <p x-show="! canAddCrop()" x-cloak
+                       class="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                        One report covers up to <strong x-text="maxCrops"></strong> crops. If more of your
+                        crops were damaged, remove one here or submit them as a separate report.
+                        <span class="mt-0.5 block text-xs">
+                            Hanggang <span x-text="maxCrops"></span> na pananim lamang sa isang ulat.
+                        </span>
+                    </p>
 
                     {{-- Caught before submission rather than by the technician on site --}}
                     <div x-show="overArea()" x-cloak
@@ -696,11 +710,16 @@
 
 @push('scripts')
 <script>
-    function damageReportForm(cropList, disasterList, farmSize, causeList, weatherCauses, causesWithEvents) {
+    function damageReportForm(cropList, disasterList, farmSize, causeList, weatherCauses, causesWithEvents, maxCrops) {
         return {
             cropList,
             disasterList,
             farmSize,
+
+            /* The ceiling on one report, handed down from
+               DamageReportController::MAX_CROPS so the form and the
+               validation can never disagree. */
+            maxCrops,
 
             // causeList        every cause, key to label
             // weatherCauses    the ones the office declares events for
@@ -840,7 +859,19 @@
             previews: [],
 
             /* ---------- crops ---------- */
-            addCrop() { this.crops.push(emptyCrop()); },
+
+            /* Guarded, not just hidden. The button below disappears at the
+               limit, but a stray double click or a keyboard press landing
+               just as it goes could still get through, and the server would
+               then reject a form the farmer has already filled in. */
+            addCrop() {
+                if (this.crops.length >= this.maxCrops) return;
+
+                this.crops.push(emptyCrop());
+            },
+
+            canAddCrop() { return this.crops.length < this.maxCrops; },
+
             addDisaster() { this.disasters.push(emptyDisaster()); },
 
             crop(row) {

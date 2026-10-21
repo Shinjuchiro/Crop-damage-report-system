@@ -35,7 +35,21 @@
 @endphp
 
 @section('header-actions')
-    <div class="flex flex-wrap items-center gap-2">
+    {{-- x-data, with nothing in it, and it is load-bearing.
+
+         This section is rendered by layouts/app.blade.php, up in the page
+         heading row - OUTSIDE the x-data="alertComposer()" that wraps the
+         content below. Alpine only processes directives inside a component,
+         so without a scope of its own this button's @click was never bound
+         to anything: $dispatch did not exist, no event was fired, and
+         pressing Create New Alert did nothing at all, silently. An empty
+         x-data is the whole fix - it makes this a component, which is all
+         $dispatch needs.
+
+         The event still reaches the composer because Alpine dispatches with
+         bubbles: true and the listener is .window, so it does not matter
+         that the two now live in different Alpine components. --}}
+    <div x-data class="flex flex-wrap items-center gap-2">
         <x-ui.button variant="outline" :href="route('mao.sms-history.index')">SMS History</x-ui.button>
         <button type="button" @click="$dispatch('open-alert-composer')"
                 class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">
@@ -210,8 +224,16 @@
         <div x-show="showing" x-transition
              class="w-full max-w-2xl rounded-xl bg-card shadow-xl">
 
+            {{-- Gate on the step; never prevent unconditionally.
+
+                 This was @submit.prevent="step = 'review'", which blocks
+                 EVERY submission, including the real one from the review
+                 step - so even once the composer opened, Send Alert could
+                 never post. The pattern below is the one documented in
+                 BUILD-STATUS section 6: prevent only while composing, and
+                 let the review step's own submit button through. --}}
             <form method="POST" action="{{ route('mao.notifications.store') }}"
-                  @submit.prevent="step = 'review'">
+                  @submit="if (step === 'compose') { $event.preventDefault(); step = 'review'; }">
                 @csrf
 
                 <div class="flex items-center justify-between border-b border-border px-6 py-4">
@@ -425,7 +447,13 @@
                         Review Alert
                     </button>
 
-                    <button type="button" x-show="step === 'review'" x-cloak @click="$root.submit()"
+                    {{-- A plain submit, not @click="$root.submit()". $root is
+                         the nearest x-data, which is the DIV wrapping this
+                         whole page, not the form - a div has no submit()
+                         method, so that call threw a TypeError and nothing
+                         happened. The form's own handler above now lets a
+                         submission through once step is 'review'. --}}
+                    <button type="submit" x-show="step === 'review'" x-cloak
                             class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:brightness-110">
                         <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M2.5 21L23 12 2.5 3v7l14 2-14 2v7z"/>

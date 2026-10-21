@@ -15,4 +15,17 @@ class AssistanceDistributionPhoto extends Model
     {
         return $this->belongsTo(AssistanceDistribution::class, 'assistance_distribution_id');
     }
+
+    /**
+     * An authorised URL for this photo (revision section 3.4, Oct 2026).
+     *
+     * No screen renders handover photos yet. The accessor and its guard are
+     * written now anyway, so that whenever one is added the link is already
+     * the authorised one and nobody has to remember this rule a second time.
+     * See AttachmentController::distributionPhoto().
+     */
+    public function getUrlAttribute(): string
+    {
+        return route('attachments.distribution-photo', $this);
+    }
 }

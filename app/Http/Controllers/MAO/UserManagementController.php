@@ -231,32 +231,6 @@ class UserManagementController extends Controller
             $request->status === 'inactive' ? 'User archived.' : 'User restored.');
     }
 
-    /**
-     * Take a technician or association officer account out of the working
-     * system for good. Not a database delete: markDeleted() only stamps
-     * deleted_at/deleted_by, so the account and everything it ever did
-     * (inspections, allocations, distributions, its own login history) is
-     * kept exactly as it was. MAO accounts and the caller's own account are
-     * never deletable here.
-     */
-    public function destroy(User $user)
-    {
-        if ($user->id === Auth::id()) {
-            return back()->withErrors(['user' => 'You cannot delete your own account.']);
-        }
-
-        if ($user->role === 'mao') {
-            return back()->withErrors(['user' => 'MAO accounts cannot be deleted here.']);
-        }
-
-        $name = $user->display_name;
-        $user->markDeleted(Auth::id());
-
-        $this->log('Deleted user account: ' . $name, $user->id);
-
-        return back()->with('status', 'User account deleted. Its information is kept for audit purposes.');
-    }
-
     private function log(string $action, ?int $targetId): void
     {
         AuditLog::create([

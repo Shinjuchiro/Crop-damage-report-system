@@ -25,7 +25,7 @@ class MemberController extends Controller
     {
         $association = $this->association();
 
-        // Section 22's 3-month rule, made current BEFORE the query below
+        // Section 22's inactivity rule, made current BEFORE the query below
         // runs - not after, the way this page used to do it. Refreshing the
         // already-fetched page afterwards (the old $members->each->... line)
         // could leave a farmer showing an "Inactive" badge while still
@@ -34,8 +34,45 @@ class MemberController extends Controller
         // the ?status= filter and the badge always agree.
         Farmer::sweepInactive();
 
+        /*
+         | The extra relations are for the expanded row (revision section 8):
+         | a member's row opens in place to show them at a glance, without
+         | leaving the list. Eager-loaded rather than fetched when a row is
+         | opened, because the alternative is an AJAX endpoint and a loading
+         | state for data that is four small queries for the whole page.
+         |
+         | latestPlantingRecord and latestDamageReport are one-of-many
+         | relations (see the note on them in App\Models\Farmer), so this
+         | stays four queries whether the page shows one member or fifteen.
+         */
+        /* APPROVED MEMBERS ONLY (revision step 6)
+
+           This used to be every farmer who had picked this association,
+           whatever had become of their application. That was already
+           misleading - somebody the office had rejected sat in the officer's
+           Members list as though they were a member - and the new
+           Membership Applications screen makes it worse, because an
+           applicant would now appear on two screens at once with two
+           different statuses.
+
+           users.status is the account's own state, not the farming-activity
+           status this page filters on: 'active' means the office approved
+           them, 'pending' means their application is still somewhere in the
+           workflow, 'rejected' means it was turned down, and 'inactive'
+           means the record was archived. Only the first is a member.
+           farmers.activity_status, the Active/Inactive badge on the rows
+           below, is a different column with a confusingly similar name and
+           is untouched by this. */
         $members = Farmer::where('association_id', $association->id)
-            ->with(['barangay', 'user'])
+            ->whereHas('user', fn ($user) => $user->where('status', 'active'))
+            ->with([
+                'barangay',
+                'user',
+                'mainCrops.crop',
+                'latestPlantingRecord.crops.crop',
+                'latestDamageReport.crops.crop',
+                'latestDamageReport.validation',
+            ])
             ->withCount(['damageReports', 'plantingRecords'])
             ->when($request->query('status'), fn ($q, $status) => $q->where('activity_status', $status))
             ->when($request->query('affected') === 'yes', fn ($q) => $q->whereHas('damageReports'))
@@ -64,7 +101,15 @@ class MemberController extends Controller
         $selected = null;
 
         if ($request->filled('selected')) {
-            $candidate = Farmer::find($request->query('selected'));
+            /* The approved-members filter from the list query above is
+               repeated here on purpose, and for the reason section 49
+               recorded about archived records: a record an officer cannot
+               see in the list must not be reachable by typing its id into
+               the address bar either. Without it, ?selected= would open the
+               full member detail for somebody whose application is still
+               being reviewed. */
+            $candidate = Farmer::whereHas('user', fn ($user) => $user->where('status', 'active'))
+                ->find($request->query('selected'));
 
             if ($candidate) {
                 $this->assertBelongsToAssociation($candidate->association_id);
@@ -85,8 +130,11 @@ class MemberController extends Controller
             'backUrl'     => $request->fullUrlWithoutQuery('selected'),
             'filters'     => $request->only(['status', 'affected', 'barangay', 'q']),
 
-            // Only barangays this association actually has members in.
+            // Only barangays this association actually has members in -
+            // approved members, matching the list itself, so the dropdown
+            // cannot offer a barangay that filters the page to nothing.
             'barangays' => Barangay::whereIn('id', Farmer::where('association_id', $association->id)
+                    ->whereHas('user', fn ($user) => $user->where('status', 'active'))
                     ->select('barangay_id'))
                 ->orderBy('name')
                 ->get(),
@@ -107,30 +155,49 @@ class MemberController extends Controller
             'plantingRecords.crops.crop',
             'damageReports.crops.crop',
             'damageReports.disasters',
-            'damageReports.validation',
+            'damageReports.validation.technician',
             'damageReports.reportedBarangay',
             'assistanceDistributions.allocation.assistance',
             'assistanceDistributions.damageReport',
         ];
     }
 
+    /** The profile's tabs (revision section 9), in the order they appear. */
+    public const TABS = ['overview', 'planting', 'damage', 'validation', 'assistance', 'history'];
+
     /**
-     * One member: profile, planting history, damage reports, assistance.
+     * One member's profile: the same six tabs the office's farmer profile
+     * has, so a member reads the same way whoever opens them.
+     *
+     * The tab is a query parameter rather than script, so each one has its
+     * own URL and the Back button behaves. Everything is loaded whichever
+     * tab is open, because the tab strip shows a count beside each tab and
+     * needs all of it anyway.
      */
-    public function show(Farmer $member)
+    public function show(Request $request, Farmer $member)
     {
         // The check that matters. Without it, changing the id in the URL
         // would show a farmer from a different association.
         $this->assertBelongsToAssociation($member->association_id);
+
+        // And the same approved-only rule the list and the panel apply. An
+        // applicant under review belongs on the Membership Applications
+        // screen, where the officer sees only what an application carries,
+        // not on a member page built to show planting records and damage
+        // reports they cannot have filed yet.
+        abort_unless($member->user?->status === 'active', 404);
 
         $member->refreshActivityStatus();
 
         // Same relations the panel loads: see detailRelations() above.
         $member->load(self::detailRelations());
 
+        $tab = $request->query('tab');
+
         return view('association.members.show', [
             'association' => $this->association(),
             'member'      => $member,
+            'tab'         => in_array($tab, self::TABS, true) ? $tab : 'overview',
         ]);
     }
 }

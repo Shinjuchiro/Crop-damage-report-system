@@ -82,24 +82,6 @@ class DisasterController extends Controller
     }
 
     /**
-     * Take the disaster event out of the working system for good. Not a
-     * database delete: markDeleted() only stamps deleted_at/deleted_by, so
-     * every damage report and assistance record that already cites this
-     * event keeps resolving its name exactly as before.
-     */
-    public function destroy(Disaster $disaster)
-    {
-        $name = $disaster->name;
-        $disaster->markDeleted(Auth::id());
-
-        $this->log('Deleted disaster event: ' . $name, $disaster->id);
-
-        // back() rather than a fixed route: reused by both the Disasters list
-        // and the Archive page's permanent-delete action.
-        return back()->with('status', 'Disaster event deleted. Its data is kept for audit purposes.');
-    }
-
-    /**
      * Close out an event once its season is over, without breaking any
      * report or assistance record that already cites it.
      */

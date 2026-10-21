@@ -49,9 +49,7 @@ class MapController extends Controller
                 'report'   => $report->reference,
                 'farmer'   => $report->farmer?->full_name ?? 'Unknown',
                 'barangay' => $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Unknown barangay',
-                'severity' => $report->validation->severity
-                    ? Validation::SEVERITY_SCALE[$report->validation->severity]['label']
-                    : 'Not yet assessed',
+                'severity' => Validation::severityLabel($report->validation->severity) ?? 'Not yet assessed',
                 'color'    => $report->validation->severity
                     ? $report->validation->severity_color
                     : '#94a3b8',

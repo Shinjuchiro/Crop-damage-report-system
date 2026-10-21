@@ -29,8 +29,8 @@
     @if ($awaiting > 0)
         <x-ui.alert variant="warning" title="Please confirm what you received">
             There {{ $awaiting === 1 ? 'is' : 'are' }} {{ $awaiting }}
-            {{ $awaiting === 1 ? 'item' : 'items' }} below waiting for your answer. Tap Yes if you received
-            it, or No if you did not.
+            {{ $awaiting === 1 ? 'item' : 'items' }} below waiting for your answer. Tap
+            "I Have Received My Assistance" if you have it, or "No, I did not receive it" if you do not.
             <span class="mt-1 block">
                 Pakisagot po kung natanggap ninyo ang tulong. Mahalaga ito upang malaman ng opisina.
             </span>
@@ -47,25 +47,38 @@
 
     @forelse ($distributions as $distribution)
         @php
-            $waiting = $distribution->receipt_status === 'pending_confirmation';
+            /* Section 11.4: the confirmation is only offered once the
+               hand-over itself is on the record. The association writes
+               'distributed' when it records giving something out, so a row
+               still sitting at 'pending_distribution' is one nobody has
+               handed over yet, and being asked to confirm receiving it would
+               be asking the farmer to sign for nothing.
+
+               The controller checks the same thing again on submit. This is
+               the half that stops the question being asked; that is the half
+               that stops an answer being accepted. */
+            $handedOver = in_array($distribution->distribution_status, ['distributed', 'completed'], true);
+            $waiting    = $handedOver && $distribution->receipt_status === 'pending_confirmation';
         @endphp
 
         <x-ui.card :class="$waiting ? 'border-primary/40' : ''">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="min-w-0 space-y-1.5">
                     <p class="text-base font-semibold">
-                        {{ $distribution->allocation?->display_name ?? $distribution->in_kind_description ?? 'Assistance' }}
+                        {{ $distribution->allocation?->display_name ?? 'Assistance' }}
                     </p>
 
+                    {{-- The amount the farmer received used to lead this
+                         card, as a peso figure or a quantity. Both are gone
+                         (Oct 2026, client decision): the system does not
+                         record how much anybody was given. What is left is
+                         the date, which is what a farmer checking this page
+                         is actually looking for. --}}
                     <p class="text-sm text-muted-foreground">
-                        @if ($distribution->allocation?->is_cash)
-                            &#8369;{{ number_format((float) $distribution->quantity, 2) }}
+                        @if ($distribution->distributed_at)
+                            Handed over {{ $distribution->distributed_at->format('F d, Y') }}
                         @else
-                            {{ number_format((float) $distribution->quantity, 2) }} received
-                        @endif
-
-                        @if ($distribution->allocation?->disaster)
-                            &middot; for {{ $distribution->allocation->disaster->name }}
+                            Not handed over yet
                         @endif
                     </p>
 
@@ -86,9 +99,15 @@
 
                 <div class="flex shrink-0 flex-wrap gap-2">
                     @if ($distribution->receipt_status === 'confirmed_received')
-                        <x-ui.badge variant="success" dot>You confirmed this</x-ui.badge>
+                        {{-- The revision's own word for this state (section
+                             11.1). "You confirmed this" described the act;
+                             Received is the status the office reads on its
+                             own screens, so the farmer sees the same word. --}}
+                        <x-ui.status :value="\App\Support\AssistanceCase::RECEIVED" />
                     @elseif ($distribution->receipt_status === 'not_received')
                         <x-ui.badge variant="danger" dot>You said not received</x-ui.badge>
+                    @elseif (! $handedOver)
+                        <x-ui.badge variant="neutral" dot>Not handed over yet</x-ui.badge>
                     @else
                         <x-ui.badge variant="warning" dot>Waiting for your answer</x-ui.badge>
                     @endif
@@ -107,7 +126,7 @@
                         <form method="POST"
                               action="{{ route('farmer.assistance.confirm', $distribution) }}"
                               class="flex-1"
-                              data-confirm="Please confirm that you received this assistance. This is recorded and the office can see it."
+                              data-confirm="Please confirm that you have received this assistance. It is recorded with your name and the date, and your association and the office can both see it."
                               data-confirm-title="Confirm you received this?"
                               data-confirm-action="Yes, I received it">
                             @csrf
@@ -117,7 +136,7 @@
                             <x-ui.button size="lg" type="submit" class="w-full">
                                 <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                                      stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>
-                                Yes, I received it
+                                I Have Received My Assistance
                             </x-ui.button>
                         </form>
 

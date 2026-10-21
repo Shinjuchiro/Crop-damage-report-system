@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AssistanceAllocation;
+use App\Models\AssistanceAllocationBeneficiary;
 use App\Models\AssistanceDistribution;
 use App\Models\Barangay;
 use App\Models\CropPlantingRecord;
@@ -27,6 +28,32 @@ use Illuminate\Support\Facades\DB;
  * area) because a report generated today should show where things stand
  * today, not just what changed in the chosen month — they are noted below.
  *
+ * ARCHIVED AND DELETED RECORDS ARE EXCLUDED (Oct 2026)
+ *
+ * Every figure and every listing here now skips records the office has
+ * archived or soft-deleted. It did not before, and the effect was a report
+ * that disagreed with the screens it was supposed to summarise: archive a
+ * damage report filed twice by mistake and the Crop Damage list dropped to
+ * 19 while the month's PDF went on saying 20.
+ *
+ * The decision is deliberate and worth stating, because the other answer is
+ * arguable: a report filed in September did happen in September, and an
+ * office that wants its printed history frozen would count it. This system
+ * takes the consistent view instead. The report is a summary of the records
+ * that still stand, so it matches what the office and the associations see
+ * on screen, and no one has to explain why two numbers for the same month
+ * differ depending on where they read it.
+ *
+ * In practice that is CropPlantingRecord::active() and
+ * DamageReport::active() (both columns, see Concerns\Archivable),
+ * Farmer::notDeleted(), and self::inspections() for validations, which have
+ * no archived state of their own and inherit their report's. The damage and
+ * planting summaries filter the id set they are all built from, so the
+ * breakdowns by barangay, crop, cause, disaster, status and severity follow
+ * without each needing its own filter. Assistance allocations and
+ * distributions have no archived state at all: goods that were handed over
+ * were handed over.
+ *
  * Pass $associationId to scope every figure to one Farmers' Association's
  * own members only - this is what Association\ReportController uses so an
  * officer's Monthly Report never shows another association's (or the
@@ -41,7 +68,7 @@ class MonthlyReportBuilder
 {
     public static function forPeriod(int $year, int $month, ?int $associationId = null): array
     {
-        // Section 22's 3-month rule: Active/Inactive Farmers below is a
+        // Section 22's inactivity rule: Active/Inactive Farmers below is a
         // point-in-time snapshot, so it has to be current as of the moment
         // the report is generated, not whenever a farmer last happened to
         // open their own dashboard - see Farmer::sweepInactive().
@@ -61,7 +88,303 @@ class MonthlyReportBuilder
             'damage'       => self::damageSummary($start, $end, $associationId),
             'verification' => self::verificationSummary($start, $end, $associationId),
             'assistance'   => self::assistanceSummary($start, $end, $associationId),
+
+            // The records behind every figure above, named. See records().
+            'records'      => self::records($start, $end, $associationId),
         ];
+    }
+
+    /* ================= The records themselves =================
+     |
+     | WHY THIS EXISTS
+     |
+     | Everything above this point is a count. "Total Damage Reports: 24" is
+     | the right thing on a cover page and the wrong thing on its own: the
+     | office cannot act on it, cannot check it, and cannot answer "which
+     | twenty-four?" Proposal section 76 asks for exactly this - separate
+     | sheets for Damage Reports, Planting Activities, Technician
+     | Inspections, Assistance and Distribution - and until now the export
+     | wrote one sheet per SUMMARY instead, so no name appeared anywhere in
+     | the whole document.
+     |
+     | Every row here names the person. Who registered, who planted what,
+     | who reported damage and what it cost them, which technician inspected
+     | it and what they found, who was allocated assistance and who signed
+     | for it.
+     |
+     | WHAT A ROW IS
+     |
+     | Plain arrays of scalars, not models. The PDF, the Excel workbook and
+     | the on-screen report all read the same rows, so the three can never
+     | disagree, and a spreadsheet cell cannot hold an Eloquent object
+     | anyway. Each listing is [headings, rows] so a sheet or a table can be
+     | written without the writer knowing what it is looking at.
+     |
+     | THE SAME SCOPING AS EVERY FIGURE ABOVE
+     |
+     | Same date column per record type, same $associationId rule: a farmer's
+     | own association_id is the source of truth, and records that do not
+     | carry one are scoped by following the relation back to their farmer.
+     | A listing that disagreed with the count above it would be worse than
+     | no listing at all.
+     */
+    private static function records(Carbon $start, Carbon $end, ?int $associationId): array
+    {
+        return [
+            'farmers'       => self::farmerRecords($start, $end, $associationId),
+            'planting'      => self::plantingRecords($start, $end, $associationId),
+            'damage'        => self::damageRecords($start, $end, $associationId),
+            'inspections'   => self::inspectionRecords($start, $end, $associationId),
+            'allocations'   => self::allocationRecords($start, $end, $associationId),
+            'distributions' => self::distributionRecords($start, $end, $associationId),
+        ];
+    }
+
+    /** Farmers who registered during the month. */
+    private static function farmerRecords(Carbon $start, Carbon $end, ?int $associationId): array
+    {
+        $rows = Farmer::notDeleted()
+            ->with(['user', 'barangay', 'association', 'mainCrops.crop'])
+            ->whereBetween('created_at', [$start, $end])
+            ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
+            ->orderBy('last_name')->orderBy('first_name')
+            ->get()
+            ->map(fn ($farmer) => [
+                $farmer->full_name,
+                $farmer->user?->phone_number ?: '-',
+                $farmer->barangay?->name ?? '-',
+                $farmer->association?->name ?? '-',
+                $farmer->ownership_type === 'tenant' ? 'Tenant' : 'Land Owner',
+                $farmer->farm_size_hectares ? round((float) $farmer->farm_size_hectares, 2) : '',
+                $farmer->mainCrops->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)->filter()->implode('; ') ?: '-',
+                $farmer->created_at?->format('d M Y') ?? '-',
+                ucfirst((string) ($farmer->user?->status ?? '-')),
+            ])->all();
+
+        return [
+            'title'    => 'Farmers Registered',
+            'headings' => ['Farmer', 'Contact', 'Barangay', 'Association', 'Ownership',
+                           'Farm Size (ha)', 'Main Crops', 'Date Registered', 'Account Status'],
+            'rows'     => $rows,
+        ];
+    }
+
+    /** Planting activities submitted during the month, one row per crop. */
+    private static function plantingRecords(Carbon $start, Carbon $end, ?int $associationId): array
+    {
+        $rows = CropPlantingRecord::active()
+            ->with(['farmer.barangay', 'farmer.association', 'crops.crop'])
+            ->whereBetween('date_submitted', [$start, $end])
+            ->when($associationId, fn ($q) => $q
+                ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
+            ->orderBy('date_submitted')
+            ->get()
+            ->flatMap(fn ($record) => $record->crops->map(fn ($crop) => [
+                $record->farmer?->full_name ?? 'Unknown',
+                $record->farmer?->barangay?->name ?? '-',
+                $record->farmer?->association?->name ?? '-',
+                $crop->crop_specify ?: ($crop->crop?->name ?? '-'),
+                $crop->date_planted?->format('d M Y') ?? '-',
+                round((float) $crop->area_hectares, 2),
+                $record->date_submitted?->format('d M Y') ?? '-',
+            ]))->all();
+
+        return [
+            'title'    => 'Planting Activities',
+            'headings' => ['Farmer', 'Barangay', 'Association', 'Crop',
+                           'Date Planted', 'Area (ha)', 'Date Submitted'],
+            'rows'     => $rows,
+        ];
+    }
+
+    /** Damage reports filed during the month, with what the farmer stood to lose. */
+    private static function damageRecords(Carbon $start, Carbon $end, ?int $associationId): array
+    {
+        $rows = DamageReport::active()
+            ->with([
+                'farmer.user', 'farmer.barangay', 'farmer.association',
+                'crops.crop', 'disasters', 'assignedTechnician', 'validation',
+            ])
+            ->whereBetween('created_at', [$start, $end])
+            ->when($associationId, fn ($q) => $q
+                ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
+            ->orderBy('created_at')
+            ->get()
+            ->map(function ($report) {
+                $production = (float) $report->crops->sum('production_cost');
+                $damageCost = (float) $report->crops->sum('total_damage_cost');
+
+                return [
+                    $report->reference,
+                    $report->farmer?->full_name ?? 'Unknown',
+                    $report->farmer?->user?->phone_number ?: '-',
+                    $report->farmer?->barangay?->name ?? '-',
+                    $report->farmer?->association?->name ?? '-',
+                    $report->created_at?->format('d M Y') ?? '-',
+                    DamageReport::CAUSES[$report->damage_cause]
+                        ?? ucwords(str_replace('_', ' ', (string) $report->damage_cause)),
+                    $report->disasters->pluck('name')->implode('; ') ?: '-',
+                    $report->crops->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)->filter()->implode('; ') ?: '-',
+                    round((float) $report->crops->sum('damaged_area_hectares'), 2),
+                    $report->crops->max('estimated_damage_percent') !== null
+                        ? (float) $report->crops->max('estimated_damage_percent') : '',
+                    round($production, 2),
+                    round($damageCost, 2),
+                    DamageReport::STATUSES[$report->status]
+                        ?? ucwords(str_replace('_', ' ', (string) $report->status)),
+                    $report->assignedTechnician?->full_name
+                        ?: ($report->assignedTechnician?->username ?? 'Not assigned'),
+                    $report->validation?->assessed_damage_percent !== null
+                        ? (float) $report->validation->assessed_damage_percent : '',
+                    Validation::severityLabel($report->validation?->severity) ?? '-',
+                ];
+            })->all();
+
+        return [
+            'title'    => 'Damage Reports',
+            'headings' => ['Report ID', 'Farmer', 'Contact', 'Barangay', 'Association',
+                           'Date Reported', 'Cause', 'Disaster Event', 'Crops',
+                           'Damaged Area (ha)', 'Farmer Estimate (%)',
+                           'Production Cost', 'Estimated Damage Cost',
+                           'Status', 'Technician', 'Assessed Damage (%)', 'Severity'],
+            'rows'     => $rows,
+        ];
+    }
+
+    /** Inspections a technician completed during the month. */
+    private static function inspectionRecords(Carbon $start, Carbon $end, ?int $associationId): array
+    {
+        $rows = self::inspections()
+            ->with([
+                'damageReport.farmer.barangay', 'damageReport.farmer.association',
+                'damageReport.crops', 'technician',
+            ])
+            ->whereBetween('validated_at', [$start, $end])
+            ->when($associationId, fn ($q) => $q
+                ->whereHas('damageReport.farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
+            ->orderBy('validated_at')
+            ->get()
+            ->map(function ($validation) {
+                $report = $validation->damageReport;
+
+                return [
+                    $report?->reference ?? '-',
+                    $report?->farmer?->full_name ?? 'Unknown',
+                    $report?->farmer?->barangay?->name ?? '-',
+                    $validation->technician?->full_name ?: ($validation->technician?->username ?? '-'),
+                    $validation->inspection_started_at?->format('d M Y g:i A') ?? '-',
+                    $validation->validated_at?->format('d M Y g:i A') ?? '-',
+                    $report?->crops->max('estimated_damage_percent') !== null
+                        ? (float) $report->crops->max('estimated_damage_percent') : '',
+                    $validation->assessed_damage_percent !== null
+                        ? (float) $validation->assessed_damage_percent : '',
+                    Validation::severityLabel($validation->severity) ?? '-',
+                    $validation->latitude !== null && $validation->longitude !== null
+                        ? $validation->latitude . ', ' . $validation->longitude
+                        : 'Not captured',
+                    (string) ($validation->notes ?: '-'),
+                ];
+            })->all();
+
+        return [
+            'title'    => 'Technician Inspections',
+            'headings' => ['Report ID', 'Farmer', 'Barangay', 'Technician',
+                           'Inspection Started', 'Inspection Submitted',
+                           'Farmer Estimate (%)', 'Assessed Damage (%)', 'Severity',
+                           'Verified Location', 'Notes'],
+            'rows'     => $rows,
+        ];
+    }
+
+    /** Assistance the office allocated during the month. */
+    private static function allocationRecords(Carbon $start, Carbon $end, ?int $associationId): array
+    {
+        /* Scoped through the designated farmers, not through
+           assistance_allocations.association_id (Oct 2026): an allocation is
+           a batch of farmers chosen across the municipality now and that
+           column is null on anything new. The Association column lists the
+           associations the batch actually concerns, which can be more than
+           one.
+
+           The Assistance, Disaster and Quantity columns are gone with the
+           things they named. */
+        $rows = AssistanceAllocation::with(['allocatedBy', 'beneficiaries.farmer.association'])
+            ->withCount('beneficiaries')
+            ->whereBetween('allocated_at', [$start, $end])
+            ->when($associationId, fn ($q) => $q
+                ->whereHas('beneficiaries.farmer',
+                    fn ($farmer) => $farmer->where('association_id', $associationId)))
+            ->orderBy('allocated_at')
+            ->get()
+            ->map(fn ($allocation) => [
+                'AA-' . str_pad((string) $allocation->id, 3, '0', STR_PAD_LEFT),
+                $allocation->concerned_associations->pluck('name')->join(', ') ?: '-',
+                $allocation->beneficiaries_count,
+                $allocation->allocated_at?->format('d M Y') ?? '-',
+                $allocation->allocatedBy?->full_name ?: ($allocation->allocatedBy?->username ?? '-'),
+                ucfirst((string) $allocation->status),
+            ])->all();
+
+        return [
+            'title'    => 'Assistance Allocations',
+            'headings' => ['Allocation ID', 'Associations Concerned', 'Farmers Selected',
+                           'Date Allocated', 'Allocated By', 'Status'],
+            'rows'     => $rows,
+        ];
+    }
+
+    /** What actually reached a farmer during the month, and whether they said so. */
+    private static function distributionRecords(Carbon $start, Carbon $end, ?int $associationId): array
+    {
+        $rows = AssistanceDistribution::with([
+                'farmer.barangay', 'farmer.association',
+                'allocation',
+                'distributedBy', 'damageReport',
+            ])
+            ->whereBetween('distributed_at', [$start, $end])
+            ->when($associationId, fn ($q) => $q
+                ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
+            ->orderBy('distributed_at')
+            ->get()
+            ->map(fn ($distribution) => [
+                'DIST-' . str_pad((string) $distribution->id, 3, '0', STR_PAD_LEFT),
+                $distribution->farmer?->full_name ?? 'Unknown',
+                $distribution->farmer?->barangay?->name ?? '-',
+                // The farmer's own association. It used to prefer the
+                // allocation's, which no longer has one.
+                $distribution->farmer?->association?->name ?? '-',
+                $distribution->allocation
+                    ? 'AA-' . str_pad((string) $distribution->assistance_allocation_id, 3, '0', STR_PAD_LEFT)
+                    : '-',
+                $distribution->damageReport?->reference ?? '-',
+                $distribution->distributed_at?->format('d M Y') ?? '-',
+                $distribution->distributedBy?->full_name ?: ($distribution->distributedBy?->username ?? '-'),
+                ucwords(str_replace('_', ' ', (string) $distribution->distribution_status)),
+                $distribution->receipt_status === 'pending_confirmation'
+                    ? 'Waiting on the farmer'
+                    : ucwords(str_replace('_', ' ', (string) $distribution->receipt_status)),
+            ])->all();
+
+        return [
+            'title'    => 'Assistance Distribution',
+            'headings' => ['Distribution ID', 'Farmer', 'Barangay', 'Association',
+                           'Allocation', 'Damage Report', 'Date Distributed',
+                           'Distributed By', 'Distribution Status', 'Farmer Receipt'],
+            'rows'     => $rows,
+        ];
+    }
+
+    /**
+     * Inspections whose damage report still stands.
+     *
+     * A validations row has no archived_at of its own - it belongs to a
+     * damage report, and when the office archives or deletes that report
+     * the inspection goes with it. So the filter has to be on the report,
+     * through the relation, and this is the one place that says so.
+     */
+    private static function inspections()
+    {
+        return Validation::whereHas('damageReport', fn ($report) => $report->active());
     }
 
     /* ================= Farmer summary ================= */
@@ -69,34 +392,34 @@ class MonthlyReportBuilder
     {
         return [
             // Point-in-time snapshots, evaluated as of now.
-            'total_farmers'    => Farmer::when($associationId, fn ($q) => $q->where('association_id', $associationId))
+            'total_farmers'    => Farmer::notDeleted()->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'verified_farmers' => Farmer::whereHas('user', fn ($q) => $q->where('status', 'active'))
+            'verified_farmers' => Farmer::notDeleted()->whereHas('user', fn ($q) => $q->where('status', 'active'))
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'pending_farmers'  => Farmer::whereHas('user', fn ($q) => $q->where('status', 'pending'))
+            'pending_farmers'  => Farmer::notDeleted()->whereHas('user', fn ($q) => $q->where('status', 'pending'))
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'rejected_farmers' => Farmer::whereHas('user', fn ($q) => $q->where('status', 'rejected'))
+            'rejected_farmers' => Farmer::notDeleted()->whereHas('user', fn ($q) => $q->where('status', 'rejected'))
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'active_farmers'   => Farmer::where('activity_status', 'active')
+            'active_farmers'   => Farmer::notDeleted()->where('activity_status', 'active')
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'inactive_farmers' => Farmer::where('activity_status', 'inactive')
+            'inactive_farmers' => Farmer::notDeleted()->where('activity_status', 'inactive')
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'land_owners'      => Farmer::where('ownership_type', 'land_owner')
+            'land_owners'      => Farmer::notDeleted()->where('ownership_type', 'land_owner')
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'tenants'          => Farmer::where('ownership_type', 'tenant')
+            'tenants'          => Farmer::notDeleted()->where('ownership_type', 'tenant')
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
             // These two are scoped to the selected month.
-            'new_registrations' => Farmer::whereBetween('created_at', [$start, $end])
+            'new_registrations' => Farmer::notDeleted()->whereBetween('created_at', [$start, $end])
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'affected_farmers'  => DamageReport::whereBetween('created_at', [$start, $end])
+            'affected_farmers'  => DamageReport::active()->whereBetween('created_at', [$start, $end])
                 ->when($associationId, fn ($q) => $q
                     ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
                 ->distinct('farmer_id')->count('farmer_id'),
@@ -112,6 +435,7 @@ class MonthlyReportBuilder
         $mainCrops = DB::table('farmer_main_crops')
             ->join('crops', 'crops.id', '=', 'farmer_main_crops.crop_id')
             ->join('farmers', 'farmers.id', '=', 'farmer_main_crops.farmer_id')
+            ->whereNull('farmers.deleted_at')
             ->when($associationId, fn ($q) => $q->where('farmers.association_id', $associationId))
             ->select('crops.name', DB::raw('COUNT(*) as total'))
             ->groupBy('crops.name')
@@ -119,15 +443,16 @@ class MonthlyReportBuilder
             ->get();
 
         $byBarangay = Barangay::withCount(['farmers' => fn ($q) => $q
+                ->notDeleted()
                 ->when($associationId, fn ($farmer) => $farmer->where('association_id', $associationId))])
             ->orderByDesc('farmers_count')
             ->get(['id', 'name']);
 
         return [
-            'total_farms'     => Farmer::whereNotNull('farm_size_hectares')
+            'total_farms'     => Farmer::notDeleted()->whereNotNull('farm_size_hectares')
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'total_farm_area' => (float) Farmer::when($associationId, fn ($q) => $q->where('association_id', $associationId))
+            'total_farm_area' => (float) Farmer::notDeleted()->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->sum('farm_size_hectares'),
             'main_crops'      => $mainCrops,
             'by_barangay'     => $byBarangay,
@@ -137,7 +462,8 @@ class MonthlyReportBuilder
     /* ================= Planting summary ================= */
     private static function plantingSummary(Carbon $start, Carbon $end, ?int $associationId): array
     {
-        $recordIds = CropPlantingRecord::whereBetween('date_submitted', [$start, $end])
+        $recordIds = CropPlantingRecord::active()
+            ->whereBetween('date_submitted', [$start, $end])
             ->when($associationId, fn ($q) => $q
                 ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
             ->pluck('id');
@@ -161,7 +487,13 @@ class MonthlyReportBuilder
     /* ================= Damage summary ================= */
     private static function damageSummary(Carbon $start, Carbon $end, ?int $associationId): array
     {
-        $reportIds = DamageReport::whereBetween('created_at', [$start, $end])
+        /* Everything else in this method is derived from $reportIds, so
+           active() here is what keeps the whole damage summary - by
+           barangay, by crop, by cause, by disaster, by status, by severity,
+           the affected-farmer count and the area total - off archived and
+           deleted reports. */
+        $reportIds = DamageReport::active()
+            ->whereBetween('created_at', [$start, $end])
             ->when($associationId, fn ($q) => $q
                 ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
             ->pluck('id');
@@ -245,7 +577,8 @@ class MonthlyReportBuilder
     /* ================= Verification summary ================= */
     private static function verificationSummary(Carbon $start, Carbon $end, ?int $associationId): array
     {
-        $byTechnician = Validation::whereBetween('validated_at', [$start, $end])
+        $byTechnician = self::inspections()
+            ->whereBetween('validated_at', [$start, $end])
             ->when($associationId, fn ($q) => $q
                 ->whereHas('damageReport.farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
             ->join('users', 'users.id', '=', 'validations.technician_id')
@@ -255,15 +588,18 @@ class MonthlyReportBuilder
             ->get();
 
         return [
-            'reports_assigned'      => DamageReport::whereBetween('assigned_at', [$start, $end])
+            'reports_assigned'      => DamageReport::active()
+                ->whereBetween('assigned_at', [$start, $end])
                 ->when($associationId, fn ($q) => $q
                     ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
                 ->count(),
-            'inspections_completed' => Validation::whereBetween('validated_at', [$start, $end])
+            'inspections_completed' => self::inspections()
+                ->whereBetween('validated_at', [$start, $end])
                 ->when($associationId, fn ($q) => $q
                     ->whereHas('damageReport.farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
                 ->count(),
-            'verified_locations'    => Validation::whereBetween('validated_at', [$start, $end])
+            'verified_locations'    => self::inspections()
+                ->whereBetween('validated_at', [$start, $end])
                 ->whereNotNull('latitude')->whereNotNull('longitude')
                 ->when($associationId, fn ($q) => $q
                     ->whereHas('damageReport.farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
@@ -275,38 +611,47 @@ class MonthlyReportBuilder
     /* ================= Assistance summary ================= */
     private static function assistanceSummary(Carbon $start, Carbon $end, ?int $associationId): array
     {
-        // Allocations are made directly to an association (assistance_
-        // allocations.association_id) - there is no farmer_id on this table,
-        // see AssistanceAllocation. Distributions are the per-farmer records
-        // paid out of an allocation, and do carry their own farmer_id, so
-        // they are scoped through that farmer's own association_id instead
-        // of the parent allocation, matching how every other section here
-        // scopes "belongs to this association".
+        /* COUNTS OF PEOPLE, NOT SUMS OF MONEY AND GOODS (Oct 2026)
+
+           This returned cash_allocated, in_kind_allocated and
+           total_distributed_quantity, which are the three figures the
+           master prompt's section 75 asks for by name. The client asked for
+           every amount out of the system, for privacy: how much a named
+           farmer received is a financial detail about an identifiable
+           person, and a monthly report is the most widely read thing this
+           system produces.
+
+           What replaces them answers the same question the office is
+           actually asking - how much assistance work happened this month -
+           in people and batches rather than pesos and sacks. Chapter 3's
+           section 75 needs updating to match; that is recorded in
+           BUILD-STATUS rather than left for somebody to notice.
+
+           Both allocations and distributions are scoped through the
+           FARMER's own association, which is now the only association an
+           allocation has. */
         $baseAllocations = AssistanceAllocation::whereBetween('allocated_at', [$start, $end])
-            ->when($associationId, fn ($q) => $q->where('association_id', $associationId));
+            ->when($associationId, fn ($q) => $q
+                ->whereHas('beneficiaries.farmer',
+                    fn ($farmer) => $farmer->where('association_id', $associationId)));
 
-        $cashAllocated = (clone $baseAllocations)
-            ->whereHas('assistance', fn ($q) => $q->where('type', 'cash'))
-            ->sum('allocated_quantity');
-
-        $inKindAllocated = (clone $baseAllocations)
-            ->whereHas('assistance', fn ($q) => $q->where('type', 'in_kind'))
-            ->sum('allocated_quantity');
+        $designated = AssistanceAllocationBeneficiary::whereHas('allocation',
+                fn ($allocation) => $allocation->whereBetween('allocated_at', [$start, $end]))
+            ->when($associationId, fn ($q) => $q
+                ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)));
 
         $distributions = AssistanceDistribution::whereBetween('distributed_at', [$start, $end])
             ->when($associationId, fn ($q) => $q
                 ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)));
 
         return [
-            'cash_allocated'    => (float) $cashAllocated,
-            'in_kind_allocated' => (float) $inKindAllocated,
-            'total_allocated'   => (clone $baseAllocations)->count(),
+            'total_allocated'      => (clone $baseAllocations)->count(),
+            'farmers_designated'   => (clone $designated)->distinct('farmer_id')->count('farmer_id'),
 
-            'total_distributed_quantity' => (float) (clone $distributions)->sum('quantity'),
-            'distributions_recorded'     => (clone $distributions)->count(),
-            'beneficiaries'              => (clone $distributions)->distinct('farmer_id')->count('farmer_id'),
-            'confirmed_received'         => (clone $distributions)->where('receipt_status', 'confirmed_received')->count(),
-            'not_received'               => (clone $distributions)->where('receipt_status', 'not_received')->count(),
+            'distributions_recorded' => (clone $distributions)->count(),
+            'beneficiaries'          => (clone $distributions)->distinct('farmer_id')->count('farmer_id'),
+            'confirmed_received'     => (clone $distributions)->where('receipt_status', 'confirmed_received')->count(),
+            'not_received'           => (clone $distributions)->where('receipt_status', 'not_received')->count(),
         ];
     }
 }

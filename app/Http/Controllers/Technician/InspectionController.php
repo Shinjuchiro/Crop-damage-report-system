@@ -40,7 +40,12 @@ class InspectionController extends Controller
 {
     use SyncsDisasterLinks;
 
-    private const PHOTO_DISK = 'public';
+    /* The private disk (storage/app/private), read back only through
+       App\Http\Controllers\AttachmentController - see the longer note on
+       Farmer\DamageReportController::PHOTO_DISK. Inspection photos are
+       evidence about a named farmer's land and were, until Oct 2026, served
+       to anyone holding the URL with no login (revision section 3.4). */
+    private const PHOTO_DISK = 'local';
     private const PHOTO_DIR  = 'inspections';
     private const MAX_EXTRA  = 8;
 
@@ -136,11 +141,16 @@ class InspectionController extends Controller
      */
     private function backToList(Request $request, DamageReport $report): array
     {
+        /* 'technician.damage.index' came out of this list in Oct 2026 with
+           the route itself (revision section 4: technicians get no
+           planting-report management functions). Every name here is passed
+           to route(), so leaving a retired one in would throw a
+           RouteNotFoundException on the way into an inspection page - a dead
+           entry in this particular array is not harmless. */
         $pages = [
             'technician.reports.index'    => 'Back to Assigned Reports',
             'technician.validation.index' => 'Back to Validation',
             'technician.history.index'    => 'Back to Inspection History',
-            'technician.damage.index'     => 'Back to Damage Reports',
             'technician.archive.index'    => 'Back to Archive',
             'technician.map.index'        => 'Back to Map',
             'technician.dashboard'        => 'Back to Dashboard',
@@ -341,7 +351,7 @@ class InspectionController extends Controller
             AuditLog::create([
                 'user_id'      => Auth::id(),
                 'action'       => 'Submitted inspection for ' . $report->reference
-                                  . ': ' . ucfirst($data['severity']) . ', '
+                                  . ': ' . Validation::severityLabel($data['severity']) . ', '
                                   . $data['assessed_damage_percent'] . '% assessed',
                 'target_table' => 'validations',
                 'target_id'    => $validation->id,
@@ -436,19 +446,28 @@ class InspectionController extends Controller
     /**
      * The severity band and the percentage have to agree.
      *
-     * Section 44 defines the bands (Slight 1-25, Moderate 26-50,
-     * Partial 51-99, Total 100). Picking "Slight" and then typing 90%
-     * would leave the office with a report that contradicts itself, and
-     * whichever value they trusted would be wrong.
+     * Picking "Slight" and then typing 90% would leave the office with a
+     * report that contradicts itself, and whichever value they trusted
+     * would be wrong.
+     *
+     * The bands come from Validation::severityBands() rather than from a
+     * copy written out here. They changed once already (four levels down to
+     * three, at the client's request), and a copy in this method is exactly
+     * the kind of thing that survives such a change and then quietly
+     * rejects a percentage the form had just offered.
      */
     private function assertSeverityMatchesPercent(string $severity, float $percent): void
     {
-        $bands = [
-            'slight'   => [1, 25],
-            'moderate' => [26, 50],
-            'partial'  => [51, 99],
-            'total'    => [100, 100],
-        ];
+        $bands = Validation::severityBands();
+
+        // Unreachable through the form, since severity is validated against
+        // the same scale, but a retired severity arriving from anywhere else
+        // must not raise a PHP error on a missing array key.
+        if (! isset($bands[$severity])) {
+            throw ValidationException::withMessages([
+                'severity' => 'That damage severity is no longer in use. Please choose Slight, Moderate or Total.',
+            ]);
+        }
 
         [$min, $max] = $bands[$severity];
 

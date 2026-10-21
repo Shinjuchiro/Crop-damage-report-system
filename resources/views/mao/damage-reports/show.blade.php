@@ -343,9 +343,9 @@
         @if ($damageReport->photos->isNotEmpty())
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 @foreach ($damageReport->photos as $photo)
-                    <a href="{{ asset('storage/' . $photo->file_path) }}" target="_blank"
+                    <a href="{{ $photo->url }}" target="_blank"
                        class="block overflow-hidden rounded-lg border border-border">
-                        <img src="{{ asset('storage/' . $photo->file_path) }}" alt="Damage photo"
+                        <img src="{{ $photo->url }}" alt="Damage photo"
                              class="h-36 w-full object-cover transition hover:scale-105">
                     </a>
                 @endforeach
@@ -373,7 +373,7 @@
                 </div>
                 <div>
                     <dt class="text-muted-foreground">Severity</dt>
-                    <dd class="font-medium capitalize text-foreground">{{ $validation->severity ?? 'Not yet assessed' }}</dd>
+                    <dd class="font-medium text-foreground">{{ \App\Models\Validation::severityLabel($validation->severity) ?? 'Not yet assessed' }}</dd>
                 </div>
                 <div>
                     <dt class="text-muted-foreground">Assessed Damage</dt>
@@ -408,9 +408,9 @@
                     <p class="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Inspection photos</p>
                     <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                         @foreach ($validation->photos as $photo)
-                            <a href="{{ asset('storage/' . $photo->file_path) }}" target="_blank"
+                            <a href="{{ $photo->url }}" target="_blank"
                                class="block overflow-hidden rounded-lg border border-border">
-                                <img src="{{ asset('storage/' . $photo->file_path) }}" alt="Inspection photo"
+                                <img src="{{ $photo->url }}" alt="Inspection photo"
                                      class="h-36 w-full object-cover transition hover:scale-105">
                             </a>
                         @endforeach

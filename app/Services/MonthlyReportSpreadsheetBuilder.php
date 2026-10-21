@@ -5,7 +5,9 @@ namespace App\Services;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 
 /**
- * Turns one MonthlyReportBuilder::forPeriod() array into an Excel workbook.
+ * Turns one MonthlyReportBuilder::forPeriod() array into an Excel workbook:
+ * the summary sheets first, then one sheet per kind of record, every row
+ * named.
  *
  * Pulled out of MAO\ReportController so the Association's own Reports page
  * (proposal-style monthly report, scoped to one association - see
@@ -134,15 +136,40 @@ class MonthlyReportSpreadsheetBuilder
 
         self::putSheet($spreadsheet, 'Assistance Summary', [
             ['Metric', 'Value'],
-            ['Cash Allocated', round($data['assistance']['cash_allocated'], 2)],
-            ['In-Kind Allocated', round($data['assistance']['in_kind_allocated'], 2)],
+            /* Cash Allocated, In-Kind Allocated and Total Distributed were
+               here, and are the three figures the master prompt's section 75
+               asks for by name. Every amount came out of this system in Oct
+               2026 at the client's request, for privacy. The rows below
+               count batches and people instead. */
             ['Allocations Made', $data['assistance']['total_allocated']],
+            ['Farmers Selected', $data['assistance']['farmers_designated']],
             ['Distributions Recorded', $data['assistance']['distributions_recorded']],
-            ['Total Distributed', round($data['assistance']['total_distributed_quantity'], 2)],
             ['Beneficiaries', $data['assistance']['beneficiaries']],
             ['Confirmed Received', $data['assistance']['confirmed_received']],
             ['Not Received', $data['assistance']['not_received']],
         ]);
+
+        /* ---------- the records themselves ----------
+         |
+         | Proposal section 76 lists separate sheets for Damage Reports,
+         | Planting Activities, Technician Inspections, Assistance and
+         | Distribution. Until now every sheet above was a SUMMARY, so a
+         | workbook could be opened and closed without one person's name
+         | appearing in it. These are the records behind those counts, one
+         | row each, named - see MonthlyReportBuilder::records().
+         |
+         | They go after the summaries rather than before them: the first
+         | sheet somebody opens should still be the figure they came for.
+         */
+        foreach ($data['records'] ?? [] as $listing) {
+            self::putSheet(
+                $spreadsheet,
+                $listing['title'],
+                array_merge([$listing['headings']], $listing['rows'] ?: [
+                    ['No records in this period'],
+                ])
+            );
+        }
 
         $spreadsheet->setActiveSheetIndex(0);
 

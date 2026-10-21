@@ -4,6 +4,34 @@
 
 @section('content')
 
+{{-- Holds this screen to the size of the device: no scrollbar on the login
+     page, on any browser or phone. --}}
+@include('layouts.partials.fit-screen')
+
+@php
+    /*
+     | REMEMBER ME, ON THIS DEVICE
+     |
+     | LoginController writes the username into an encrypted, HTTP-only
+     | cookie when the box is ticked, and forgets it when it is not. Here
+     | that cookie fills the first field in, so a farmer coming back only
+     | has their password left to type. Never the password itself.
+     |
+     | $cameBack tells the two cases apart. After a FAILED sign-in Laravel
+     | flashes the submitted values, so old() is authoritative and the box
+     | must show exactly what they just submitted - including unticked.
+     | On a fresh visit there is no old() at all, and the cookie decides.
+     | Without that distinction, unticking the box and getting the password
+     | wrong would show it ticked again on the way back, which would look
+     | like the page arguing with them.
+     */
+    $rememberedLogin = request()->cookie('tf_remembered_login');
+    $cameBack        = old('login') !== null;
+
+    $loginValue      = old('login', $rememberedLogin);
+    $rememberChecked = $cameBack ? (bool) old('remember') : filled($rememberedLogin);
+@endphp
+
 {{--
     Login.
 
@@ -28,164 +56,169 @@
 {{-- ===================================================================
      MOBILE
 =================================================================== --}}
-<div class="lg:hidden">
+<div class="fit-shell lg:hidden">
 
-    {{-- Green banner - same office photo as the desktop background, just
-         dimmed further behind the gradient since this is a small header
-         strip, not a full-bleed background. --}}
-    <div class="relative overflow-hidden bg-[#0d3d1b] text-white">
-        <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
-             class="absolute inset-0 h-full w-full object-cover opacity-40" aria-hidden="true">
-        <div class="absolute inset-0 bg-gradient-to-b from-[#0d3d1b]/80 to-[#0d3d1b]/95" aria-hidden="true"></div>
+    {{-- Everything on the phone layout scales together so the screen
+         never scrolls - see layouts/partials/fit-screen.blade.php. --}}
+    <div class="fit-zoom" data-fit-zoom>
 
-        {{-- Extra bottom padding here (not just pt) is what keeps this text
-             clear of the seal overlapping the seam below - the seal's
-             position is pinned to the card's edge, so giving the banner
-             itself more room is what pushes the text up away from it. --}}
-        <div class="relative px-5 pb-24 pt-8 text-center">
-            <p class="text-lg font-bold leading-tight">
-                Farmers Information and<br>Technology Services Center
-            </p>
-            <p class="mt-1 text-sm font-medium text-[#7ddc8f]">Municipality of Tanza</p>
-        </div>
-    </div>
+        {{-- Green banner - same office photo as the desktop background, just
+             dimmed further behind the gradient since this is a small header
+             strip, not a full-bleed background. --}}
+        <div class="relative overflow-hidden bg-[#0d3d1b] text-white">
+            <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
+                 class="absolute inset-0 h-full w-full object-cover opacity-40" aria-hidden="true">
+            <div class="absolute inset-0 bg-gradient-to-b from-[#0d3d1b]/80 to-[#0d3d1b]/95" aria-hidden="true"></div>
 
-    {{-- White card pulled up over the banner. The seal now overlaps the
-         seam between the two, same treatment as the desktop card, instead
-         of sitting inline in the banner text. --}}
-    <div class="relative -mt-10 min-h-[60vh] rounded-t-3xl bg-card px-5 pb-10 pt-12">
-
-        <div class="absolute -top-9 left-1/2 -translate-x-1/2">
-            <span class="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-white p-2 shadow-lg ring-4 ring-white/30">
-                <img src="{{ asset('images/tanza-seal.png') }}"
-                     alt="Seal of the Municipality of Tanza, Cavite" class="h-full w-full">
-            </span>
-        </div>
-
-        <div class="mb-6 flex items-center gap-4">
-            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent
-                         text-accent-foreground">
-                <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.7"
-                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                    <circle cx="12" cy="8" r="3.5"/><path d="M5.5 20v-.5a6.5 6.5 0 0113 0v.5"/>
-                </svg>
-            </span>
-            <div class="min-w-0">
-                <h2 class="text-2xl font-bold text-[#0d3d1b] dark:text-foreground">Welcome Back!</h2>
-                <p class="text-sm text-muted-foreground">Login to continue to your account</p>
+            {{-- Extra bottom padding here (not just pt) is what keeps this text
+                 clear of the seal overlapping the seam below - the seal's
+                 position is pinned to the card's edge, so giving the banner
+                 itself more room is what pushes the text up away from it. --}}
+            <div class="relative px-5 pb-24 pt-8 text-center">
+                <p class="text-lg font-bold leading-tight">
+                    Farmers Information and<br>Technology Services Center
+                </p>
+                <p class="mt-1 text-sm font-medium text-[#7ddc8f]">Municipality of Tanza</p>
             </div>
         </div>
 
-        <h3 class="text-xl font-bold">Login</h3>
-        <p class="mb-5 mt-0.5 text-sm text-muted-foreground">
-            Please enter your credentials to access the system.
-        </p>
+        {{-- White card pulled up over the banner. The seal now overlaps the
+             seam between the two, same treatment as the desktop card, instead
+             of sitting inline in the banner text. --}}
+        <div class="relative -mt-10 min-h-[60vh] rounded-t-3xl bg-card px-5 pb-10 pt-12">
 
-        @if ($errors->any())
-            <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
-        @endif
-        @if (session('status'))
-            <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
-        @endif
+            <div class="absolute -top-9 left-1/2 -translate-x-1/2">
+                <span class="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-white p-2 shadow-lg ring-4 ring-white/30">
+                    <img src="{{ asset('images/tanza-seal.png') }}"
+                         alt="Seal of the Municipality of Tanza, Cavite" class="h-full w-full">
+                </span>
+            </div>
 
-        <form method="POST" action="{{ route('login') }}" class="space-y-4">
-            @csrf
-
-            <div class="relative">
-                <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
+            <div class="mb-6 flex items-center gap-4">
+                <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent
+                             text-accent-foreground">
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.7"
                          stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <circle cx="12" cy="8" r="3.2"/><path d="M5.5 20v-.5a6.5 6.5 0 0113 0v.5"/>
+                        <circle cx="12" cy="8" r="3.5"/><path d="M5.5 20v-.5a6.5 6.5 0 0113 0v.5"/>
                     </svg>
                 </span>
-                <input type="text" name="login" value="{{ old('login') }}" required autocomplete="username"
-                       placeholder="Username or Email"
-                       class="h-14 w-full rounded-xl border-2 border-[#166534]/70 bg-card pl-12 pr-4 text-base
-                              placeholder:text-muted-foreground focus:border-[#166534]
-                              dark:border-input dark:focus:border-primary">
+                <div class="min-w-0">
+                    <h2 class="text-2xl font-bold text-[#0d3d1b] dark:text-foreground">Welcome Back!</h2>
+                    <p class="text-sm text-muted-foreground">Login to continue to your account</p>
+                </div>
             </div>
 
-            {{-- Show and hide, because typing a password blind on a phone
-                 keyboard outdoors is genuinely hard. --}}
-            <div class="relative" x-data="{ show: false }">
-                <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
+            <h3 class="text-xl font-bold">Login</h3>
+            <p class="mb-5 mt-0.5 text-sm text-muted-foreground">
+                Please enter your credentials to access the system.
+            </p>
+
+            @if ($errors->any())
+                <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
+            @endif
+            @if (session('status'))
+                <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
+            @endif
+
+            <form method="POST" action="{{ route('login') }}" class="space-y-4">
+                @csrf
+
+                <div class="relative">
+                    <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
+                             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                            <circle cx="12" cy="8" r="3.2"/><path d="M5.5 20v-.5a6.5 6.5 0 0113 0v.5"/>
+                        </svg>
+                    </span>
+                    <input type="text" name="login" value="{{ $loginValue }}" required autocomplete="username"
+                           placeholder="Username or Email"
+                           class="h-14 w-full rounded-xl border-2 border-[#166534]/70 bg-card pl-12 pr-4 text-base
+                                  placeholder:text-muted-foreground focus:border-[#166534]
+                                  dark:border-input dark:focus:border-primary">
+                </div>
+
+                {{-- Show and hide, because typing a password blind on a phone
+                     keyboard outdoors is genuinely hard. --}}
+                <div class="relative" x-data="{ show: false }">
+                    <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
+                             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                            <rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 118 0v3.5"/>
+                        </svg>
+                    </span>
+                    <input :type="show ? 'text' : 'password'" name="password" required
+                           autocomplete="current-password" placeholder="Password"
+                           class="h-14 w-full rounded-xl border border-input bg-card pl-12 pr-12 text-base
+                                  placeholder:text-muted-foreground focus:border-primary">
+                    <button type="button" @click="show = ! show"
+                            :aria-label="show ? 'Hide password' : 'Show password'"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground">
+                        <svg x-show="! show" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
+                             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                            <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/>
+                        </svg>
+                        <svg x-show="show" x-cloak class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
+                             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                            <path d="M3 3l18 18M10.6 10.7a2.8 2.8 0 003.8 3.8M6.5 6.7C3.9 8.3 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.5 4.5-1.1M19.5 15.5C21.2 14 22 12 22 12s-3.6-6.5-10-6.5c-.7 0-1.3.1-1.9.2"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-between gap-3">
+                    <label class="flex items-center gap-2.5 text-sm">
+                        <input type="checkbox" name="remember" value="1" @checked($rememberChecked)
+                               class="h-5 w-5 rounded border-input text-primary focus:ring-ring">
+                        Remember me
+                    </label>
+                    <a href="{{ route('password.request') }}" class="text-sm font-semibold text-[#166534] dark:text-primary">
+                        Forgot password?
+                    </a>
+                </div>
+
+                <button type="submit"
+                        class="flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-[#166534]
+                               text-base font-bold text-white transition active:scale-[0.99]
+                               dark:bg-primary dark:text-primary-foreground">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
                          stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         <rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 118 0v3.5"/>
                     </svg>
-                </span>
-                <input :type="show ? 'text' : 'password'" name="password" required
-                       autocomplete="current-password" placeholder="Password"
-                       class="h-14 w-full rounded-xl border border-input bg-card pl-12 pr-12 text-base
-                              placeholder:text-muted-foreground focus:border-primary">
-                <button type="button" @click="show = ! show"
-                        :aria-label="show ? 'Hide password' : 'Show password'"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground">
-                    <svg x-show="! show" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
-                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/>
-                    </svg>
-                    <svg x-show="show" x-cloak class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7"
-                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <path d="M3 3l18 18M10.6 10.7a2.8 2.8 0 003.8 3.8M6.5 6.7C3.9 8.3 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.5 4.5-1.1M19.5 15.5C21.2 14 22 12 22 12s-3.6-6.5-10-6.5c-.7 0-1.3.1-1.9.2"/>
-                    </svg>
+                    LOGIN
                 </button>
+            </form>
+
+            <div class="my-5 flex items-center gap-4">
+                <span class="h-px flex-1 bg-border"></span>
+                <span class="text-sm font-semibold text-muted-foreground">or</span>
+                <span class="h-px flex-1 bg-border"></span>
             </div>
 
-            <div class="flex items-center justify-between gap-3">
-                <label class="flex items-center gap-2.5 text-sm">
-                    <input type="checkbox" name="remember" value="1" @checked(old('remember'))
-                           class="h-5 w-5 rounded border-input text-primary focus:ring-ring">
-                    Remember me
-                </label>
-                <a href="{{ route('password.request') }}" class="text-sm font-semibold text-[#166534] dark:text-primary">
-                    Forgot password?
-                </a>
-            </div>
-
-            <button type="submit"
-                    class="flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-[#166534]
-                           text-base font-bold text-white transition active:scale-[0.99]
-                           dark:bg-primary dark:text-primary-foreground">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                    <rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 118 0v3.5"/>
-                </svg>
-                LOGIN
-            </button>
-        </form>
-
-        <div class="my-5 flex items-center gap-4">
-            <span class="h-px flex-1 bg-border"></span>
-            <span class="text-sm font-semibold text-muted-foreground">or</span>
-            <span class="h-px flex-1 bg-border"></span>
-        </div>
-
-        <a href="{{ route('google.redirect') }}"
-           class="flex h-14 w-full items-center justify-center gap-3 rounded-xl border border-input bg-card
-                  text-base font-semibold transition hover:bg-accent">
-            <x-google-mark />
-            Continue with Google
-        </a>
-
-        {{-- Same simple one-line treatment as the desktop view - no cards. --}}
-        <p class="mt-6 text-center text-sm text-muted-foreground">
-            New farmer?
-            <a href="{{ route('register') }}" class="font-semibold text-primary hover:underline">
-                Create an account
+            <a href="{{ route('google.redirect') }}"
+               class="flex h-14 w-full items-center justify-center gap-3 rounded-xl border border-input bg-card
+                      text-base font-semibold transition hover:bg-accent">
+                <x-google-mark />
+                Continue with Google
             </a>
-        </p>
 
-        <p class="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <svg class="h-4 w-4 text-[#166534] dark:text-primary" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                <path d="M12 3l7 3v5.5c0 4.3-2.9 8.3-7 9.5-4.1-1.2-7-5.2-7-9.5V6l7-3z"/>
-            </svg>
-            Your data is protected with secure encryption.
-        </p>
-        <p class="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
-            &copy; {{ date('Y') }} Farmers Information and Technology Services Center.<br>All rights reserved.
-        </p>
+            {{-- Same simple one-line treatment as the desktop view - no cards. --}}
+            <p class="mt-6 text-center text-sm text-muted-foreground">
+                New farmer?
+                <a href="{{ route('register') }}" class="font-semibold text-primary hover:underline">
+                    Create an account
+                </a>
+            </p>
+
+            <p class="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <svg class="h-4 w-4 text-[#166534] dark:text-primary" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <path d="M12 3l7 3v5.5c0 4.3-2.9 8.3-7 9.5-4.1-1.2-7-5.2-7-9.5V6l7-3z"/>
+                </svg>
+                Your data is protected with secure encryption.
+            </p>
+            <p class="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
+                &copy; {{ date('Y') }} Farmers Information and Technology Services Center.<br>All rights reserved.
+            </p>
+        </div>
     </div>
 </div>
 
@@ -196,14 +229,15 @@
      edge instead of living in its own panel. Nothing from the phone
      layout above appears here.
 =================================================================== --}}
-<div class="relative hidden min-h-screen overflow-hidden lg:flex lg:items-center lg:justify-center lg:px-10 lg:py-14">
+<div class="fit-shell relative hidden overflow-hidden lg:flex lg:items-center lg:justify-center lg:px-10 lg:py-14">
 
     <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
          class="absolute inset-0 h-full w-full object-cover" aria-hidden="true">
     <div class="absolute inset-0 bg-[#0d3d1b]/70" aria-hidden="true"></div>
 
-    {{-- Form card --}}
-    <div class="relative w-full max-w-lg">
+    {{-- Form card. fit-card shrinks it in place on a short screen, leaving
+         the photo behind it full bleed - see fit-screen.blade.php. --}}
+    <div class="fit-card relative w-full max-w-lg" data-fit-card>
 
         <div class="absolute -top-9 left-1/2 -translate-x-1/2">
             <span class="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-white p-2 shadow-lg ring-4 ring-white/30">
@@ -231,7 +265,7 @@
 
                 <div class="space-y-1.5">
                     <label for="login-desktop" class="block text-sm font-medium">Username or Email</label>
-                    <input id="login-desktop" type="text" name="login" value="{{ old('login') }}" required
+                    <input id="login-desktop" type="text" name="login" value="{{ $loginValue }}" required
                            autofocus autocomplete="username"
                            class="h-11 w-full rounded-lg border border-input bg-card px-3.5 text-sm
                                   focus:border-primary">
@@ -263,7 +297,7 @@
 
                 <div class="flex items-center justify-between gap-3 pt-1">
                     <label class="flex items-center gap-2 text-sm">
-                        <input type="checkbox" name="remember" value="1" @checked(old('remember'))
+                        <input type="checkbox" name="remember" value="1" @checked($rememberChecked)
                                class="h-4 w-4 rounded border-input text-primary focus:ring-ring">
                         Remember me
                     </label>

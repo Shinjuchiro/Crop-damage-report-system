@@ -8,9 +8,17 @@ class AssistanceDistribution extends Model
 {
     protected $table = 'assistance_distributions';
 
+    /* `in_kind_description` and `quantity` came out of this list in Oct
+       2026, with every other figure in the module: how much a named farmer
+       received is a financial detail about an identifiable person, and the
+       client asked for it out of the system (see App\Models\Assistance).
+
+       The columns are still on the table and still hold whatever was
+       recorded before the change. They are simply not writable and nothing
+       displays them. */
     protected $fillable = [
         'assistance_allocation_id', 'farmer_id', 'damage_report_id',
-        'in_kind_description', 'quantity', 'distributed_by', 'distributed_at',
+        'distributed_by', 'distributed_at',
         'remarks', 'distribution_evidence_path',
         'distribution_status', 'receipt_status', 'receipt_note', 'receipt_confirmed_at',
     ];

@@ -9,8 +9,11 @@ use Illuminate\Support\Facades\DB;
  *
  * App\Models\NotificationBroadcast::AUDIENCES has listed 'all_mao' => 'MAO
  * Staff' for a while, and at least one existing call site already used it
- * (Auth\RegisterController::notifyMaoOfNewRegistration(), which every new
- * farmer registration has been hitting since it was written) - but the
+ * (at the time Auth\RegisterController's new-registration notice, which
+ * every new farmer registration hit; revision step 6 moved that notice to
+ * Association\MembershipApplicationController::forward(), since the office
+ * is now told when an association forwards an application rather than when
+ * a farmer submits one, and it still targets 'all_mao') - but the
  * notification_broadcasts.target_type column itself is a MySQL ENUM, and
  * 'all_mao' was never added to it (compare the enum list here with the one
  * 2024_01_02_000006 added 'affected_farmers' to - 'all_mao' is missing from

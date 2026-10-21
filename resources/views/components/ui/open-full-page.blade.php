@@ -26,29 +26,46 @@
 ])
 
 {{--
-    LAPTOP AND UP ONLY (hidden lg:flex)
+    A BUTTON, NOT A LINK, AND A GREEN ONE
 
-    The link exists because on a wide screen the panel sits beside the list
-    and the full record is somewhere else. Below 1024px there is no panel
-    beside anything: the list is a column of cards, tapping one opens the
-    full page, and the panel above it is that same record. So on a phone or
-    a tablet this offered to open the page you were already looking at.
+    This was a small underlined link. Underlined blue text is a web
+    convention, and the office staff who use this screen all day may well
+    read it as one, but it sat under a heading among plain labels and was
+    easy to miss entirely. An outline button is unmistakably something to
+    press, which is what it is.
 
-    hidden lg:flex, not inline-flex: this link always wants a line of its
-    own, and several panels place it straight after an inline status badge,
-    where inline-flex would leave it sitting on the same line as the badge.
-    Passing class="block" from the call site does NOT fix that - the
-    override and the component's own display class both end up in one class
-    attribute, and which one wins is decided by the order of the two rules
-    in the compiled stylesheet, not by the element. So the component owns
-    its own display. w-fit keeps the underline to the width of the words.
+    The outline version was still too quiet: a grey border on a white card,
+    sitting between grey labels, in a modal where everything else is text.
+    A pale green tint was tried next and was no better - a light fill on a
+    white card is barely a fill at all, especially on a phone screen in
+    daylight.
+
+    So it is solid: the system's dark green under white text, darkening
+    further on hover. Same treatment as every other real button here, which
+    is the point - a tint reads as a label, and this is something to press.
+
+    LAPTOP AND UP ONLY (hidden lg:inline-flex)
+
+    The button exists because on a wide screen the panel sits beside the
+    list and the full record is somewhere else. Below 1024px there is no
+    panel beside anything: the list is a column of cards, tapping one
+    opens the full page, and the panel above it is that same record. So on
+    a phone or a tablet this offered to open the page you were already
+    looking at.
+
+    The component owns its own display class. Passing class="block" from
+    the call site does NOT override it: the override and the component's
+    own class both land in one class attribute, and which wins is decided
+    by the order of the two rules in the compiled stylesheet, not by the
+    element.
 --}}
 <a href="{{ $href }}" {{ $attributes->class(
-        'mt-3 hidden w-fit items-center gap-1 text-xs font-medium text-sky-700 underline '
-        . 'hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300 lg:flex'
+        'mt-3 hidden shrink-0 items-center justify-center gap-1.5 rounded-full '
+        . 'bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm '
+        . 'h-9 transition-colors hover:bg-[#0d3d1b] lg:inline-flex'
     ) }}>
     {{ $label }}
-    <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2"
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
          stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M14 4h6v6M20 4l-8.5 8.5M18 14v4.5A1.5 1.5 0 0116.5 20h-11A1.5 1.5 0 014 18.5v-11A1.5 1.5 0 015.5 6H10"/>
     </svg>

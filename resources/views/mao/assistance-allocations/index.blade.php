@@ -5,14 +5,30 @@
 @section('subheading', "Generate and manage assistance allocation to farmer associations based on MAO-approved beneficiary lists.")
 
 @php
-    $otherInKind = \App\Http\Controllers\MAO\AssistanceAllocationController::OTHER_IN_KIND;
-    $inKindOptions = $assistances->where('type', 'in_kind')->values();
+    /* The Allocate modal asks one question now: WHO (Oct 2026, client
+       decision). The association, the disaster, the assistance item, the
+       start date and the crop all came off it. The office picks farmers
+       from every verified report in the municipality; what they are given
+       is "assistance", with no name, no type and no figure; and the date is
+       simply the day it is allocated, because the office cannot promise a
+       collection date and the association arranges that afterwards.
+
+       The checklist no longer waits on an association being chosen, so the
+       JSON endpoint that filled it is gone and $eligible is rendered with
+       the page. */
     $viewUrl  = fn ($id) => request()->fullUrlWithQuery(['selected' => $id]);
     $backUrl  = request()->fullUrlWithoutQuery(['selected']);
 @endphp
 
 @section('content')
-<div x-data="{ action: null }">
+{{-- ?allocate=1 opens the Allocate modal on arrival. The standalone
+     /create page was retired (there were two copies of one form); its route
+     now redirects here with that flag, so an old bookmark still ends up at
+     the form rather than at a page with the form hidden behind a button. --}}
+<div x-data="{ action: null, deciding: null }"
+     @if (request()->boolean('allocate'))
+         x-init="$nextTick(() => $dispatch('open-dialog', 'allocate-assistance'))"
+     @endif>
 
     @if ($errors->any())
         <x-ui.alert variant="destructive" title="Please check the form" class="mb-5">
@@ -35,13 +51,26 @@
          below it.
     --}}
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-ui.stat label="Total Verified Farmers" :value="number_format($stats['total_verified_farmers'])"
-                   :hint="'Awaiting MAO decision · from ' . number_format($stats['verified_from_associations']) . ' association' . ($stats['verified_from_associations'] === 1 ? '' : 's')"
+        {{-- THE FIRST CARD CHANGED MEANING (Oct 2026)
+
+             It used to read "Total Verified Farmers", counting reports a
+             technician had inspected but the office had not yet decided.
+             Eligibility now starts at verified rather than at approved
+             (client decision), so those farmers are eligible and belong in
+             the second card. Counting them in both would put back the exact
+             double-count section 31 fixed.
+
+             So the first card moved one step earlier in the pipeline: the
+             reports still being inspected. The two cards are disjoint by
+             construction again, and they still read left to right as the
+             queue feeding the eligible list. --}}
+        <x-ui.stat label="Awaiting Inspection" :value="number_format($stats['awaiting_inspection'])"
+                   :hint="'Not yet inspected · from ' . number_format($stats['awaiting_from_associations']) . ' association' . ($stats['awaiting_from_associations'] === 1 ? '' : 's')"
                    tone="primary"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6" />
 
         <x-ui.stat label="Qualified Beneficiaries" :value="number_format($stats['qualified_beneficiaries'])"
-                   hint="Approved by MAO, belongs to an association, and not already in an allocation" tone="primary"
+                   hint="Inspected by a technician, belongs to an association, and not already in an allocation" tone="primary"
                    icon="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 
         <x-ui.stat label="Pending Allocation" :value="number_format($stats['pending_allocation'])"
@@ -53,26 +82,108 @@
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM4 12.5a2 2 0 100-4 2 2 0 000 4zM20 12.5a2 2 0 100-4 2 2 0 000 4z" />
     </div>
 
-    {{-- List + detail. Side by side from lg up; on a phone only one half
-         shows at a time - the working screen, or (once a row's View is
-         followed) the detail panel full-screen with its own Back link. --}}
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+
+    {{-- ===================== CASES AWAITING A DECISION =====================
+
+         Section 11.2: the office must be able to mark a farmer Not
+         Designated for Assistance. Designating already had a home - tick
+         the farmer in Allocate Assistance and a beneficiary row is written -
+         but refusing had none, so a farmer the office had considered and
+         passed over sat in the queue forever, looking exactly like a farmer
+         nobody had read yet, and never got an answer.
+
+         These are reports a technician has finished with that have no
+         decision and no live allocation against them. Four columns, like
+         every other list (section 3.1); everything else about the case is
+         behind View.
+
+         The list is capped at ten rows on screen. It is a worklist, not an
+         archive, and a hundred-row table here would push the allocation
+         overview off the page.
+    --}}
+    @if ($awaitingDecision->isNotEmpty())
+        <x-ui.card title="Cases Awaiting a Decision"
+                   :description="$awaitingDecision->count() . ' ' . \Illuminate\Support\Str::plural('farmer', $awaitingDecision->count()) . ' inspected and waiting on the office'"
+                   :padded="false" class="mb-5">
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+                        <tr>
+                            <th class="px-5 py-3 font-medium">Report ID</th>
+                            <th class="px-5 py-3 font-medium">Farmer</th>
+                            <th class="px-5 py-3 text-center font-medium">Status</th>
+                            <th class="px-5 py-3 text-right font-medium">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach ($awaitingDecision->take(10) as $case)
+                            <tr class="hover:bg-muted/60">
+                                <td class="whitespace-nowrap px-5 py-3 font-medium text-foreground">
+                                    {{ $case->reference }}
+                                </td>
+                                <td class="px-5 py-3 font-medium text-foreground">
+                                    {{ $case->farmer?->full_name ?? 'Unknown' }}
+                                </td>
+                                <td class="px-5 py-3 text-center">
+                                    <x-ui.status :value="\App\Support\AssistanceCase::PENDING_REVIEW" />
+                                </td>
+                                <td class="px-5 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <x-ui.button variant="view" size="sm"
+                                                     :href="route('mao.damage-reports.index', ['selected' => $case->id])">
+                                            View
+                                        </x-ui.button>
+
+                                        {{-- Designating is not a button here on purpose. A
+                                             designation is part of an allocation - which
+                                             assistance, how much, to which association - so
+                                             it belongs in Allocate Assistance and nowhere
+                                             else. This screen only records the "no". --}}
+                                        <button type="button"
+                                                @click="deciding = { id: {{ $case->id }}, reference: @js($case->reference), name: @js($case->farmer?->full_name ?? 'this farmer') }"
+                                                class="rounded-lg border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60">
+                                            Not Designated
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            @if ($awaitingDecision->count() > 10)
+                <x-slot:footer>
+                    <p class="text-xs text-muted-foreground">
+                        Showing the 10 most recent of {{ number_format($awaitingDecision->count()) }}.
+                        Allocating assistance clears a farmer from this list.
+                    </p>
+                </x-slot:footer>
+            @endif
+        </x-ui.card>
+    @endif
+
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
     {{-- LIST (filters, overview table, recent activity and the Allocate
          Assistance modal) --}}
-    <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+    <div>
 
     {{-- ===================== FILTERS + ACTIONS ===================== --}}
     <div class="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <x-ui.filter-bar :fields="['disaster_id', 'association_id', 'assistance_id', 'status']" :tight="true">
+        {{-- The "All Assistance Types" filter went with the assistance
+             item (Oct 2026): an allocation names nothing to filter by. --}}
+        <x-ui.filter-bar :fields="['disaster_id', 'association_id', 'status']" :tight="true">
             <x-ui.select name="disaster_id" placeholder="All Disasters" onchange="this.form.submit()" class="sm:w-52"
                          :selected="$filters['disaster_id']" :options="$disasters->pluck('name', 'id')" />
 
             <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()" class="sm:w-48"
                          :selected="$filters['association_id']" :options="$associations->pluck('name', 'id')" />
-
-            <x-ui.select name="assistance_id" placeholder="All Assistance Types" onchange="this.form.submit()" class="sm:w-48"
-                         :selected="$filters['assistance_id']" :options="$assistances->pluck('name', 'id')" />
 
             <x-ui.select name="status" placeholder="All Statuses" onchange="this.form.submit()" class="sm:w-40"
                          :selected="$filters['status']"
@@ -87,6 +198,19 @@
                  real button, matching Export List and Allocate Assistance in
                  size and weight, and it switches to the destructive (red)
                  variant whenever there is something to actually look at. --}}
+            {{-- Distribution Tracking used to be reachable only from the
+                 phone's More sheet, and the revised More sheet (section 14)
+                 does not list it. This button is now its door on every
+                 device: it belongs beside Disputes anyway, since both are
+                 the follow-up half of allocation. --}}
+            <x-ui.button :href="route('mao.assistance-allocations.distribution-tracking')" variant="outline">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                     stroke-linejoin="round" viewBox="0 0 24 24">
+                    <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"/>
+                </svg>
+                Distribution Tracking
+            </x-ui.button>
+
             <x-ui.button :href="route('mao.assistance-allocations.disputes')"
                          variant="{{ $disputeCount > 0 ? 'destructive' : 'outline' }}">
                 <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
@@ -115,13 +239,8 @@
         </div>
     </div>
 
-    @if ($inKindOptions->isEmpty())
-        <x-ui.alert variant="warning" title="No in-kind items in your catalogue yet" class="mb-5">
-            You can still allocate Cash, or an In-Kind item marked "Other" with its own description. To pick a
-            specific in-kind item from a list next time, add one under
-            <a href="{{ route('mao.assistance.index') }}" class="font-medium underline">Assistance Catalogue</a>.
-        </x-ui.alert>
-    @endif
+    {{-- The "nothing in your catalogue yet" warning was here. There is no
+         catalogue to be empty: an allocation does not name an item. --}}
 
     {{-- ===================== OVERVIEW + RECENT ===================== --}}
     <div class="grid gap-5 xl:grid-cols-3">
@@ -151,7 +270,7 @@
                                                   :status="$row->status"
                                                   :fields="[
                                                       'Qualified beneficiaries' => $row->qualified_count,
-                                                      'Assistance'              => $row->allocation->display_name,
+                                                      'Allocation'              => 'AA-' . str_pad($row->allocation->id, 3, '0', STR_PAD_LEFT),
                                                   ]" />
                             @else
                                 <div class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
@@ -180,7 +299,6 @@
                         <tr>
                             <th class="px-5 py-3 font-medium">Association</th>
                             <th class="px-5 py-3 text-right font-medium">Qualified Beneficiaries</th>
-                            <th class="px-5 py-3 font-medium">Assistance Type</th>
                             <th class="px-5 py-3 text-center font-medium">Status</th>
                             <th class="px-5 py-3 text-center font-medium">Action</th>
                         </tr>
@@ -195,7 +313,6 @@
                                     @endif
                                 </td>
                                 <td class="px-5 py-3 text-right tabular-nums text-foreground">{{ $row->qualified_count }}</td>
-                                <td class="px-5 py-3 text-muted-foreground">{{ $row->allocation?->display_name ?? '—' }}</td>
                                 <td class="px-5 py-3 text-center">
                                     @php
                                         $badge = match ($row->status) {
@@ -225,7 +342,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-5 py-14 text-center">
+                                <td colspan="4" class="px-5 py-14 text-center">
                                     <p class="text-sm font-medium text-muted-foreground">No associations to show</p>
                                     <p class="mt-1 text-xs text-muted-foreground">Try a different disaster event or clear your filters.</p>
                                 </td>
@@ -253,12 +370,21 @@
     @foreach ($recentAllocations as $allocation)
                         <li class="px-6 py-4 {{ $selected?->id === $allocation->id ? 'bg-muted/60' : '' }}">
                             <div class="flex items-start justify-between gap-3">
+                                {{-- An allocation has no name and is not
+                                     addressed to one association, so the
+                                     reference leads and the associations it
+                                     concerns are listed underneath, worked
+                                     out from the farmers on it. --}}
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-bold text-foreground">{{ $allocation->association?->name ?? '-' }}</p>
-                                    <p class="truncate text-xs text-muted-foreground">{{ $allocation->display_name }}</p>
+                                    <p class="truncate text-sm font-bold text-foreground">
+                                        AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}
+                                    </p>
+                                    <p class="truncate text-xs text-muted-foreground">
+                                        {{ $allocation->concerned_associations->pluck('name')->join(', ') ?: 'No association' }}
+                                    </p>
                                     <p class="mt-1 text-xs text-muted-foreground">
                                         {{ $allocation->allocated_at?->format('M d, Y') }}
-                                        &middot; {{ $allocation->beneficiaries_count }} beneficiar{{ $allocation->beneficiaries_count === 1 ? 'y' : 'ies' }}
+                                        &middot; {{ $allocation->beneficiaries_count }} farmer{{ $allocation->beneficiaries_count === 1 ? '' : 's' }}
                                     </p>
                                 </div>
                                 <span class="shrink-0 inline-flex rounded px-2.5 py-1 text-xs font-medium
@@ -282,74 +408,53 @@
     </div>
 
     {{-- ===================== ALLOCATE ASSISTANCE MODAL ===================== --}}
-    <x-ui.dialog name="allocate-assistance" size="xl" title="Allocate Assistance to Association"
-                 description="Select the beneficiaries and specify the assistance details for the association.">
+    <x-ui.dialog name="allocate-assistance" size="xl" title="Allocate Assistance"
+                 description="Choose the farmers who will receive this batch of assistance.">
 
         <form id="allocate-assistance-form" method="POST"
               action="{{ route('mao.assistance-allocations.store') }}" enctype="multipart/form-data"
-              data-confirm="Please review the association, beneficiaries, assistance details, and any attached files before allocating."
+              data-confirm="Please review the selected farmers and any attached files before allocating. The farmers and their associations are notified as soon as you confirm."
               data-confirm-title="Allocate this assistance?"
               data-confirm-action="Confirm & Allocate"
               data-confirm-review="auto"
               class="space-y-5"
               x-data="{
-                  associationId: '',
-                  disasterId: @js((string) old('disaster_id', $filters['disaster_id'] ?: '')),
-                  cropId: @js((string) old('crop_id', '')),
-
-                  // Sept 2026: Cash or In-Kind first; In-Kind then either an
-                  // existing catalogue item or Other with its own typed
-                  // description. No more defining a brand-new catalogue item
-                  // from this modal.
-                  assistanceType: @js(old('assistance_type', '')),
-                  inKindItem: @js(old('in_kind_item', '')),
-                  inKindDescription: @js(old('in_kind_description', '')),
-
-                  beneficiaries: [],
+                  /* The whole eligible list, rendered with the page rather
+                     than fetched: nothing has to be chosen before it can be
+                     shown. */
+                  beneficiaries: @js($eligible),
                   selected: [],
-                  loadingBeneficiaries: false,
-                  beneficiaryError: '',
                   files: [],
+                  search: '',
 
-                  isCash() { return this.assistanceType === 'cash'; },
-                  isOther() { return this.assistanceType === 'in_kind' && this.inKindItem === @js($otherInKind); },
+                  /* The list can be the whole municipality, so a search box
+                     earns its place here in a way it did not when the list
+                     was one association's members. Filtering only changes
+                     what is VISIBLE: a farmer ticked and then filtered out
+                     of view stays selected, which is why selected is never
+                     touched here. */
+                  visible() {
+                      const term = this.search.trim().toLowerCase();
 
-                  fetchBeneficiaries() {
-                      this.selected = [];
-                      this.beneficiaries = [];
-                      this.beneficiaryError = '';
+                      if (! term) { return this.beneficiaries; }
 
-                      // Disaster is optional here too (section 29): the
-                      // association alone is enough to pull up every
-                      // MAO-approved, not-yet-allocated farmer in it (section
-                      // 31). Picking a disaster just narrows that same list
-                      // to reports citing it.
-                      if (! this.associationId) {
-                          return;
-                      }
+                      return this.beneficiaries.filter((b) =>
+                          b.name.toLowerCase().includes(term)
+                          || b.barangay.toLowerCase().includes(term)
+                          || b.association.toLowerCase().includes(term)
+                          || b.reference.toLowerCase().includes(term));
+                  },
 
-                      this.loadingBeneficiaries = true;
+                  /* Select All acts on what is on screen, not on everything,
+                     because that is what somebody who has just filtered the
+                     list means by it. Clearing works the same way. */
+                  toggleAllVisible() {
+                      const ids = this.visible().map((b) => b.farmer_id);
+                      const allShown = ids.every((id) => this.selected.includes(id));
 
-                      let url = @js(route('mao.assistance-allocations.eligible-beneficiaries'))
-                              + '?association_id=' + this.associationId;
-
-                      if (this.disasterId) {
-                          url += '&disaster_id=' + this.disasterId;
-                      }
-
-                      fetch(url, { headers: { Accept: 'application/json' } })
-                          .then((response) => {
-                              if (! response.ok) { throw new Error('request failed'); }
-                              return response.json();
-                          })
-                          .then((data) => {
-                              this.beneficiaries = data.beneficiaries;
-                              this.selected = data.beneficiaries.map((b) => b.farmer_id);
-                          })
-                          .catch(() => {
-                              this.beneficiaryError = 'Could not load the beneficiary list. Please try again.';
-                          })
-                          .finally(() => { this.loadingBeneficiaries = false; });
+                      this.selected = allShown
+                          ? this.selected.filter((id) => ! ids.includes(id))
+                          : [...new Set([...this.selected, ...ids])];
                   },
 
                   toggleAll() {
@@ -372,79 +477,74 @@
                       this.files = Array.from(input.files);
                   },
 
+                  /* An allocation IS its list of farmers, so one ticked
+                     name is the whole requirement. */
                   ready() {
-                      if (! this.associationId || ! this.assistanceType) { return false; }
-                      if (this.assistanceType === 'in_kind') {
-                          if (! this.inKindItem) { return false; }
-                          if (this.isOther() && ! this.inKindDescription.trim()) { return false; }
-                      }
-                      return true;
+                      return this.selected.length > 0;
                   },
               }"
-              @preselect-association.window="associationId = String($event.detail); fetchBeneficiaries()">
+              {{-- The overview table's "Allocate" button still points at one
+                   association. It cannot preselect an association any more,
+                   because there is no association field, so it preselects
+                   that association's eligible members instead, which is what
+                   an officer clicking it from that row actually wants. --}}
+              @preselect-association.window="
+                  search = '';
+                  selected = beneficiaries
+                      .filter((b) => String(b.association_id) === String($event.detail))
+                      .map((b) => b.farmer_id)">
             @csrf
-            <input type="hidden" name="allocation_source" value="modal">
-
-            {{-- ---------- Association + Disaster ---------- --}}
-            <div class="grid gap-4 sm:grid-cols-2">
-                <x-ui.field label="Association" name="association_id" required>
-                    <x-ui.select name="association_id" placeholder="Select association" required
-                                 x-model="associationId" @change="fetchBeneficiaries()"
-                                 :options="$associations->pluck('name', 'id')" />
-                </x-ui.field>
-
-                <x-ui.field label="Disaster Event" name="disaster_id"
-                            hint="Optional. The checklist below already includes every MAO-approved farmer in the association who isn't already covered by another allocation; picking an event here just narrows it to reports citing that event specifically.">
-                    <x-ui.select name="disaster_id" placeholder="Select disaster event (optional)"
-                                 x-model="disasterId" @change="fetchBeneficiaries()"
-                                 :options="$disasters->pluck('name', 'id')" />
-                </x-ui.field>
-            </div>
 
             {{-- ---------- 1. Select Beneficiaries ---------- --}}
             <div>
-                <p class="text-sm font-semibold text-foreground">1. Select Beneficiaries</p>
-                <p class="mt-0.5 text-xs text-muted-foreground">Choose the qualified members who will receive the assistance.</p>
+                <p class="text-sm font-semibold text-foreground">1. Select the farmers</p>
+                <p class="mt-0.5 text-xs text-muted-foreground">
+                    Everyone here has a damage report a technician has verified, and is not already on another
+                    allocation. Their association is shown so you can see who will have to be told.
+                </p>
+
+                <div class="mt-3">
+                    <x-ui.input type="search" x-model="search" placeholder="Search by name, barangay, association or report" />
+                </div>
 
                 <div class="mt-2 overflow-hidden rounded-lg border border-border">
                     <div class="flex items-center justify-between border-b border-border bg-muted px-4 py-2.5">
                         <span class="text-sm text-muted-foreground">
                             Selected: <span class="font-semibold text-foreground" x-text="selected.length"></span>
                             / <span x-text="beneficiaries.length"></span>
+                            <span x-show="search.trim()" x-cloak class="text-xs">
+                                (showing <span x-text="visible().length"></span>)
+                            </span>
                         </span>
-                        <x-ui.button type="button" size="sm" variant="outline" @click="toggleAll()"
-                                     x-show="beneficiaries.length > 0">
-                            <span x-text="selected.length === beneficiaries.length ? 'Clear All' : 'Select All'"></span>
+                        <x-ui.button type="button" size="sm" variant="outline" @click="toggleAllVisible()"
+                                     x-show="visible().length > 0">
+                            <span x-text="visible().every((b) => selected.includes(b.farmer_id)) ? 'Clear shown' : 'Select shown'"></span>
                         </x-ui.button>
                     </div>
 
                     <div class="max-h-56 overflow-y-auto">
-                        <p x-show="loadingBeneficiaries" class="px-4 py-6 text-center text-sm text-muted-foreground">
-                            Loading eligible farmers...
+                        <p x-show="beneficiaries.length === 0" class="px-4 py-6 text-center text-sm text-muted-foreground">
+                            No farmer qualifies right now. A farmer appears here once a technician has verified
+                            their damage report, and drops off once they are on an allocation.
                         </p>
-                        <p x-show="! loadingBeneficiaries && beneficiaryError" x-text="beneficiaryError"
-                           class="px-4 py-6 text-center text-sm text-destructive"></p>
-                        <p x-show="! loadingBeneficiaries && ! beneficiaryError && ! associationId"
+                        <p x-show="beneficiaries.length > 0 && visible().length === 0" x-cloak
                            class="px-4 py-6 text-center text-sm text-muted-foreground">
-                            Select an association to see who qualifies.
-                        </p>
-                        <p x-show="! loadingBeneficiaries && ! beneficiaryError && associationId && beneficiaries.length === 0"
-                           class="px-4 py-6 text-center text-sm text-muted-foreground">
-                            <span x-show="disasterId">No MAO-approved farmers in this association qualify for this disaster event yet - they may still be awaiting a decision, or already covered by another allocation.</span>
-                            <span x-show="! disasterId">No MAO-approved farmers in this association qualify yet - they may still be awaiting a decision, or already covered by another allocation.</span>
+                            No farmer matches that search.
                         </p>
 
-                        <table class="w-full text-left text-sm" x-show="! loadingBeneficiaries && beneficiaries.length > 0">
+                        <table class="w-full text-left text-sm" x-show="visible().length > 0">
                             <thead class="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr>
                                     <th class="px-4 py-2"></th>
                                     <th class="px-4 py-2">Name</th>
                                     <th class="px-4 py-2">Barangay</th>
-                                    <th class="px-4 py-2">Damage Type</th>
+                                    <th class="px-4 py-2">Association</th>
+                                    <th class="px-4 py-2">Report</th>
+                                    <th class="px-4 py-2">Damage</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border">
-                                <template x-for="b in beneficiaries" :key="b.farmer_id">
+                                <template x-for="b in visible()" :key="b.farmer_id">
                                     <tr>
                                         <td class="px-4 py-2">
                                             <input type="checkbox" :value="b.farmer_id" x-model="selected" data-confirm-skip
@@ -452,6 +552,8 @@
                                         </td>
                                         <td class="px-4 py-2 font-medium text-foreground" x-text="b.name"></td>
                                         <td class="px-4 py-2 text-muted-foreground" x-text="b.barangay"></td>
+                                        <td class="px-4 py-2 text-muted-foreground" x-text="b.association"></td>
+                                        <td class="px-4 py-2 text-muted-foreground" x-text="b.reference"></td>
                                         <td class="px-4 py-2 text-muted-foreground" x-text="b.severity_label"></td>
                                     </tr>
                                 </template>
@@ -464,67 +566,40 @@
                      so the auto-generated review step shows a real summary
                      rather than nothing at all - hidden inputs are skipped by
                      the review builder on purpose. --}}
-                <input type="text" readonly tabindex="-1" data-confirm-label="Beneficiaries Selected"
-                       class="sr-only" :value="selected.length + ' of ' + beneficiaries.length + ' qualified farmer(s)'">
+                <input type="text" readonly tabindex="-1" data-confirm-label="Farmers selected"
+                       class="sr-only" :value="selected.length + ' of ' + beneficiaries.length + ' eligible farmer(s)'">
 
                 <template x-for="id in selected" :key="'beneficiary-' + id">
                     <input type="hidden" name="beneficiary_ids[]" :value="id">
                 </template>
             </div>
 
-            {{-- ---------- 2. Assistance Details ---------- --}}
+            {{-- ---------- 2. Remarks ----------
+
+                 This whole step used to ask for the assistance item, the
+                 type, the quantity, the start date and the crop. All of it
+                 went in Oct 2026; see the note at the top of this file.
+                 What is left is the one optional note. --}}
             <div class="border-t border-border pt-5">
-                <p class="text-sm font-semibold text-foreground">2. Assistance Details</p>
-                <p class="mt-0.5 text-xs text-muted-foreground">Specify the type of assistance and additional information.</p>
+                <p class="text-sm font-semibold text-foreground">2. Remarks <span class="font-normal text-muted-foreground">(optional)</span></p>
 
-                <div class="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <x-ui.field label="Assistance Type" name="assistance_type" required>
-                        <x-ui.select name="assistance_type" placeholder="Select type" required x-model="assistanceType"
-                                     @change="inKindItem = ''; inKindDescription = ''"
-                                     :options="['cash' => 'Cash', 'in_kind' => 'In-Kind']" />
-                    </x-ui.field>
-
-                    <div x-show="assistanceType === 'in_kind'" x-cloak x-transition>
-                        <x-ui.field label="In-Kind Item" name="in_kind_item" required>
-                            <x-ui.select name="in_kind_item" placeholder="Select item" required x-model="inKindItem">
-                                @foreach ($inKindOptions as $item)
-                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
-                                @endforeach
-                                <option value="{{ $otherInKind }}">Other (describe below)</option>
-                            </x-ui.select>
-                        </x-ui.field>
-                    </div>
-
-                    <div class="sm:col-span-2 xl:col-span-3" x-show="isOther()" x-cloak x-transition>
-                        <x-ui.field label="Describe this item" name="in_kind_description" required>
-                            <x-ui.input name="in_kind_description" x-model="inKindDescription" maxlength="255" required
-                                        placeholder="e.g. Certified Rice Seed, Fuel Subsidy" />
-                        </x-ui.field>
-                    </div>
-
-                    <x-ui.field label="Start Date" name="start_date" required>
-                        <x-ui.input type="date" name="start_date" value="{{ old('start_date', now()->format('Y-m-d')) }}" required />
-                    </x-ui.field>
-
-                    <x-ui.field label="Crop" name="crop_id" hint="Optional">
-                        <x-ui.select name="crop_id" placeholder="Not crop specific" x-model="cropId"
-                                     :options="$crops->pluck('name', 'id')" />
-                    </x-ui.field>
-
-                    <div class="sm:col-span-2 xl:col-span-3">
-                        <x-ui.field :label="'Quantity / Amount Allocated'" name="allocated_quantity" hint="Bags, kilos, or a peso amount - whichever applies.">
-                            <x-ui.input type="number" step="0.01" min="0" name="allocated_quantity"
-                                        value="{{ old('allocated_quantity') }}" placeholder="0.00" />
-                        </x-ui.field>
-                    </div>
-
-                    <div class="sm:col-span-2 xl:col-span-3">
-                        <x-ui.field label="Remarks" name="remarks" hint="Optional">
-                            <x-ui.textarea name="remarks" rows="2" placeholder="e.g. For distribution at the association center."
-                                           maxlength="1000">{{ old('remarks') }}</x-ui.textarea>
-                        </x-ui.field>
-                    </div>
+                <div class="mt-3">
+                    <x-ui.textarea name="remarks" rows="2"
+                                   placeholder="Anything the office should record about this batch."
+                                   maxlength="1000">{{ old('remarks') }}</x-ui.textarea>
                 </div>
+            </div>
+
+            {{-- WHO GETS TOLD, SAID BEFORE THEY CONFIRM
+                 An officer allocating is about to send messages to farmers
+                 and to association officers. That should not be a surprise
+                 discovered afterwards. --}}
+            <div class="rounded-lg border border-primary/30 bg-accent px-4 py-3 text-sm text-accent-foreground">
+                <p class="font-medium">Everyone selected is notified as soon as you confirm.</p>
+                <p class="mt-1 text-xs">
+                    Each farmer is told they have been selected and that there is no collection date yet. Their
+                    association is told which of its members to contact, and arranges when they collect it.
+                </p>
             </div>
 
             {{-- ---------- 3. Upload Supporting Documents ---------- --}}
@@ -597,5 +672,52 @@
     </x-ui.detail-panel>
 
     </div>{{-- /lg:grid --}}
+
+    {{-- ===================== NOT DESIGNATED: REVIEW AND CONFIRM =====================
+
+         Section 91: no important transaction completes on the first click.
+         The officer sees who they are refusing, has to write the reason, and
+         then confirms. The reason is required (the form will not submit
+         without it) because it is the only thing that will be left to
+         explain the decision later, and because the farmer is shown it.
+    --}}
+    <div x-show="deciding" x-cloak
+         class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4"
+         @keydown.escape.window="deciding = null">
+        <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+            <h3 class="mb-1 text-lg font-semibold text-foreground">Not designated for assistance?</h3>
+
+            <p class="mb-4 text-sm text-muted-foreground">
+                <strong x-text="deciding?.name"></strong> will be recorded as NOT designated for
+                assistance on report <span x-text="deciding?.reference"></span>, and will be told so
+                along with the reason you give. The damage report itself is not changed, and the
+                decision can be revisited until assistance has actually been received.
+            </p>
+
+            <form method="POST" :action="`{{ url('mao/assistance-decisions') }}/${deciding?.id}`">
+                @csrf @method('PUT')
+                <input type="hidden" name="decision" value="not_designated">
+
+                <label for="not-designated-reason" class="mb-1 block text-sm font-medium text-foreground">
+                    Reason <span class="text-destructive">*</span>
+                </label>
+                <textarea id="not-designated-reason" name="remarks" rows="3" required maxlength="1000"
+                          placeholder="For example: allocation for this disaster was fully distributed."
+                          class="mb-4 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm
+                                 placeholder:text-muted-foreground focus:border-primary focus:outline-none"></textarea>
+
+                <div class="flex gap-3">
+                    <button type="button" @click="deciding = null"
+                            class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:brightness-110">
+                        Confirm Decision
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 @endsection

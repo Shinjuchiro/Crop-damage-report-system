@@ -17,12 +17,14 @@
         $backUrl = request()->fullUrlWithoutQuery(['selected']);
     @endphp
 
-    {{-- List + detail, same pattern as every other MAO list page: side by
-         side from lg up, one half at a time on a phone. --}}
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
             <x-ui.card title="Crop Management" description="The crop types farmers can select in their profile, planting records and damage reports.">
                 <x-slot:actions>
                     <div class="flex items-center gap-3">
@@ -59,9 +61,10 @@
                                               :eyebrow="$crop->is_hvcc ? 'HVCC' : 'Standard'"
                                               :title="$crop->name"
                                               :fields="[
-                                                  'Farmer profiles'  => $crop->main_crops_count,
-                                                  'Planting records' => $crop->planting_record_crops_count,
-                                                  'Damage reports'   => $crop->damage_report_crops_count,
+                                                  'In use' => ($crop->main_crops_count ?? 0)
+                                                      + ($crop->planting_record_crops_count ?? 0)
+                                                      + ($crop->damage_report_crops_count ?? 0)
+                                                          ?: 'Not used',
                                               ]" />
                         </li>
                     @empty
@@ -74,12 +77,27 @@
                 <div class="hidden overflow-x-auto lg:block">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+                                {{-- FOUR COLUMNS (revision section 3.1)
+
+                                     Three count columns - farmer profiles,
+                                     planting records, damage reports - are
+                                     now one. The office asks this list one
+                                     question, which is whether a crop can be
+                                     archived, and the answer is whether it is
+                                     referenced anywhere at all; which of the
+                                     three places it is referenced in is the
+                                     breakdown, and the breakdown is in View.
+
+                                     Type stays. It is not a detail about the
+                                     crop, it is part of what the crop IS: an
+                                     HVCC entry behaves differently on the
+                                     farmer's form, where it asks which HVCC
+                                     crop was planted. Section 3.1 allows a
+                                     column a routine workflow needs. --}}
                                 <tr>
                                     <th class="px-5 py-3 font-medium">Crop</th>
                                     <th class="px-5 py-3 font-medium">Type</th>
-                                    <th class="px-5 py-3 text-center font-medium">Farmer profiles</th>
-                                    <th class="px-5 py-3 text-center font-medium">Planting records</th>
-                                    <th class="px-5 py-3 text-center font-medium">Damage reports</th>
+                                    <th class="px-5 py-3 text-center font-medium">In Use</th>
                                     <th class="px-5 py-3 text-right font-medium">Action</th>
                                 </tr>
                             </thead>
@@ -96,16 +114,33 @@
                                                 <span class="text-xs text-muted-foreground">Standard</span>
                                             @endif
                                         </td>
-                                        <td class="px-5 py-3 text-center tabular-nums text-muted-foreground">{{ $crop->main_crops_count }}</td>
-                                        <td class="px-5 py-3 text-center tabular-nums text-muted-foreground">{{ $crop->planting_record_crops_count }}</td>
-                                        <td class="px-5 py-3 text-center tabular-nums text-muted-foreground">{{ $crop->damage_report_crops_count }}</td>
+                                        {{-- One figure: everything that
+                                             references this crop. A crop
+                                             nothing points at reads as a
+                                             quiet "Not used" rather than
+                                             three loud zeros. --}}
+                                        @php
+                                            $references = ($crop->main_crops_count ?? 0)
+                                                + ($crop->planting_record_crops_count ?? 0)
+                                                + ($crop->damage_report_crops_count ?? 0);
+                                        @endphp
+                                        <td class="px-5 py-3 text-center">
+                                            @if ($references)
+                                                <span class="inline-flex rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-primary"
+                                                      title="{{ $crop->main_crops_count ?? 0 }} farmer profiles, {{ $crop->planting_record_crops_count ?? 0 }} planting records, {{ $crop->damage_report_crops_count ?? 0 }} damage reports">
+                                                    {{ number_format($references) }}
+                                                </span>
+                                            @else
+                                                <span class="text-xs text-muted-foreground">Not used</span>
+                                            @endif
+                                        </td>
                                         <td class="px-5 py-3 text-right">
                                             <x-ui.button :href="$viewUrl($crop->id)" variant="view" size="sm">View</x-ui.button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="px-5 py-12 text-center">
+                                        <td colspan="4" class="px-5 py-12 text-center">
                                             <p class="text-sm font-medium text-muted-foreground">No crops found</p>
                                             <p class="mt-1 text-xs text-muted-foreground">Add the crops grown in Tanza so farmers can select them.</p>
                                         </td>

@@ -17,10 +17,14 @@
         $backUrl = request()->fullUrlWithoutQuery(['selected']);
     @endphp
 
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
             <x-ui.card title="Farmers' Associations" description="Every farmer belongs to an association, and all assistance is allocated through them.">
                 <x-slot:actions>
                     <div class="flex items-center gap-3">
@@ -53,15 +57,13 @@
                 <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($associations as $association)
                         <li>
+                            {{-- The same four facts as the table. The three
+                                 counts are in View, which prints them as its
+                                 headline figures. --}}
                             <x-ui.record-card :href="$viewUrl($association->id)"
+                                              :eyebrow="'ASC-' . str_pad($association->id, 3, '0', STR_PAD_LEFT)"
                                               :title="$association->name"
-                                              :subtitle="$association->barangay?->name
-                                                    ?? ($association->location ?: 'Office barangay not set')"
-                                              :fields="[
-                                                  'Registered farmers' => $association->farmers_count,
-                                                  'Officers'           => $association->officers_count,
-                                                  'Allocations'        => $association->assistance_allocations_count,
-                                              ]" />
+                                              :badge="$association->barangay ? 'Mapped' : 'Not on the map'" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -73,40 +75,66 @@
                 <div class="hidden overflow-x-auto lg:block">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+                                {{-- FOUR COLUMNS (revision section 3.1)
+
+                                     The office barangay, the member count,
+                                     the officer count and the allocation
+                                     count used to be five columns of their
+                                     own. All four figures are in View, which
+                                     already prints them as its three
+                                     headline numbers.
+
+                                     The ID is ASC-00n, in the same shape as
+                                     FARM-, APP- and DR- elsewhere. short_name
+                                     would have read better but it is a
+                                     derived acronym, not an identifier: two
+                                     associations can share one, and it
+                                     changes if the name is edited.
+
+                                     Status is whether the association is on
+                                     the map. That is the one state on this
+                                     list that varies and that the office has
+                                     to act on: an association with no
+                                     barangay cannot be shaded on the map or
+                                     counted by area, and it stays invisible
+                                     there until somebody sets it. --}}
                                 <tr>
+                                    <th class="px-5 py-3 font-medium">ID</th>
                                     <th class="px-5 py-3 font-medium">Association</th>
-                                    <th class="px-5 py-3 font-medium">Office Barangay</th>
-                                    <th class="px-5 py-3 text-center font-medium">Registered</th>
-                                    <th class="px-5 py-3 text-center font-medium">Officers</th>
-                                    <th class="px-5 py-3 text-center font-medium">Allocations</th>
+                                    <th class="px-5 py-3 text-center font-medium">Status</th>
                                     <th class="px-5 py-3 text-right font-medium">Action</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border">
                                 @forelse ($associations as $association)
                                     <tr class="hover:bg-muted/60 {{ $selected?->id === $association->id ? 'bg-muted/60' : '' }}">
+                                        <td class="whitespace-nowrap px-5 py-3 text-foreground">
+                                            ASC-{{ str_pad($association->id, 3, '0', STR_PAD_LEFT) }}
+                                        </td>
                                         <td class="px-5 py-3">
                                             <p class="font-bold text-foreground">{{ $association->name }}</p>
-                                            @if ($association->description)
-                                                <p class="mt-0.5 max-w-md truncate text-xs text-muted-foreground">{{ $association->description }}</p>
+                                        </td>
+                                        <td class="px-5 py-3 text-center">
+                                            @if ($association->barangay)
+                                                <span class="inline-flex rounded px-3 py-1 text-xs font-medium
+                                                             bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+                                                    Mapped
+                                                </span>
+                                            @else
+                                                <span class="inline-flex rounded px-3 py-1 text-xs font-medium
+                                                             bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                                      title="Set an office barangay so this association appears on the map">
+                                                    Not on the map
+                                                </span>
                                             @endif
                                         </td>
-                                        <td class="px-5 py-3 text-muted-foreground">
-                                            {{ $association->barangay?->name ?? ($association->location ?: '-') }}
-                                            @unless ($association->barangay)
-                                                <span class="block text-xs text-amber-600">Not on the map</span>
-                                            @endunless
-                                        </td>
-                                        <td class="px-5 py-3 text-center tabular-nums text-muted-foreground">{{ $association->farmers_count }}</td>
-                                        <td class="px-5 py-3 text-center tabular-nums text-muted-foreground">{{ $association->officers_count }}</td>
-                                        <td class="px-5 py-3 text-center tabular-nums text-muted-foreground">{{ $association->assistance_allocations_count }}</td>
                                         <td class="px-5 py-3 text-right">
                                             <x-ui.button :href="$viewUrl($association->id)" variant="view" size="sm">View</x-ui.button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="px-5 py-12 text-center">
+                                        <td colspan="4" class="px-5 py-12 text-center">
                                             <p class="text-sm font-medium text-muted-foreground">No associations yet</p>
                                             <p class="mt-1 text-xs text-muted-foreground">
                                                 Farmers cannot register until at least one association exists.

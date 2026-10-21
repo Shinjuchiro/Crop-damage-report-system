@@ -28,51 +28,58 @@
         ->whereIn('status', ['assigned', 'under_verification'])
         ->count();
 
+    /* THE TECHNICIAN'S MENU (revision sections 3 and 24)
+
+       Six entries. Two pages came off it on purpose:
+
+       Planting Reports is gone as a destination. A technician does not
+       monitor planting; they read what a farmer planted while validating
+       that farmer's damage report, and it is already shown there, beside
+       the report (technician/partials/planting-comparison).
+
+       Inspection History moved inside Reports & Analytics, which is where
+       a technician looks back at their own work rather than forward at the
+       queue. The pattern below keeps this item lit on both pages.
+
+       'pattern' may be a single route pattern or a list of them. */
     $items = [
         [
-            'label'    => 'Technical Dashboard',
+            'label'    => 'Dashboard',
             'filipino' => 'Dashboard',
             'route'    => 'technician.dashboard',
             'pattern'  => 'technician.dashboard',
             'icon'     => 'M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9',
         ],
         [
-            'label'    => 'Assigned Reports',
-            'filipino' => 'Mga Nakatalaga',
-            'route'    => 'technician.reports.index',
-            'pattern'  => 'technician.reports.*',
-            'icon'     => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
-            'badge'    => $newAssignments,
-            'badgeLabel' => 'new assignment' . ($newAssignments === 1 ? '' : 's') . ' not started yet',
+            'label'       => 'Assignments',
+            'filipino'    => 'Mga Nakatalaga',
+            'route'       => 'technician.reports.index',
+            'pattern'     => 'technician.reports.*',
+            'icon'        => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+            'badge'       => $newAssignments,
+            'badge_label' => 'not yet started',
         ],
         [
-            'label'    => 'Validation',
-            'filipino' => 'Pagpapatunay',
-            'route'    => 'technician.validation.index',
-            'pattern'  => 'technician.validation.*',
-            'icon'     => 'M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8',
-            'badge'    => $openValidation,
-            'badgeLabel' => 'report' . ($openValidation === 1 ? '' : 's') . ' still needing inspection',
+            'label'       => 'Validation',
+            'filipino'    => 'Pagsusuri',
+            'route'       => 'technician.validation.index',
+            'pattern'     => ['technician.validation.*', 'technician.inspection.*'],
+            'icon'        => 'M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8',
+            'badge'       => $openValidation,
+            'badge_label' => 'still open',
         ],
         [
-            'label'    => 'Maps and Visualization',
+            'label'    => 'Map & Visualization',
             'filipino' => 'Mapa',
             'route'    => 'technician.map.index',
             'pattern'  => 'technician.map.*',
             'icon'     => 'M9 20l-5.4 1.8A1 1 0 013 20.9V6.4a1 1 0 01.7-1L9 3.7m0 16.3l6-2.1m-6 2.1V3.7m6 14.2l5.4 1.8a1 1 0 001.3-1V4.2a1 1 0 00-.7-1L15 1.7m0 16.2V1.7m0 0L9 3.7',
         ],
         [
-            'label'    => 'Inspection History',
-            'filipino' => 'Kasaysayan',
-            'route'    => 'technician.history.index',
-            'pattern'  => 'technician.history.*',
-            'icon'     => 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2',
-        ],
-        [
-            'label'    => 'Reports',
+            'label'    => 'Reports & Analytics',
             'filipino' => 'Mga Ulat',
             'route'    => 'technician.summaries.index',
-            'pattern'  => 'technician.summaries.*',
+            'pattern'  => ['technician.summaries.*', 'technician.history.*'],
             'icon'     => 'M6 20V10M12 20V4M18 20v-6M3.5 20h17',
         ],
     ];
@@ -87,7 +94,7 @@
 @endphp
 
 @foreach ($items as $item)
-    @php $classes = $item['route'] ? (request()->routeIs($item['pattern']) ? $current : $idle) : $disabled; @endphp
+    @php $classes = $item['route'] ? (request()->routeIs(...(array) $item['pattern']) ? $current : $idle) : $disabled; @endphp
 
     <{{ $item['route'] ? 'a' : 'span' }}
         @if ($item['route']) href="{{ route($item['route']) }}" @else title="Coming in a later build step" @endif
@@ -127,7 +134,7 @@
         </svg>
 
         <span class="min-w-0 flex-1 leading-tight">
-            <span class="block truncate">Need Help?</span>
+            <span class="block truncate">Need Help</span>
             <span class="block truncate text-xs opacity-70">Kailangan ng Tulong?</span>
         </span>
     </a>

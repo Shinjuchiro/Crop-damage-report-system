@@ -17,10 +17,14 @@
         $backUrl = request()->fullUrlWithoutQuery(['selected']);
     @endphp
 
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
             <x-ui.card title="Disaster Management" description="The disaster events farmers can cite when reporting crop damage.">
                 <x-slot:actions>
                     <div class="flex items-center gap-3">
@@ -63,9 +67,7 @@
                                               :eyebrow="ucwords(str_replace('_', ' ', $disaster->type))"
                                               :title="$disaster->name"
                                               :fields="[
-                                                  'Period' => $disaster->date_start?->format('M d, Y')
-                                                        . ($disaster->date_end ? ' to ' . $disaster->date_end->format('M d, Y') : ''),
-                                                  'Damage reports' => $disaster->damage_reports_count,
+                                                  'Damage reports' => $disaster->damage_reports_count ?: 'None',
                                               ]" />
                         </li>
                     @empty
@@ -78,11 +80,22 @@
                 <div class="hidden overflow-x-auto lg:block">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+                                {{-- FOUR COLUMNS (revision section 3.1)
+
+                                     Period moves into View, which already
+                                     prints it. Type stays, because an event
+                                     is identified by what kind of event it
+                                     was as much as by its name - two
+                                     typhoons in a season can share a name
+                                     and nothing else - and Reports stays
+                                     because it is what the office acts on
+                                     here: an event nothing points at can be
+                                     corrected or archived freely, and one
+                                     with reports against it cannot. --}}
                                 <tr>
                                     <th class="px-5 py-3 font-medium">Event</th>
                                     <th class="px-5 py-3 font-medium">Type</th>
-                                    <th class="px-5 py-3 font-medium">Period</th>
-                                    <th class="px-5 py-3 text-center font-medium">Damage reports</th>
+                                    <th class="px-5 py-3 text-center font-medium">Reports</th>
                                     <th class="px-5 py-3 text-right font-medium">Action</th>
                                 </tr>
                             </thead>
@@ -95,14 +108,14 @@
                                                 {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
                                             </span>
                                         </td>
-                                        <td class="px-5 py-3 text-muted-foreground">
-                                            {{ $disaster->date_start?->format('M d, Y') }}
-                                            @if ($disaster->date_end)
-                                                &ndash; {{ $disaster->date_end->format('M d, Y') }}
+                                        <td class="px-5 py-3 text-center">
+                                            @if ($disaster->damage_reports_count)
+                                                <span class="inline-flex rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-primary">
+                                                    {{ number_format($disaster->damage_reports_count) }}
+                                                </span>
+                                            @else
+                                                <span class="text-xs text-muted-foreground">None</span>
                                             @endif
-                                        </td>
-                                        <td class="px-5 py-3 text-center tabular-nums text-muted-foreground">
-                                            {{ $disaster->damage_reports_count }}
                                         </td>
                                         <td class="px-5 py-3 text-right">
                                             <x-ui.button :href="$viewUrl($disaster->id)" variant="view" size="sm">View</x-ui.button>
@@ -110,7 +123,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-5 py-12 text-center">
+                                        <td colspan="4" class="px-5 py-12 text-center">
                                             <p class="text-sm font-medium text-muted-foreground">No disaster events recorded</p>
                                             <p class="mt-1 text-xs text-muted-foreground">
                                                 Add a typhoon, flood or other event so farmers can attach it to their damage reports.

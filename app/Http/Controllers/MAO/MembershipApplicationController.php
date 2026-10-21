@@ -7,7 +7,9 @@ use App\Models\AuditLog;
 use App\Models\Barangay;
 use App\Models\Farmer;
 use App\Models\NotificationBroadcast;
+use App\Models\User;
 use App\Notifications\FarmerRegistrationApprovedNotification;
+use App\Support\MembershipApplication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,15 +21,76 @@ use Illuminate\Support\Facades\Log;
  */
 class MembershipApplicationController extends Controller
 {
+    /**
+     * The office's own two filter options, in front of the stages and
+     * outcomes that App\Support\MembershipApplication supplies.
+     *
+     * 'awaiting_mao' is the default and is the office's actual queue: the
+     * applications a farmers' association has reviewed and handed over.
+     * Before revision step 6 the default was every pending application,
+     * which was the same list, because every application went straight to
+     * the office. It is not the same list any more, and defaulting to the
+     * wider one would put applications the office cannot yet act on at the
+     * top of the page it opens every morning.
+     *
+     * 'open' is that wider list, kept one click away, because the office
+     * does need it: it is how they see which associations are sitting on a
+     * queue, and how they answer a farmer who rings to ask where their
+     * application has got to.
+     */
+    public const FILTERS = [
+        'awaiting_mao' => 'Awaiting Your Decision',
+        'open'         => 'All Open Applications',
+    ];
+
     public function index(Request $request)
     {
-        $status = $request->query('status', 'pending');
+        /* "all" is a real value in the dropdown, not an empty option, and
+           that is load bearing.
+
+           It used to be the select's placeholder, which submits status= with
+           nothing after it. ConvertEmptyStringsToNull, which runs on every
+           request including the query string, then turned that into null,
+           and query('status', 'pending') resolves null to its default. So
+           choosing "All Status" came back as Pending: the list stayed
+           filtered and the dropdown reset itself, which is exactly what the
+           office reported.
+
+           Reading a filter whose "show everything" option is empty through
+           a defaulted getter is the trap. With a named value there is
+           nothing to convert and nothing to default. */
+        $status = (string) $request->query('status', 'awaiting_mao');
+
+        if ($status === '' || ! $this->isKnownFilter($status)) {
+            $status = 'awaiting_mao';
+        }
 
         $applications = Farmer::query()
             ->notDeleted()
-            ->with(['user', 'association', 'barangay'])
-            ->when(in_array($status, ['pending', 'active', 'rejected', 'inactive'], true),
-                fn ($query) => $query->whereHas('user', fn ($user) => $user->where('status', $status)))
+            ->with(['user', 'association', 'barangay', 'returnedBy'])
+            /* The office's queue: forwarded by an association and not yet
+               decided. Both halves matter - an approved farmer's stage
+               column still says 'forwarded_to_mao', because that is the
+               record of how their application reached its outcome and is
+               deliberately left alone (see the migration), so filtering on
+               the stage alone would keep every approved farmer in the
+               queue forever. */
+            ->when($status === 'awaiting_mao', fn ($query) => $query
+                ->where('membership_stage', MembershipApplication::FORWARDED)
+                ->whereHas('user', fn ($user) => $user->where('status', 'pending')))
+            ->when($status === 'open', fn ($query) => $query
+                ->whereHas('user', fn ($user) => $user->where('status', 'pending')))
+            ->when(in_array($status, MembershipApplication::stageKeys(), true), fn ($query) => $query
+                ->where('membership_stage', $status)
+                ->whereHas('user', fn ($user) => $user->where('status', 'pending')))
+            // The outcomes are the account's own status, which is where they
+            // are stored; see App\Support\MembershipApplication.
+            ->when($status === MembershipApplication::APPROVED, fn ($query) => $query
+                ->whereHas('user', fn ($user) => $user->where('status', 'active')))
+            ->when($status === MembershipApplication::REJECTED, fn ($query) => $query
+                ->whereHas('user', fn ($user) => $user->where('status', 'rejected')))
+            ->when($status === MembershipApplication::ARCHIVED, fn ($query) => $query
+                ->whereHas('user', fn ($user) => $user->where('status', 'inactive')))
             ->when($request->filled('barangay_id'),
                 fn ($query) => $query->where('barangay_id', $request->barangay_id))
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -47,41 +110,182 @@ class MembershipApplicationController extends Controller
         // inline in the right-hand panel via ?selected=<id> instead of
         // navigating to a separate review page.
         $selected = $request->filled('selected')
-            ? Farmer::query()->notDeleted()->with(['user', 'association', 'barangay', 'mainCrops.crop'])->find($request->selected)
+            ? Farmer::query()->notDeleted()
+                ->with(['user', 'association', 'barangay', 'mainCrops.crop',
+                        'returnedBy', 'forwardedBy', 'associationReviewer', 'decidedBy'])
+                ->find($request->selected)
             : null;
 
         return view('mao.membership-applications.index', [
             'applications' => $applications,
             'selected'     => $selected,
             'status'       => $status,
+            'filters'      => self::FILTERS + MembershipApplication::filterOptions(),
             'barangays'    => Barangay::orderBy('name')->get(),
+            /* The open application's own history, loaded only when one is
+               open: it is a second query, and the list itself has no use for
+               it. App\Support\MembershipApplication::history() reads the
+               existing audit log rather than a second table. */
+            'history'      => MembershipApplication::history($selected),
         ]);
+    }
+
+    private function isKnownFilter(string $filter): bool
+    {
+        return array_key_exists($filter, self::FILTERS)
+            || array_key_exists($filter, MembershipApplication::filterOptions())
+            || $filter === 'all';
+    }
+
+    /**
+     * The office may only decide an application a farmers' association has
+     * forwarded (revision step 6).
+     *
+     * Checked here rather than only in the view. The office can SEE every
+     * application from the moment it is submitted, which is deliberate, so
+     * the detail panel for one still with an association renders with its
+     * buttons hidden; hiding a button is not a rule, and a page left open
+     * while the stage moves underneath it still has its form.
+     */
+    private function assertOfficesTurn(Farmer $farmer): void
+    {
+        abort_unless(
+            MembershipApplication::isOfficesTurn($farmer),
+            403,
+            'This application is still with the farmers\' association. It has to be forwarded before the office can decide it.'
+        );
     }
 
     public function show(Farmer $farmer)
     {
-        $farmer->load(['user', 'association', 'barangay', 'mainCrops.crop']);
+        $farmer->load([
+            'user', 'association', 'barangay', 'mainCrops.crop',
+            // Who moved it and what they said, at each handover: the
+            // association verification block and the decision block both
+            // read these.
+            'associationReviewer', 'forwardedBy', 'returnedBy', 'decidedBy',
+        ]);
 
-        return view('mao.membership-applications.show', compact('farmer'));
+        return view('mao.membership-applications.show', [
+            'farmer'  => $farmer,
+            'history' => MembershipApplication::history($farmer),
+        ]);
     }
 
-    public function approve(Farmer $farmer)
+    /**
+     * Approve the application and activate the membership.
+     *
+     * CHECKED TWICE, THE SECOND TIME UNDER A LOCK
+     *
+     * assertOfficesTurn() above is the cheap check that rejects the obvious
+     * cases: an application still with the association, or one already
+     * decided. It is not enough on its own, because between that check and
+     * the write there is a gap, and two officers clicking Approve on the
+     * same application at the same moment can both pass it. The second
+     * check happens inside the transaction with the account row locked, so
+     * the two approvals queue and the second one reads status 'active',
+     * fails isOfficesTurn(), and rolls back with a 403.
+     *
+     * That is what stops a duplicate membership activation rather than a
+     * uniqueness constraint, because there is no second row to be unique
+     * about: a farmer, their application and their membership are one
+     * record, which is also why no duplicate membership can be created by
+     * approving twice. The risk was never two memberships; it was two
+     * approval notifications, two audit entries and a decided_by that
+     * records whichever officer lost the race.
+     *
+     * The lock is taken on users, not farmers, because users.status is the
+     * fact being contended for.
+     */
+    public function approve(Request $request, Farmer $farmer)
     {
-        DB::transaction(function () use ($farmer) {
-            $farmer->user->update(['status' => 'active']);
+        $this->assertOfficesTurn($farmer);
 
-            $farmer->update([
-                'activity_status'    => 'active',
-                'last_activity_date' => now()->toDateString(),
-            ]);
+        /* Optional on an approval. The office approving somebody is the
+           expected outcome and usually needs no explanation; a required
+           field here would collect a column of full stops. */
+        $data = $request->validate([
+            'approval_note' => ['nullable', 'string', 'max:1000'],
+        ], [], ['approval_note' => 'note']);
 
-            $this->log('Approved farmer registration: ' . $farmer->full_name, $farmer->id);
+        $note = trim((string) ($data['approval_note'] ?? '')) ?: null;
+
+        DB::transaction(function () use ($farmer, $note) {
+            $fresh = $this->lockForDecision($farmer);
+
+            $from = MembershipApplication::forFarmer($fresh);
+
+            $fresh->user->update(['status' => 'active']);
+
+            /* APPROVAL NO LONGER TOUCHES THE INACTIVITY CLOCK
+               (revision section 15, Oct 2026)
+
+               This used to set activity_status to 'active' and
+               last_activity_date to today. Both were wrong, and the second
+               one quietly mattered.
+
+               Section 15: "Only a new valid Crop Planted Report resets the
+               inactivity period", and a farmer who has never filed one is
+               measured "from the registration date". Approval is neither. So
+               a farmer who registered in January, was approved in March and
+               never planted anything was being measured from March - and the
+               drift was however long the office took to approve them, which
+               is exactly the stretch the rule wants counted.
+
+               activity_status went with it. The farmer's activity status is
+               derived from their planting records by sweepInactive(), and
+               setting it here would have asserted "active" about somebody
+               whose records may say otherwise - a claim this method is not in
+               a position to make, and one the next sweep would overturn
+               anyway.
+
+               Nothing replaces these two writes. Registration already starts
+               the account Active, and the clock already runs from the
+               registration date via the model's fallback. */
+
+            $fresh->recordDecision(Auth::id(), $note);
+
+            $this->log(
+                'Approved farmer registration: ' . $fresh->full_name,
+                $fresh->id,
+                $from,
+                MembershipApplication::APPROVED,
+                $note
+            );
         });
 
         $this->notifyApproved($farmer);
 
         return redirect()->route('mao.membership-applications.index')
             ->with('status', 'Farmer registration approved successfully.');
+    }
+
+    /**
+     * Re-read the application with its account row locked, and re-assert
+     * that it is still the office's to decide.
+     *
+     * Shared by approve() and reject(), because the race is the same one and
+     * a guard written twice is a guard that gets fixed once.
+     *
+     * The returned Farmer carries the locked user as its loaded relation, so
+     * everything downstream reads the row that is actually locked rather
+     * than a second, unlocked copy of it.
+     */
+    private function lockForDecision(Farmer $farmer): Farmer
+    {
+        $user = User::query()->whereKey($farmer->user_id)->lockForUpdate()->first();
+
+        abort_if($user === null, 404);
+
+        $fresh = Farmer::query()->whereKey($farmer->id)->first();
+
+        abort_if($fresh === null, 404);
+
+        $fresh->setRelation('user', $user);
+
+        $this->assertOfficesTurn($fresh);
+
+        return $fresh;
     }
 
     /**
@@ -175,23 +379,61 @@ class MembershipApplicationController extends Controller
         }
     }
 
+    /**
+     * Reject the application. The membership is NOT activated.
+     *
+     * THE REASON IS NOW REQUIRED (changed Oct 2026)
+     *
+     * It used to be 'nullable', and when it was given it was concatenated
+     * into the audit log's action text and into the notification body, so
+     * the application itself never held the reason it was refused. Both
+     * halves of that were wrong:
+     *
+     *   - A farmer told only "your registration was not approved" has
+     *     nothing to act on and no way to know whether to try again. The
+     *     revision requires a reason for exactly this reason, and so does
+     *     the office: rejecting somebody is the one decision here that ends
+     *     an application, and it should cost a sentence to make.
+     *   - A reason that lives only in a notification body is a reason that
+     *     cannot be looked up later, and the audit text it was glued into
+     *     was a VARCHAR(255) column that a long reason overflowed. See
+     *     migration 2024_01_23_000001.
+     *
+     * min:10 rather than just 'required', because "no" passes required and
+     * explains nothing. Same rule as the correction note on both sides of
+     * the workflow.
+     *
+     * The reason is stored on the application (decision_note), written to
+     * the audit trail's own remarks column, and sent to the farmer. One
+     * value, three places that need it, no concatenation.
+     */
     public function reject(Request $request, Farmer $farmer)
     {
-        $request->validate([
-            'rejection_reason' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $this->assertOfficesTurn($farmer);
 
-        DB::transaction(function () use ($farmer, $request) {
-            $farmer->user->update(['status' => 'rejected']);
+        $data = $request->validate([
+            'rejection_reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ], [], ['rejection_reason' => 'rejection reason']);
+
+        DB::transaction(function () use ($farmer, $data) {
+            $fresh = $this->lockForDecision($farmer);
+
+            $from = MembershipApplication::forFarmer($fresh);
+
+            $fresh->user->update(['status' => 'rejected']);
+
+            $fresh->recordDecision(Auth::id(), $data['rejection_reason']);
 
             $this->log(
-                'Rejected farmer registration: ' . $farmer->full_name
-                    . ($request->filled('rejection_reason') ? ' - ' . $request->rejection_reason : ''),
-                $farmer->id
+                'Rejected farmer registration: ' . $fresh->full_name,
+                $fresh->id,
+                $from,
+                MembershipApplication::REJECTED,
+                $data['rejection_reason']
             );
         });
 
-        $this->notifyRejected($farmer, $request->input('rejection_reason'));
+        $this->notifyRejected($farmer, $data['rejection_reason']);
 
         return redirect()->route('mao.membership-applications.index')
             ->with('status', 'Farmer registration rejected.');
@@ -207,7 +449,7 @@ class MembershipApplicationController extends Controller
      * throws - the rejection itself must never appear to fail just because a
      * notification could not be sent.
      */
-    private function notifyRejected(Farmer $farmer, ?string $reason): void
+    private function notifyRejected(Farmer $farmer, string $reason): void
     {
         try {
             $alert = NotificationBroadcast::create([
@@ -230,14 +472,128 @@ class MembershipApplicationController extends Controller
     }
 
     /**
+     * Send a forwarded application back to the farmer to fix (revision
+     * step 6).
+     *
+     * The office can return as well as the association, which was the
+     * developer's decision when this was specified. The reason is that the
+     * two readers are looking for different things: the association
+     * confirms the applicant is one of its members, and the office checks
+     * the registration itself, so the office is the one that will notice a
+     * barangay certificate for the wrong person or a birth date that cannot
+     * be right. Without this, the only thing the office could do with a
+     * fixable application was reject it, which ends it.
+     *
+     * Returning is not rejecting and must not be read as a soft rejection.
+     * It leaves the account pending, keeps every detail the farmer entered,
+     * and asks for one thing to be changed.
+     *
+     * The corrected application comes back to the ASSOCIATION, not here.
+     * That is the one path back in: an officer is never handed an
+     * application whose corrections they have not seen, and the office
+     * never re-reads a version the association has not vouched for.
+     */
+    public function returnForCorrection(Request $request, Farmer $farmer)
+    {
+        $this->assertOfficesTurn($farmer);
+
+        $data = $request->validate([
+            'return_note' => ['required', 'string', 'min:10', 'max:1000'],
+        ], [], ['return_note' => 'correction note']);
+
+        $from = MembershipApplication::forFarmer($farmer);
+
+        DB::transaction(function () use ($farmer, $data, $from) {
+            $farmer->returnForCorrection(Auth::id(), 'mao', $data['return_note']);
+
+            // Remarks in their own column, not concatenated into the action
+            // text; that column was a VARCHAR(255) and this note runs to
+            // 1000. Migration 2024_01_23_000001.
+            $this->log(
+                'Returned membership application for correction: ' . $farmer->full_name,
+                $farmer->id,
+                $from,
+                MembershipApplication::RETURNED,
+                $data['return_note']
+            );
+        });
+
+        $this->notifyReturned($farmer, $data['return_note']);
+
+        return redirect()->route('mao.membership-applications.index')
+            ->with('status', 'Application returned to the farmer for correction.');
+    }
+
+    /**
+     * Both the farmer and their association are told.
+     *
+     * The farmer because they are the one who has to act, word for word so
+     * that nothing is lost in paraphrase. The association because the
+     * corrected application lands back on their desk, and an officer who
+     * was not told will see it reappear in their queue with no explanation.
+     *
+     * In-app only ('normal' priority): section 68 reserves SMS for urgent
+     * and critical matters, and a correction request is neither. Never
+     * throws - the application has already been returned by the time this
+     * runs.
+     */
+    private function notifyReturned(Farmer $farmer, string $note): void
+    {
+        try {
+            NotificationBroadcast::create([
+                'title'       => 'Your Application Needs Correction',
+                'message'     => 'The Municipal Agriculture Office has asked you to correct something in '
+                    . 'your registration. What needs fixing: ' . $note,
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'specific_farmer',
+                'target_id'   => $farmer->id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ])->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify farmer ' . $farmer->id . ' of a returned application: ' . $e->getMessage());
+        }
+
+        if (! $farmer->association_id) {
+            return;
+        }
+
+        try {
+            NotificationBroadcast::create([
+                'title'       => 'Application Returned by the Office',
+                'message'     => $farmer->full_name . '\'s application has been returned to them for '
+                    . 'correction by the Municipal Agriculture Office. It will come back to your '
+                    . 'association for review once they have corrected it. Reason given: ' . $note,
+                'category'    => 'system',
+                'priority'    => 'normal',
+                'target_type' => 'specific_association',
+                'target_id'   => $farmer->association_id,
+                'status'      => 'draft',
+                'created_by'  => Auth::id(),
+            ])->dispatchToRecipients();
+        } catch (\Throwable $e) {
+            Log::warning('Could not notify association ' . $farmer->association_id
+                . ' of a returned application: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Archiving keeps the record but takes the application out of the queue.
      * Nothing is deleted.
      */
     public function archive(Farmer $farmer)
     {
+        $from = MembershipApplication::forFarmer($farmer);
+
         $farmer->user->update(['status' => 'inactive']);
 
-        $this->log('Archived farmer application: ' . $farmer->full_name, $farmer->id);
+        $this->log(
+            'Archived farmer application: ' . $farmer->full_name,
+            $farmer->id,
+            $from,
+            MembershipApplication::ARCHIVED
+        );
 
         return back()->with('status', 'Application archived.');
     }
@@ -245,9 +601,39 @@ class MembershipApplicationController extends Controller
     /**
      * Bring an archived farmer back. Used from the MAO Archive page.
      *
-     * Deliberately not the same as approve(): approve() is for a brand new
-     * application and also resets activity_status and last_activity_date,
-     * which would be wrong here. Restoring only undoes the archive.
+     * Deliberately not the same as approve(): approve() is the office's
+     * decision on a brand new application, and this is only undoing a filing
+     * action. Restoring returns the account to the review queue and changes
+     * nothing else.
+     *
+     * (This note used to add that approve() "also resets activity_status and
+     * last_activity_date, which would be wrong here". It no longer does
+     * either - revision section 15 took both writes out of approve(), since
+     * approval is not a Crop Planted Report. So that difference between the
+     * two methods has gone, and the remaining one is the only one: approve()
+     * decides, restore() un-archives.)
+     *
+     * RESTORED TO PENDING, NOT ACTIVE (fixed Oct 2026)
+     *
+     * This used to set the account straight to 'active'. archive() sets
+     * 'inactive' from whatever the account was before, pending included, so
+     * restoring an archived application that had never been decided
+     * APPROVED it: a farmer nobody had approved got full access to the
+     * system from a button whose label is "Restore".
+     *
+     * That was wrong before revision step 6 and is worse after it, because
+     * the farmers' association never vouched for them either. So a restored
+     * farmer goes back to pending and into the queue, and the office
+     * approves them with the Approve button, which is the only thing that
+     * should ever grant access.
+     *
+     * The cost is that restoring a farmer who really had been approved
+     * means approving them a second time. That is one extra click on a rare
+     * action, and it is the right way round: the failure mode is a farmer
+     * waiting for a click, not a farmer let in without one. Their stage
+     * column still reads 'forwarded_to_mao' - archiving never touched it -
+     * so the application is already in the office's own queue and needs
+     * nothing from the association.
      */
     public function restore(Farmer $farmer)
     {
@@ -257,36 +643,53 @@ class MembershipApplicationController extends Controller
             ]);
         }
 
-        $farmer->user->update(['status' => 'active']);
+        $from = MembershipApplication::forFarmer($farmer);
 
-        $this->log('Restored farmer: ' . $farmer->full_name, $farmer->id);
+        $farmer->user->update(['status' => 'pending']);
 
-        return back()->with('status', 'Farmer restored.');
+        $farmer->refresh()->load('user');
+
+        $this->log(
+            'Restored farmer to the review queue: ' . $farmer->full_name,
+            $farmer->id,
+            $from,
+            MembershipApplication::forFarmer($farmer)
+        );
+
+        return back()->with('status',
+            'Farmer restored and returned to the review queue. Approve the application to give them access again.');
     }
 
     /**
-     * Take the farmer out of the working system for good. Not a database
-     * delete: markDeleted() only stamps deleted_at/deleted_by, so every field
-     * on the farmer's profile - and the login account it belongs to - is kept
-     * exactly as it was. It just stops appearing anywhere in the ordinary
-     * system (the Membership Applications queue, the Farmer Directory, the
-     * Archive page's Archived tab) and moves to the Archive page's Deleted
-     * tab instead, read-only, together with who deleted it and when.
+     * One audit row per move (proposal section 81, and the revision's
+     * application-history requirement).
+     *
+     * $from and $to are what turn this table into a history rather than a
+     * list of sentences, and they are also the filter:
+     * App\Support\MembershipApplication::history() picks this workflow's
+     * rows out of the shared audit table by looking for a non-null
+     * to_status. So an entry logged with them shows on the application's
+     * history and one logged without them does not, with no list of magic
+     * action strings to keep in step.
+     *
+     * $remarks is stored in its own column and never concatenated into
+     * $action. That concatenation is what made a long correction note crash
+     * a VARCHAR(255) column inside a transaction; see migration
+     * 2024_01_23_000001.
      */
-    public function destroy(Farmer $farmer)
-    {
-        $farmer->markDeleted(Auth::id());
-
-        $this->log('Deleted farmer: ' . $farmer->full_name, $farmer->id);
-
-        return back()->with('status', 'Farmer deleted. Their information is kept for audit purposes.');
-    }
-
-    private function log(string $action, ?int $farmerId): void
-    {
+    private function log(
+        string $action,
+        ?int $farmerId,
+        ?string $from = null,
+        ?string $to = null,
+        ?string $remarks = null
+    ): void {
         AuditLog::create([
             'user_id'      => Auth::id(),
             'action'       => $action,
+            'from_status'  => $from,
+            'to_status'    => $to,
+            'remarks'      => $remarks,
             'target_table' => 'farmers',
             'target_id'    => $farmerId,
             'created_at'   => now(),

@@ -348,9 +348,9 @@
             @else
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-6">
                     @foreach ($report->photos as $photo)
-                        <a href="{{ Storage::url($photo->file_path) }}" target="_blank" rel="noopener"
+                        <a href="{{ $photo->url }}" target="_blank" rel="noopener"
                            class="aspect-square overflow-hidden rounded-lg border border-border">
-                            <img src="{{ Storage::url($photo->file_path) }}" alt="Farmer photo {{ $loop->iteration }}"
+                            <img src="{{ $photo->url }}" alt="Farmer photo {{ $loop->iteration }}"
                                  loading="lazy" class="h-full w-full object-cover">
                         </a>
                     @endforeach
@@ -387,9 +387,9 @@
                     <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-6">
                         @foreach ($report->validation->photos as $photo)
                             <figure>
-                                <a href="{{ Storage::url($photo->file_path) }}" target="_blank" rel="noopener"
+                                <a href="{{ $photo->url }}" target="_blank" rel="noopener"
                                    class="block aspect-square overflow-hidden rounded-lg border border-border">
-                                    <img src="{{ Storage::url($photo->file_path) }}"
+                                    <img src="{{ $photo->url }}"
                                          alt="{{ $photo->shot_label }}"
                                          loading="lazy" class="h-full w-full object-cover">
                                 </a>

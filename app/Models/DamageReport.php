@@ -188,6 +188,23 @@ class DamageReport extends Model
         return $this->hasMany(AssistanceAllocationBeneficiary::class);
     }
 
+    /**
+     * The office's assistance decision on this report, if it has made one.
+     *
+     * hasOne, enforced by a unique index on the table: one report is one
+     * case and carries one current answer. Null means Pending Review, which
+     * is the whole reason the row exists - without it the system cannot tell
+     * "we decided no" from "nobody has looked yet".
+     *
+     * Read this through App\Support\AssistanceCase rather than on its own:
+     * a decision is one of three things that together make up the status an
+     * officer sees.
+     */
+    public function assistanceDecision()
+    {
+        return $this->hasOne(AssistanceDecision::class);
+    }
+
     // Adds up the damage cost of every crop on this report.
     // Each crop's total_damage_cost was computed when the report was saved.
     public function getTotalDamageCostAttribute(): float

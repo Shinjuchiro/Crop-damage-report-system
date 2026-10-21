@@ -13,7 +13,10 @@
         'completed'   => 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
         'cancelled'   => 'bg-secondary text-muted-foreground',
     ];
-    $isCash = $allocation->is_cash;
+    /* $isCash went with the cash/in-kind distinction, and every figure on
+       this panel went with it (Oct 2026, client decision - privacy; see
+       App\Models\Assistance). Counts of people replace the two quantity
+       rows. */
 @endphp
 
 <div class="mb-4">
@@ -25,9 +28,6 @@
     <div class="mt-2 flex flex-wrap gap-2">
         <span class="inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $statusBadges[$allocation->status] ?? $statusBadges['pending'] }}">
             {{ ucfirst($allocation->status) }}
-        </span>
-        <span class="inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $isCash ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' }}">
-            {{ $isCash ? 'Cash' : 'In-Kind' }}
         </span>
     </div>
     <x-ui.open-full-page :href="route('mao.assistance-allocations.show', $allocation)" />
@@ -41,19 +41,19 @@
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Disaster Event</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</dd></div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Crop</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->crop?->name ?? 'Not crop specific' }}</dd></div>
             <div class="flex justify-between gap-3">
-                <dt class="shrink-0 text-muted-foreground">{{ $isCash ? 'Allocated' : 'Qty Allocated' }}</dt>
-                <dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->allocated_quantity !== null ? number_format($allocation->allocated_quantity, 2) : 'Not specified' }}</dd>
+                <dt class="shrink-0 text-muted-foreground">Farmers Designated</dt>
+                <dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->beneficiaries->count() }}</dd>
             </div>
             <div class="flex justify-between gap-3">
-                <dt class="shrink-0 text-muted-foreground">{{ $isCash ? 'Released' : 'Qty Released' }}</dt>
-                <dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distributed_quantity !== null ? number_format($allocation->distributed_quantity, 2) : 'Not yet released' }}</dd>
+                <dt class="shrink-0 text-muted-foreground">Handed Over</dt>
+                <dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distributions->pluck('farmer_id')->unique()->count() }}</dd>
             </div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Allocated On</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Allocated By</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $allocation->allocatedBy?->full_name ?: $allocation->allocatedBy?->username ?? '-' }}</dd></div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Released To Assoc.</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distributed_to_association_at?->format('M d, Y') ?? 'Not yet' }}</dd></div>
             <div>
                 <dt class="text-muted-foreground">Description</dt>
-                <dd class="font-medium text-foreground">{{ $allocation->in_kind_description ?: ($allocation->assistance?->description ?: 'Not specified') }}</dd>
+                <dd class="font-medium text-foreground">{{ $allocation->assistance?->description ?: 'Not specified' }}</dd>
             </div>
             @if ($allocation->remarks)
                 <div>
@@ -115,13 +115,12 @@
                     </span>
                 </div>
                 <p class="text-muted-foreground">
-                    Qty: {{ $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-' }}
-                    &middot; {{ $distribution->distributed_at?->format('M d, Y') ?? 'Not yet' }}
+                    {{ $distribution->distributed_at?->format('M d, Y') ?? 'Not yet' }}
                     &middot; {{ ucwords(str_replace('_', ' ', $distribution->distribution_status)) }}
                 </p>
             </div>
         @empty
-            <p class="text-xs text-muted-foreground">Nothing distributed yet - the association records this from its own dashboard.</p>
+            <p class="text-xs text-muted-foreground">Nothing handed over yet. Use "Record a hand-over" on the allocation's own page.</p>
         @endforelse
     </div>
 
@@ -165,17 +164,9 @@
                     @csrf @method('PUT')
                     <input type="hidden" name="status" :value="action">
 
-                    <div x-show="action === 'distributed'" x-cloak class="mb-4">
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">
-                            {{ $isCash ? 'Amount released' : 'Quantity released' }}
-                        </label>
-                        <input type="number" step="0.01" min="0" name="distributed_quantity"
-                               value="{{ $allocation->allocated_quantity }}"
-                               class="w-full rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                        <p class="mt-1.5 text-xs text-muted-foreground">
-                            This can legitimately differ from what was allocated.
-                        </p>
-                    </div>
+                    {{-- The "quantity released" input was here. Marking an
+                         allocation distributed records only the date and the
+                         officer now. --}}
 
                     <label class="mb-1.5 block text-sm font-medium text-foreground">Remarks (optional)</label>
                     <textarea name="remarks" rows="3"

@@ -75,8 +75,14 @@
         @endif
 
         <span class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            {{-- A plain string, drawn as a pill so it sits beside a status
+                 badge as an equal rather than as loose text. The prop takes
+                 text, not markup: it is escaped, which is what makes it
+                 safe to pass a record's own field straight in. --}}
             @if ($badge)
-                {{ $badge }}
+                <span class="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                    {{ $badge }}
+                </span>
             @endif
             @if ($status)
                 <x-ui.status :value="$status" />

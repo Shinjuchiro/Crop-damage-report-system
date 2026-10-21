@@ -42,6 +42,12 @@ class NotificationBroadcast extends Model
         'affected_farmers'     => 'Affected Farmers',
         'all_associations'     => 'All Associations',
         'specific_association' => 'Specific Association',
+        /* The farmers OF one association, as against the line above, which
+           is that association's officer accounts. This is the audience an
+           officer's own announcements use, and it is also what marks an
+           announcement as theirs rather than the office's - see
+           scopeOfficeAlerts() below. */
+        'association_members'  => 'Members of the Association',
         'specific_farmer'      => 'Specific Farmer',
         'all_technicians'      => 'All Technicians',
         'specific_technician'  => 'Specific Technician',
@@ -75,6 +81,30 @@ class NotificationBroadcast extends Model
             'scheduled_for' => 'datetime',
             'deleted_at'    => 'datetime',
         ];
+    }
+
+    /* ------------------------------------------------------------------
+     | Whose alert is this
+     |
+     | Two kinds of row live in this table now. The office's alerts, which
+     | its Announcements page and the Archive list, and an association's own
+     | announcements to its members, which are that association's business
+     | and appear only on its own page. 'association_members' is what tells
+     | them apart, so these two scopes are the only place that rule is
+     | written down.
+     ------------------------------------------------------------------ */
+
+    /** The office's own alerts: everything an association did not write. */
+    public function scopeOfficeAlerts($query)
+    {
+        return $query->where('target_type', '!=', 'association_members');
+    }
+
+    /** One association's announcements to its own members. */
+    public function scopeAnnouncementsFor($query, int $associationId)
+    {
+        return $query->where('target_type', 'association_members')
+            ->where('target_id', $associationId);
     }
 
     public function createdBy()
@@ -170,7 +200,8 @@ class NotificationBroadcast extends Model
         }
 
         $name = match ($this->target_type) {
-            'specific_association' => Association::find($this->target_id)?->name,
+            'specific_association',
+            'association_members'  => Association::find($this->target_id)?->name,
             'specific_farmer'      => Farmer::find($this->target_id)?->full_name,
             'specific_technician'  => User::find($this->target_id)?->display_name,
             default                => null,
@@ -239,6 +270,27 @@ class NotificationBroadcast extends Model
                 ->where('users.role', 'association')
                 ->whereIn('users.id', DB::table('association_officers')
                     ->where('association_id', $this->target_id)
+                    ->select('user_id'))
+                ->pluck('users.id')
+                ->all(),
+
+            /*
+             | Every verified, active farmer of one association, and nobody
+             | else: not its officers, not the office, not a farmer of
+             | another association. An officer's announcement is for the
+             | membership, and a member whose registration has not been
+             | approved yet is not one.
+             |
+             | Deleted farmer rows are excluded here rather than relied on
+             | elsewhere: a farmer the office removed should not keep
+             | receiving their association's meeting notices.
+             */
+            'association_members' => DB::table('users')
+                ->where('users.status', 'active')
+                ->where('users.role', 'farmer')
+                ->whereIn('users.id', DB::table('farmers')
+                    ->where('association_id', $this->target_id)
+                    ->whereNull('deleted_at')
                     ->select('user_id'))
                 ->pluck('users.id')
                 ->all(),

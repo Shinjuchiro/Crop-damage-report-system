@@ -36,34 +36,41 @@
             'icon'    => 'M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9',
         ],
         [
-            'label'   => 'My Profile',
-            'filipino'=> 'Aking Profile',
-            'route'   => 'farmer.profile',
-            'pattern' => 'farmer.profile',
-            'icon'    => 'M16 19v-1.5a4 4 0 00-4-4H8a4 4 0 00-4 4V19M12 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
-        ],
-        [
-            'label'   => 'Crop Planting',
+            'label'   => 'Planting',
             'filipino'=> 'Pagtatanim',
             'route'   => 'farmer.planting.index',
             'pattern' => 'farmer.planting.*',
             'icon'    => 'M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14zM4 21h16',
         ],
+        /* One entry, not two. This used to be "Report Crop Damage" straight
+           to the blank form, with "My Reports" beside it, and a farmer who
+           wanted to check on a report they had already filed had to know
+           which of the two to pick. It now opens the list of their own
+           reports with their statuses, and the Report Damage button at the
+           top of that page starts a new one, so there is one place for
+           everything to do with damage (revision section 4). */
         [
-            'label'   => 'Report Crop Damage',
-            'filipino'=> 'Mag-ulat ng Pinsala',
-            'route'   => 'farmer.reports.create',
-            'pattern' => 'farmer.reports.create',
-            'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
-        ],
-        [
-            'label'       => 'My Reports',
-            'filipino'    => 'Aking mga Ulat',
+            'label'       => 'Report Crop Damage',
+            'filipino'    => 'Mag-ulat ng Pinsala',
             'route'       => 'farmer.reports.index',
-            'pattern'     => 'farmer.reports.index',
-            'icon'        => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+            'pattern'     => 'farmer.reports.*',
+            'icon'        => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
             'badge'       => $reportsNeedingAttention,
             'badge_label' => 'with a status update',
+        ],
+        /* Revision section 4 lists Membership Application in the farmer's
+           navigation. Placed after the two things they DO here and before
+           Assistance, because it is a record to look up rather than a task:
+           a farmer opens it to answer "which association am I under" or to
+           show somebody when they were approved, not as part of a day's
+           work. No badge, for the same reason - there is never anything on
+           it waiting for them. */
+        [
+            'label'   => 'Membership Application',
+            'filipino'=> 'Aplikasyon sa Pagkasapi',
+            'route'   => 'farmer.application.index',
+            'pattern' => 'farmer.application.index',
+            'icon'    => 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6',
         ],
         [
             'label'       => 'Assistance',
@@ -95,7 +102,7 @@
 @endphp
 
 @foreach ($items as $item)
-    @php $classes = $item['route'] ? (request()->routeIs($item['pattern']) ? $current : $idle) : $disabled; @endphp
+    @php $classes = $item['route'] ? (request()->routeIs(...(array) $item['pattern']) ? $current : $idle) : $disabled; @endphp
 
     <{{ $item['route'] ? 'a' : 'span' }}
         @if ($item['route']) href="{{ route($item['route']) }}" @else title="Coming in a later build step" @endif
@@ -139,7 +146,7 @@
             </svg>
 
             <span class="min-w-0 flex-1 leading-tight">
-                <span class="block truncate">Need Help?</span>
+                <span class="block truncate">Need Help</span>
                 <span class="block truncate text-xs opacity-70">Kailangan ng Tulong?</span>
             </span>
         </span>

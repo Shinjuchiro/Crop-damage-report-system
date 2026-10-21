@@ -1,9 +1,13 @@
 <?php
 
+use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\Association\AnnouncementController as AssociationAnnouncementController;
 use App\Http\Controllers\Association\AssistanceController as AssociationAssistanceController;
+use App\Http\Controllers\Association\CropManagementController as AssociationCropManagementController;
 use App\Http\Controllers\Association\DashboardController as AssociationDashboardController;
 use App\Http\Controllers\Association\MapController as AssociationMapController;
 use App\Http\Controllers\Association\MemberController as AssociationMemberController;
+use App\Http\Controllers\Association\MembershipApplicationController as AssociationMembershipApplicationController;
 use App\Http\Controllers\Association\MonitoringController as AssociationMonitoringController;
 use App\Http\Controllers\Association\NotificationController as AssociationNotificationController;
 use App\Http\Controllers\Association\ReportController as AssociationReportController;
@@ -12,6 +16,7 @@ use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Farmer\ApplicationController as FarmerApplicationController;
 use App\Http\Controllers\Farmer\AssistanceController as FarmerAssistanceController;
 use App\Http\Controllers\Farmer\DamageReportController as FarmerDamageReportController;
 use App\Http\Controllers\Farmer\DashboardController as FarmerDashboardController;
@@ -25,7 +30,9 @@ use App\Http\Controllers\Technician\AssignmentController as TechnicianAssignment
 use App\Http\Controllers\Technician\DashboardController as TechnicianDashboardController;
 use App\Http\Controllers\Technician\InspectionController as TechnicianInspectionController;
 use App\Http\Controllers\Technician\MapController as TechnicianMapController;
-use App\Http\Controllers\Technician\MonitoringController as TechnicianMonitoringController;
+// Technician\MonitoringController's two routes were retired in Oct 2026
+// (revision section 4) - see the note in the technician group below. The
+// import goes with them so a stale reference cannot be revived by accident.
 use App\Http\Controllers\Technician\NotificationController as TechnicianNotificationController;
 use App\Http\Controllers\Technician\ProfileController as TechnicianProfileController;
 use App\Http\Controllers\Technician\SettingsController as TechnicianSettingsController;
@@ -35,6 +42,7 @@ use App\Http\Controllers\MAO\AssistanceAllocationController;
 use App\Http\Controllers\MAO\AssistanceController;
 use App\Http\Controllers\MAO\AssociationController;
 use App\Http\Controllers\MAO\CropController;
+use App\Http\Controllers\MAO\CropManagementController;
 use App\Http\Controllers\MAO\CropPlantingMonitorController;
 use App\Http\Controllers\MAO\DamageReportMonitorController;
 use App\Http\Controllers\MAO\DashboardController as MaoDashboardController;
@@ -117,12 +125,83 @@ Route::post('/logout', [LoginController::class, 'logout'])
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {
-    Route::get('/account/pending', fn () => view('auth.pending'))->name('account.pending');
-    Route::get('/account/blocked', fn () => view('auth.blocked'))->name('account.blocked');
+    /* The holding screen is a controller now rather than a closure
+       returning a view (revision step 6). It used to tell everybody their
+       registration was awaiting the Municipal Agriculture Office, which was
+       true when there was one queue and is wrong in three of the four
+       stages an application now passes through - and worse than wrong in
+       the fourth, where the farmer is the one being waited on. */
+    Route::get('/account/pending', [FarmerApplicationController::class, 'pending'])
+        ->name('account.pending');
+    /* A controller rather than a closure returning the view, for the same
+       reason account.pending became one: the page has to say something
+       specific to the person reading it. A rejected farmer can sign in and
+       this is the only screen they ever reach, so it is the only place the
+       office's rejection reason can actually be read - the notification
+       carrying it sits behind the 'active' middleware they cannot pass. */
+    Route::get('/account/blocked', [FarmerApplicationController::class, 'blocked'])
+        ->name('account.blocked');
+
+    /* Correcting a returned application. Deliberately NOT behind 'active':
+       these two exist to be reached by a farmer whose account is still
+       pending, which is every farmer who has one of these to correct. The
+       controller checks that the signed-in user is a farmer, that the
+       application is their own, and that it is actually returned - see
+       Farmer\ApplicationController::returnedFarmer(). */
+    Route::get('/account/application/correct', [FarmerApplicationController::class, 'edit'])
+        ->name('farmer.application.correct');
+    Route::put('/account/application', [FarmerApplicationController::class, 'update'])
+        ->name('farmer.application.resubmit');
+
+    /* ---------- Uploaded files ----------
+       Every attachment in the system is read through here and nowhere else
+       (revision section 3.4). They used to be served straight off
+       public/storage by the web server, with no session and no role check,
+       which meant a barangay certificate was readable by anybody holding
+       the URL whether they were signed in or not.
+
+       In the plain 'auth' group on purpose, not behind 'active' or a role:
+       a farmer correcting a returned application is still 'pending', and
+       that screen shows them the certificate they already uploaded.
+       AttachmentController authorises every request per FILE, asking the
+       same question the page around it asks, so a role gate out here would
+       only ever be a second, weaker copy of it.
+
+       GET only. Nothing uploads through these routes. */
+    Route::get('/files/farmers/{farmer}/certificate', [AttachmentController::class, 'barangayCertificate'])
+        ->name('attachments.certificate');
+    Route::get('/files/damage-photos/{photo}', [AttachmentController::class, 'damagePhoto'])
+        ->name('attachments.damage-photo');
+    Route::get('/files/inspection-photos/{photo}', [AttachmentController::class, 'inspectionPhoto'])
+        ->name('attachments.inspection-photo');
+    Route::get('/files/planting-photos/{photo}', [AttachmentController::class, 'plantingPhoto'])
+        ->name('attachments.planting-photo');
+    Route::get('/files/allocation-documents/{document}', [AttachmentController::class, 'allocationDocument'])
+        ->name('attachments.allocation-document');
+    Route::get('/files/distribution-photos/{photo}', [AttachmentController::class, 'distributionPhoto'])
+        ->name('attachments.distribution-photo');
 
     // Help page. The "Need help?" button in the top bar and "Contact Admin"
     // on the login screen both point here, so neither is a dead end.
     Route::get('/help', fn () => view('help'))->name('help');
+
+    /* ---------- Today's weather over Tanza ----------
+       What the dashboard card asks, so the browser never sees the
+       OpenWeatherMap key: it asks this application, this application asks
+       OpenWeatherMap. Answers with the reading or 204 No Content when there
+       is nothing to show (no key, no network, service down), which is what
+       keeps the card hidden rather than empty.
+
+       Behind auth with everything else: it is not a public endpoint, and
+       the service caches for ten minutes, so a farmer refreshing their
+       dashboard costs nothing. */
+    Route::get('/weather', function (\App\Services\Weather $weather) {
+        $reading = $weather->today();
+
+        return $reading
+            ? response()->json($reading)
+            : response()->noContent();
+    })->name('weather');
 });
 
 /*
@@ -146,6 +225,19 @@ Route::middleware(['auth', 'active', 'role:farmer'])
             ->name('profile.photo.update');
         Route::delete('/profile/photo', [FarmerProfileController::class, 'removePhoto'])
             ->name('profile.photo.remove');
+
+        /* ---------- My Membership Application ----------
+           Revision section 4 lists this in the farmer's navigation. Read
+           only: which association they belong to, who verified them, who
+           approved it, and the application's history.
+
+           Distinct from the two screens already in the 'auth' group above.
+           Those are for a farmer who CANNOT use the system yet - pending,
+           returned for correction, or rejected - and this one is behind
+           'active', so only an approved farmer ever opens it. The three do
+           not overlap. */
+        Route::get('/application', [FarmerApplicationController::class, 'status'])
+            ->name('application.index');
 
         /* ---------- Crop planting activity ---------- */
         Route::get('/planting', [FarmerPlantingController::class, 'index'])->name('planting.index');
@@ -241,15 +333,35 @@ Route::middleware(['auth', 'active', 'role:technician'])
         Route::put('/reports/{report}/inspect', [TechnicianInspectionController::class, 'update'])
             ->name('inspection.update');
 
-        /* ---------- Barangay-wide monitoring (read only) ----------
-           Wider than "my assignments": every planting record and damage
-           report filed in the barangays this technician has been sent to,
-           not just the ones on their own desk right now. */
-        Route::get('/planting', [TechnicianMonitoringController::class, 'planting'])
-            ->name('planting.index');
+        /* ---------- RETIRED: barangay-wide monitoring (Oct 2026) ----------
 
-        Route::get('/damage-reports', [TechnicianMonitoringController::class, 'damageReports'])
-            ->name('damage.index');
+           Two routes used to live here, 'planting.index' and 'damage.index',
+           serving Technician\MonitoringController: every planting record and
+           damage report filed in any barangay this technician had ever been
+           sent to, whoever was handling each case. They were removed from the
+           technician sidebar in the step-1 nav rewrite and the pages stayed
+           reachable by URL, which is not a restriction - revision section 9
+           is explicit that hiding a control is not an access rule.
+
+           Revision section 4 settles it: "Do not give technicians access to
+           unrelated planting-report management functions." A technician's job
+           is the reports assigned to them, which Assigned Reports, Validation
+           and Inspection History already cover.
+
+           This also answers the data-minimisation question raised by the
+           privacy sweep (BUILD-STATUS 58.9): those pages showed one
+           technician the planting records and damage reports of every farmer
+           in their barangays, including production costs and farmgate prices,
+           for cases that were never theirs. The spec's answer is that they
+           should not see them at all.
+
+           Technician\MonitoringController and the two views under
+           resources/views/technician/{planting,damage}/ are orphans now and
+           can be git rm'd. Left in place rather than deleted here, as with
+           the other retired screens, so removing a file is a separate and
+           reversible decision. 'technician.damage.index' also came out of
+           InspectionController::backToList()'s map, which passes every name
+           to route() and would have thrown on a retired one. */
 
         /* ---------- Personal working map ----------
            Only this technician's own assigned reports, not the whole
@@ -299,25 +411,70 @@ Route::middleware(['auth', 'active', 'role:association'])
         Route::get('/members', [AssociationMemberController::class, 'index'])->name('members.index');
         Route::get('/members/{member}', [AssociationMemberController::class, 'show'])->name('members.show');
 
+        /* ---------- Membership Applications (revision step 6) ----------
+           The one place in this role that is not read-only. The association
+           reads a new registration before the office does, because the
+           association is the body that knows whether the applicant is one
+           of its members.
+
+           Three PUTs and no POST or DELETE: each one moves an existing
+           application to a different stage, which is an update. The
+           association cannot approve or reject - those stay with the office
+           (see Association\MembershipApplicationController). */
+        Route::get('/membership-applications', [AssociationMembershipApplicationController::class, 'index'])
+            ->name('membership-applications.index');
+        Route::put('/membership-applications/{farmer}/start-review', [AssociationMembershipApplicationController::class, 'startReview'])
+            ->name('membership-applications.start-review');
+        Route::put('/membership-applications/{farmer}/forward', [AssociationMembershipApplicationController::class, 'forward'])
+            ->name('membership-applications.forward');
+        Route::put('/membership-applications/{farmer}/return', [AssociationMembershipApplicationController::class, 'returnForCorrection'])
+            ->name('membership-applications.return');
+
+        /* ---------- Crop Management Report ----------
+           Same hub as the office has, with two cards: this role has no
+           validation screen of its own (revision section 2). */
+        Route::get('/crop-management', [AssociationCropManagementController::class, 'index'])
+            ->name('crop-management.index');
+
         /* ---------- Monitoring ---------- */
         Route::get('/planting', [AssociationMonitoringController::class, 'planting'])
             ->name('planting.index');
         Route::get('/damage-reports', [AssociationMonitoringController::class, 'damageReports'])
             ->name('reports.index');
 
-        /* ---------- Assistance ----------
-           The missing link in the chain: MAO allocates to the association
-           here, and the association records giving it to a member. Until
-           these routes existed, assistance_distributions could never fill up
-           and a farmer's Assistance page was always empty. */
+        /* ---------- Assistance (read-only since Oct 2026) ----------
+           Two GETs and nothing else. The association used to record each
+           hand-out here, and those two routes are gone: the Municipal
+           Agriculture Office hands assistance to the farmer and records it
+           (mao.assistance-allocations.distribute). The association monitors,
+           which is the only thing section 61 ever gave it; the Distribute
+           screen was added later because without it nothing in the system
+           could write an assistance_distributions row at all.
+
+           The two removed names were association.assistance.distribute and
+           association.assistance.store. Nothing links to them any more. */
         Route::get('/assistance', [AssociationAssistanceController::class, 'index'])
             ->name('assistance.index');
         Route::get('/assistance/{allocation}', [AssociationAssistanceController::class, 'show'])
             ->name('assistance.show');
-        Route::get('/assistance/{allocation}/distribute', [AssociationAssistanceController::class, 'distribute'])
-            ->name('assistance.distribute');
-        Route::post('/assistance/{allocation}/distribute', [AssociationAssistanceController::class, 'store'])
-            ->name('assistance.store');
+
+        /* ---------- Announcements ----------
+           What this association tells its OWN members: a meeting, a
+           reminder, a deadline. Written here, delivered to the members'
+           bells, and invisible to the office and to every other
+           association (see Association\AnnouncementController).
+
+           Separate from Notifications below, which is this officer's own
+           inbox - what has been sent TO them. The bell in the top bar is
+           the only door to that one, for every role. */
+        Route::get('/announcements', [AssociationAnnouncementController::class, 'index'])
+            ->name('announcements.index');
+        Route::post('/announcements', [AssociationAnnouncementController::class, 'store'])
+            ->name('announcements.store');
+        Route::put('/announcements/{announcement}/archive', [AssociationAnnouncementController::class, 'archive'])
+            ->name('announcements.archive');
+        Route::put('/announcements/{announcement}/restore', [AssociationAnnouncementController::class, 'restore'])
+            ->name('announcements.restore');
 
         /* ---------- Notifications ---------- */
         Route::get('/notifications', [AssociationNotificationController::class, 'index'])
@@ -375,12 +532,16 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('membership-applications.approve');
         Route::put('/membership-applications/{farmer}/reject', [MembershipApplicationController::class, 'reject'])
             ->name('membership-applications.reject');
+        /* Returning is not rejecting: the account stays pending, nothing the
+           farmer entered is lost, and the corrected application goes back to
+           the farmers' association rather than straight back here (revision
+           step 6). */
+        Route::put('/membership-applications/{farmer}/return', [MembershipApplicationController::class, 'returnForCorrection'])
+            ->name('membership-applications.return');
         Route::put('/membership-applications/{farmer}/archive', [MembershipApplicationController::class, 'archive'])
             ->name('membership-applications.archive');
         Route::put('/membership-applications/{farmer}/restore', [MembershipApplicationController::class, 'restore'])
             ->name('membership-applications.restore');
-        Route::delete('/membership-applications/{farmer}', [MembershipApplicationController::class, 'destroy'])
-            ->name('membership-applications.destroy');
 
         /* ---------- User management ---------- */
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
@@ -396,12 +557,18 @@ Route::middleware(['auth', 'active', 'role:mao'])
         Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
         Route::put('/users/{user}/status', [UserManagementController::class, 'updateStatus'])
             ->name('users.status');
-        Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])
-            ->name('users.destroy');
 
         /* ---------- Farmer directory ---------- */
         Route::get('/farmers', [FarmerDirectoryController::class, 'index'])->name('farmers.index');
         Route::get('/farmers/{farmer}', [FarmerDirectoryController::class, 'show'])->name('farmers.show');
+
+        /* ---------- Crop Management Report ----------
+           The hub the sidebar now points at. Crop Planting Monitoring, Crop
+           Damage Monitoring and Validation Monitoring below are unchanged;
+           this page is simply the one door to all three, so the menu lists
+           jobs rather than tables (revision sections 1 and 5). */
+        Route::get('/crop-management', [CropManagementController::class, 'index'])
+            ->name('crop-management.index');
 
         /* ---------- Crop planting monitoring ---------- */
         Route::get('/crop-planting', [CropPlantingMonitorController::class, 'index'])
@@ -415,8 +582,6 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('crop-planting.archive');
         Route::put('/crop-planting/{plantingRecord}/restore', [CropPlantingMonitorController::class, 'restore'])
             ->name('crop-planting.restore');
-        Route::delete('/crop-planting/{plantingRecord}', [CropPlantingMonitorController::class, 'destroy'])
-            ->name('crop-planting.destroy');
 
         /* ---------- Crop damage monitoring ---------- */
         Route::get('/damage-reports', [DamageReportMonitorController::class, 'index'])
@@ -431,8 +596,6 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('damage-reports.archive');
         Route::put('/damage-reports/{damageReport}/restore', [DamageReportMonitorController::class, 'restore'])
             ->name('damage-reports.restore');
-        Route::delete('/damage-reports/{damageReport}', [DamageReportMonitorController::class, 'destroy'])
-            ->name('damage-reports.destroy');
 
         /* ---------- Validation monitoring ---------- */
         Route::get('/validations', [ValidationMonitorController::class, 'index'])
@@ -461,18 +624,39 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('assistance-allocations.distribution-tracking');
         Route::get('/assistance-allocations/export', [AssistanceAllocationController::class, 'exportOverview'])
             ->name('assistance-allocations.export');
-        Route::get('/assistance-allocations/eligible-beneficiaries', [AssistanceAllocationController::class, 'eligibleBeneficiaries'])
-            ->name('assistance-allocations.eligible-beneficiaries');
+        /* assistance-allocations.eligible-beneficiaries was removed in Oct
+           2026. It served the allocation modal's checklist over JSON once an
+           association had been chosen. The checklist is not scoped to an
+           association any more, so the whole eligible list renders with the
+           page and there is nothing to fetch. */
 
         // Every distribution a farmer marked "not received", office-wide -
         // see AssistanceAllocationController::disputes().
         Route::get('/assistance-allocations/disputes', [AssistanceAllocationController::class, 'disputes'])
             ->name('assistance-allocations.disputes');
 
+        /* The office's assistance decision on one case: designated, or not
+           (revision section 11.1). Keyed on the damage report, because that
+           is the case being decided, which is also why it is declared above
+           /{allocation} - "assistance-decisions" must never be read as an
+           allocation id. */
+        Route::put('/assistance-decisions/{damageReport}', [AssistanceAllocationController::class, 'decide'])
+            ->name('assistance-decisions.store');
+
         Route::get('/assistance-allocations/{allocation}', [AssistanceAllocationController::class, 'show'])
             ->name('assistance-allocations.show');
         Route::put('/assistance-allocations/{allocation}/status', [AssistanceAllocationController::class, 'updateStatus'])
             ->name('assistance-allocations.status');
+
+        /* Handing assistance to one designated farmer (Oct 2026). This was
+           the association's job; the office does it now. Declared after
+           /{allocation} like the other parameterised routes in this group,
+           and both carry a literal segment after the id, so neither can be
+           mistaken for the show route. */
+        Route::get('/assistance-allocations/{allocation}/distribute', [AssistanceAllocationController::class, 'distribute'])
+            ->name('assistance-allocations.distribute');
+        Route::post('/assistance-allocations/{allocation}/distribute', [AssistanceAllocationController::class, 'storeDistribution'])
+            ->name('assistance-allocations.distribute.store');
 
         /* ---------- Notifications and alerts ---------- */
         Route::get('/notifications', [NotificationBroadcastController::class, 'index'])
@@ -485,8 +669,6 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('notifications.archive');
         Route::put('/notifications/{notification}/restore', [NotificationBroadcastController::class, 'restore'])
             ->name('notifications.restore');
-        Route::delete('/notifications/{notification}', [NotificationBroadcastController::class, 'destroy'])
-            ->name('notifications.destroy');
 
         /* ---------- Notification inbox (the bell) ----------
            Separate from "Notifications and alerts" above, which is where MAO
@@ -534,24 +716,24 @@ Route::middleware(['auth', 'active', 'role:mao'])
         Route::put('/settings/password', [SettingsController::class, 'updatePassword'])
             ->name('settings.password');
 
-        Route::resource('associations', AssociationController::class)->except(['show']);
+        Route::resource('associations', AssociationController::class)->except(['show', 'destroy']);
         Route::put('/associations/{association}/archive', [AssociationController::class, 'archive'])
             ->name('associations.archive');
         Route::put('/associations/{association}/restore', [AssociationController::class, 'restore'])
             ->name('associations.restore');
 
-        Route::resource('assistance', AssistanceController::class)->except(['show'])
+        Route::resource('assistance', AssistanceController::class)->except(['show', 'destroy'])
             ->parameters(['assistance' => 'assistance']);
         Route::put('/assistance/{assistance}/archive', [AssistanceController::class, 'archive'])
             ->name('assistance.archive');
         Route::put('/assistance/{assistance}/restore', [AssistanceController::class, 'restore'])
             ->name('assistance.restore');
 
-        Route::resource('crops', CropController::class)->except(['show']);
+        Route::resource('crops', CropController::class)->except(['show', 'destroy']);
         Route::put('/crops/{crop}/archive', [CropController::class, 'archive'])->name('crops.archive');
         Route::put('/crops/{crop}/restore', [CropController::class, 'restore'])->name('crops.restore');
 
-        Route::resource('disasters', DisasterController::class)->except(['show']);
+        Route::resource('disasters', DisasterController::class)->except(['show', 'destroy']);
         Route::put('/disasters/{disaster}/archive', [DisasterController::class, 'archive'])->name('disasters.archive');
         Route::put('/disasters/{disaster}/restore', [DisasterController::class, 'restore'])->name('disasters.restore');
 

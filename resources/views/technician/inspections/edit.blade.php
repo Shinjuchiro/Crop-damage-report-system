@@ -315,7 +315,11 @@
                 <x-ui.card title="2. Assess Damage Severity"
                            description="Piliin ang damage level batay sa aktwal na kondisyon ng pananim.">
 
-                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {{-- Three across from tablet up, stacked on a phone. It was
+                         two-then-four while there were four levels; with three,
+                         a four-column grid left a gap at the end of the row and
+                         a two-column one broke 2 + 1. --}}
+                    <div class="grid gap-3 sm:grid-cols-3">
                         @foreach ($severities as $key => $band)
                             <label class="relative flex cursor-pointer flex-col gap-1 rounded-xl border-2 p-4 transition"
                                    :class="severity === '{{ $key }}'
@@ -333,7 +337,7 @@
 
                                 <span class="flex items-center gap-2">
                                     {{-- The colour dot uses the same scale as the
-                                         map legend, so Partial looks the same
+                                         map legend, so a severity looks the same
                                          everywhere in the system. --}}
                                     <span class="h-3.5 w-3.5 shrink-0 rounded-full"
                                           style="background: {{ $band['color'] }}"></span>
@@ -348,8 +352,7 @@
                                     @switch($key)
                                         @case('slight') Minor damage. @break
                                         @case('moderate') Noticeable damage to part of the crop. @break
-                                        @case('partial') Significant damage to a substantial portion. @break
-                                        @case('total') The crop is completely or almost completely destroyed. @break
+                                        @case('total') Most or all of the crop is destroyed. @break
                                     @endswitch
                                 </span>
                             </label>
@@ -845,7 +848,11 @@
                 }
 
                 if (step === 2) {
-                    if (! this.severity) {
+                    // Against bands, not against the bare value: a severity
+                    // that is not one of the three (nothing chosen, or an
+                    // old value carried in by old()) is not a valid answer
+                    // to this step, and bandMatches() cannot tell you so.
+                    if (! this.bands[this.severity]) {
                         return 'Please choose the damage severity.';
                     }
                     if (! this.bandMatches()) {
@@ -879,33 +886,42 @@
              | Severity and percentage have to agree (section 44)
              ============================================================== */
 
-            bands: {
-                slight:   [1, 25],
-                moderate: [26, 50],
-                partial:  [51, 99],
-                total:    [100, 100],
-            },
+            /* Both of these come straight from Validation::SEVERITY_SCALE,
+               which is also what the radio cards above are drawn from and
+               what the controller validates against. They used to be
+               written out here by hand, so the scale existed in three
+               places; when the client cut the four levels to three, two of
+               those copies would have gone on quietly disagreeing with the
+               form the technician was looking at. */
+            bands: @js(\App\Models\Validation::severityBands()),
 
-            labels: {
-                slight: 'Slight', moderate: 'Moderate',
-                partial: 'Partial', total: 'Total',
-            },
+            labels: @js(\App\Models\Validation::severityLabels()),
 
+            /* Every one of these reads this.bands[this.severity] and every
+               one of them checks it first. A severity that is not in the
+               scale would otherwise destructure undefined and take the
+               whole Alpine component down, blanking the form mid-
+               inspection. It cannot happen through these radio buttons,
+               but old('severity') can carry anything a request put there. */
             bandMatches() {
-                if (! this.severity) {
+                const band = this.bands[this.severity];
+
+                if (! band) {
                     return true;      // nothing chosen yet, nothing to complain about
                 }
 
-                const [min, max] = this.bands[this.severity];
+                const [min, max] = band;
                 const value = parseInt(this.percent);
 
                 return value >= min && value <= max;
             },
 
             bandHint() {
-                if (! this.severity) return '';
+                const band = this.bands[this.severity];
 
-                const [min, max] = this.bands[this.severity];
+                if (! band) return '';
+
+                const [min, max] = band;
 
                 return min === max
                     ? this.labels[this.severity] + ' means exactly ' + min + '%.'
@@ -913,9 +929,11 @@
             },
 
             bandRange() {
-                if (! this.severity) return '';
+                const band = this.bands[this.severity];
 
-                const [min, max] = this.bands[this.severity];
+                if (! band) return '';
+
+                const [min, max] = band;
                 return min === max ? min + '%' : min + ' - ' + max + '%';
             },
 

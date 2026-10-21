@@ -3,13 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * A supporting file attached while allocating - an MAO endorsement memo, a
- * beneficiary list, or similar. Stored on the "public" disk like every other
- * upload in this system, so it is served straight from /storage without a
- * dedicated download route.
+ * beneficiary list, or similar.
+ *
+ * MOVED OFF THE PUBLIC DISK (Oct 2026, revision section 3.4)
+ *
+ * This docblock used to say the file was "stored on the public disk like
+ * every other upload in this system, so it is served straight from /storage
+ * without a dedicated download route", and it was accurate. That is exactly
+ * what the privacy sweep came to fix: no login was needed to read any of it.
+ * There is a download route now, it is office-only, and the file lives on
+ * the private disk. See App\Http\Controllers\AttachmentController.
  */
 class AssistanceAllocationDocument extends Model
 {
@@ -36,9 +42,14 @@ class AssistanceAllocationDocument extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
+    /**
+     * Unchanged on the outside: both views still read $document->url. What
+     * changed is where it points. It was a direct /storage path the web
+     * server served to anyone; it is now a route only the office can follow.
+     */
     public function getUrlAttribute(): string
     {
-        return Storage::disk('public')->url($this->file_path);
+        return route('attachments.allocation-document', $this);
     }
 
     /** A readable size, e.g. "2.4 MB", instead of a raw byte count. */

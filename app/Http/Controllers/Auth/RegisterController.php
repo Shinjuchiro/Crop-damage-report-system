@@ -76,8 +76,13 @@ class RegisterController extends Controller
         // file writes are not rolled back by the database anyway)
         $certificatePath = null;
         if ($request->hasFile('barangay_certificate')) {
+            /* 'local' (storage/app/private), not 'public'. A barangay
+               certificate carries this farmer's full name and home address,
+               and on the public disk it was served by the web server to
+               anybody holding the URL, signed in or not. It is read through
+               AttachmentController now (revision section 3.4). */
             $certificatePath = $request->file('barangay_certificate')
-                ->store('barangay-certificates', 'public');
+                ->store('barangay-certificates', 'local');
         }
 
         $farmer = DB::transaction(function () use ($data, $certificatePath) {
@@ -111,8 +116,23 @@ class RegisterController extends Controller
                 'barangay_certificate_path' => $certificatePath,
                 'address'                   => $data['address'],
                 'farm_size_hectares'        => $data['farm_size_hectares'] ?? null,
+                /* activity_status starts Active and last_activity_date is
+                   deliberately NOT set (revision section 15, Oct 2026).
+
+                   It used to be set to the registration date, because the
+                   column was NOT NULL and something had to go in it. That
+                   made every brand new farmer look as though they had filed
+                   a Crop Planted Report on the day they signed up, and the
+                   column is labelled "Last Activity" on five screens.
+
+                   It is nullable now (migration 2024_01_24_000001) and null
+                   means exactly "has never filed a planting report". The
+                   inactivity clock still starts today, because
+                   Farmer::getInactivityMeasuredFromAttribute() falls back to
+                   the registration date, which is what section 15 asks for -
+                   so nothing is lost by leaving it empty, and the one thing
+                   the column claims to record stays true. */
                 'activity_status'           => 'active',
-                'last_activity_date'        => now()->toDateString(),
             ]);
 
             foreach ($data['crops'] as $crop) {
@@ -134,41 +154,58 @@ class RegisterController extends Controller
             return $farmer;
         });
 
-        $this->notifyMaoOfNewRegistration($farmer);
+        $this->notifyAssociationOfNewApplication($farmer);
 
         return redirect()->route('login')->with('status',
-            'Registration submitted successfully. Your account is pending verification by the Municipal Agriculture Office.'
+            'Registration submitted successfully. Your application has been sent to your '
+            . 'Farmers\' Association for review, and will then be verified by the Municipal '
+            . 'Agriculture Office.'
         );
     }
 
     /**
-     * Proposal section 66 lists "New registration" as one of the things MAO
-     * should be notified about. This was previously missing entirely - a
-     * farmer could submit a registration and it would just sit in the
-     * Membership Applications queue with nobody told it was there.
+     * Tell the farmers' association, not the office (revision step 6).
      *
-     * In-app only ('normal' priority, see NotificationBroadcast::PRIORITIES):
-     * a new registration is routine, not urgent, and SMS is reserved for
-     * urgent/critical matters (section 68). Runs after the transaction above
-     * has already committed, and never throws - a notification failure must
-     * never be the reason a farmer's registration appears to fail.
+     * This used to notify all MAO, because the application used to go
+     * straight into the office's queue. The association reads it first now,
+     * so the association is who needs telling: the office cannot act on this
+     * application until it has been forwarded, and an inbox full of items
+     * nobody there can act on is an inbox people stop opening.
+     *
+     * The office is told when it is forwarded instead, by
+     * Association\MembershipApplicationController::forward().
+     *
+     * 'specific_association' reaches that association's officer accounts
+     * only, never its member farmers (see
+     * NotificationBroadcast::recipientIds()): the other members have no
+     * business being told by name who has applied to join them.
+     *
+     * In-app only ('normal' priority): a new application is routine, and
+     * section 68 reserves SMS for urgent and critical matters. Runs after
+     * the transaction has committed, and never throws, because a
+     * notification failure must never be the reason a farmer's registration
+     * appears to fail.
      */
-    private function notifyMaoOfNewRegistration(Farmer $farmer): void
+    private function notifyAssociationOfNewApplication(Farmer $farmer): void
     {
         try {
             $alert = NotificationBroadcast::create([
-                'title'       => 'New Farmer Registration',
-                'message'     => $farmer->full_name . ' has submitted a farmer registration and is waiting for review.',
+                'title'       => 'New Membership Application',
+                'message'     => $farmer->full_name . ' has applied to join your association and is '
+                    . 'waiting for your review. Once you have confirmed they are one of your members, '
+                    . 'forward the application to the Municipal Agriculture Office.',
                 'category'    => 'system',
                 'priority'    => 'normal',
-                'target_type' => 'all_mao',
+                'target_type' => 'specific_association',
+                'target_id'   => $farmer->association_id,
                 'status'      => 'draft',
                 'created_by'  => $farmer->user_id,
             ]);
 
             $alert->dispatchToRecipients();
         } catch (\Throwable $e) {
-            Log::warning('Could not notify MAO of new registration for farmer ' . $farmer->id . ': ' . $e->getMessage());
+            Log::warning('Could not notify association ' . $farmer->association_id
+                . ' of new application for farmer ' . $farmer->id . ': ' . $e->getMessage());
         }
     }
 }

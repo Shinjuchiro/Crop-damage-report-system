@@ -1,11 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Reports')
-@section('heading', 'Reports')
-@section('heading-fil', 'Mga Ulat')
+@section('title', 'Reports & Analytics')
+@section('heading', 'Reports & Analytics')
+@section('heading-fil', 'Mga Ulat at Pagsusuri')
 @section('subheading', 'Your own inspection performance. Nothing here is shared or downloaded - it is just for you.')
 
 @section('content')
+
+@include('technician.partials.analytics-tabs')
 
 {{--
     This is NOT the MAO's Monthly Reports module (that one lives under

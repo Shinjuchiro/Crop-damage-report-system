@@ -40,4 +40,13 @@ class ValidationPhoto extends Model
     {
         return self::SHOT_TYPES[$this->shot_type] ?? self::SHOT_TYPES['other'];
     }
+
+    /**
+     * An authorised URL for this photo (revision section 3.4, Oct 2026).
+     * See AttachmentController::inspectionPhoto() for who may follow it.
+     */
+    public function getUrlAttribute(): string
+    {
+        return route('attachments.inspection-photo', $this);
+    }
 }

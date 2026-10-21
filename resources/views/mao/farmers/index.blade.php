@@ -46,13 +46,14 @@
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM17 11h5" />
     </div>
 
-    {{-- List + detail. Side by side from lg up; on a phone only one half
-         shows at a time - the list, or (once a row's View is followed)
-         the detail panel full-screen with its own Back link. --}}
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
             <x-ui.card title="Farmers Directory" description="Every approved farmer in the system and everything attached to them.">
                 <x-slot:actions>
                     <x-ui.button :href="route('mao.associations.index')" size="sm">
@@ -83,21 +84,15 @@
 
                 {{-- Table --}}
                 {{-- ---------- PHONE: one card per farmer ----------
-                     Only 3 of 7 columns fit on a phone; Farm Size, Location,
-                     Status and the View button were all off-screen. --}}
+                     The same four facts the table carries, with the card
+                     itself as the tap that opens the profile. --}}
                 <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                     @forelse ($farmers as $farmer)
                         <li>
                             <x-ui.record-card :href="$viewUrl($farmer->id)"
                                               :eyebrow="'FARM-' . str_pad($farmer->id, 3, '0', STR_PAD_LEFT)"
                                               :title="$farmer->full_name"
-                                              :subtitle="$farmer->user?->username ?? 'No username'"
-                                              :status="$farmer->activity_status"
-                                              :fields="[
-                                                  'Association' => $farmer->association?->name ?? '-',
-                                                  'Barangay'    => $farmer->barangay?->name ?? '-',
-                                                  'Farm size'   => $farmer->farm_size_hectares ? $farmer->farm_size_hectares . ' ha' : '-',
-                                              ]" />
+                                              :status="$farmer->activity_status" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -110,11 +105,25 @@
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b-2 border-border text-sm font-bold text-foreground">
+                                {{-- FOUR COLUMNS (revision section 3.1)
+
+                                     Association, Location and a Records
+                                     count used to sit between Name and
+                                     Status. All three are on the profile
+                                     behind View, and this is the list where
+                                     trimming matters most: it is the one
+                                     screen in the system that puts every
+                                     registered farmer's association and
+                                     barangay on display at once, which is
+                                     more of the membership's details on one
+                                     page than any single task needs
+                                     (section 3.4).
+
+                                     It is still one row per farmer, not one
+                                     per record - that part of section 7 has
+                                     not changed. --}}
                                 <th class="px-3 py-3">Farmer ID</th>
                                 <th class="px-3 py-3">Name</th>
-                                <th class="px-3 py-3">Association</th>
-                                <th class="px-3 py-3">Farm Size</th>
-                                <th class="px-3 py-3">Location</th>
                                 <th class="px-3 py-3 text-center">Status</th>
                                 <th class="px-3 py-3 text-center">Action</th>
                             </tr>
@@ -125,15 +134,14 @@
                                     <td class="px-3 py-4 text-foreground">
                                         FARM-{{ str_pad($farmer->id, 3, '0', STR_PAD_LEFT) }}
                                     </td>
+                                    {{-- The name alone. The username used to
+                                         sit under it, which put every
+                                         farmer's login on one screen for no
+                                         task that needs it. --}}
                                     <td class="px-3 py-4">
                                         <p class="font-bold text-foreground">{{ $farmer->full_name }}</p>
-                                        <p class="text-xs text-muted-foreground">{{ $farmer->user?->username }}</p>
                                     </td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $farmer->association?->name ?? '-' }}</td>
-                                    <td class="px-3 py-4 text-muted-foreground">
-                                        {{ $farmer->farm_size_hectares ? $farmer->farm_size_hectares . ' ha' : '-' }}
-                                    </td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $farmer->barangay?->name ?? '-' }}</td>
+
                                     <td class="px-3 py-4 text-center">
                                         <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $farmer->activity_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' }}">
                                             {{ $farmer->activity_status === 'active' ? 'Active' : 'In-Active' }}
@@ -145,7 +153,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-3 py-14 text-center">
+                                    <td colspan="4" class="px-3 py-14 text-center">
                                         <p class="text-sm font-medium text-muted-foreground">No farmers match these filters</p>
                                         <p class="mt-1 text-xs text-muted-foreground">
                                             Approved farmer registrations appear here.
@@ -184,7 +192,7 @@
                         </span>
                     </div>
 
-                    <x-ui.open-full-page :href="route('mao.farmers.show', $farmer)" />
+                    <x-ui.open-full-page label="View full profile" :href="route('mao.farmers.show', $farmer)" />
                     @if ($accountStatus === 'pending')
                         <a href="{{ route('mao.membership-applications.show', $farmer) }}"
                            class="mt-3 inline-block rounded-lg bg-green-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-900">
@@ -219,7 +227,7 @@
                                     <dt class="shrink-0 text-muted-foreground">Barangay Certificate</dt>
                                     <dd class="min-w-0 text-right font-bold text-foreground">
                                         @if ($farmer->barangay_certificate_path)
-                                            <a href="{{ asset('storage/' . $farmer->barangay_certificate_path) }}" target="_blank" class="text-green-800 hover:underline">View</a>
+                                            <a href="{{ $farmer->barangay_certificate_url }}" target="_blank" class="text-green-800 hover:underline">View</a>
                                         @else
                                             Not provided
                                         @endif
@@ -291,9 +299,13 @@
                         @forelse ($farmer->assistanceDistributions->sortByDesc('distributed_at') as $distribution)
                             <div class="mb-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
                                 <p class="font-medium text-foreground">{{ $distribution->allocation?->display_name ?? 'Assistance' }}</p>
+                                {{-- The quantity led this line. No figure is
+                                     recorded any more (Oct 2026, client
+                                     decision); the allocation reference
+                                     identifies the batch instead. --}}
                                 <p class="text-muted-foreground">
-                                    {{ $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-' }}
-                                    &middot; {{ $distribution->distributed_at?->format('M d, Y') ?? 'Not yet distributed' }}
+                                    AA-{{ str_pad((string) $distribution->assistance_allocation_id, 3, '0', STR_PAD_LEFT) }}
+                                    &middot; {{ $distribution->distributed_at?->format('M d, Y') ?? 'Not yet handed over' }}
                                     &middot; {{ ucwords(str_replace('_', ' ', $distribution->receipt_status)) }}
                                 </p>
                             </div>

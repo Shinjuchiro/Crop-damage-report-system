@@ -9,22 +9,26 @@
      | the reference design, and it is most of what makes a web page read as
      | an app on a phone.
      |
-     | FOUR TABS AND A MORE SHEET
+     | TABS AND A MORE SHEET
      |
-     | The four tabs are each role's own most-used screens, so a farmer has
+     | The tabs are each role's own most-used screens, so a farmer has
      | Report one tap away and a technician has Validation. Everything else
      | the role can reach lives in the More sheet, which is this bar's
      | equivalent of the sidebar: the same destinations, as large tap
      | targets instead of a dense list.
      |
-     | The sheet's contents follow the AniAgapay screens role for role, with
-     | two deliberate departures, both because the page does not exist:
-     | the association has no Announcements screen of its own (the office
-     | sends them; the association reads them under Notifications), and no
-     | role has a screen behind a row that would only lead nowhere.
+     | Four tabs and a More button for all four roles. The farmer used to be
+     | the exception, with five tabs and no More sheet, because five
+     | destinations fit across the bar and an empty sheet is worse than no
+     | button at all. Revision section 4 added Membership Application to that
+     | role, which made six, so the farmer now follows the same shape as
+     | everyone else.
      |
-     | Settings sits in its own group under a gap, away from the rest, so a
-     | thumb reaching for the last item in the list cannot land on it.
+     | Notifications, My Profile and Account Settings are in none of these
+     | lists. The bell and the avatar menu in the top bar carry them on
+     | every screen, and a second door to the same room is one more thing to
+     | scan past. That is also why the Settings group that used to sit at
+     | the bottom of this sheet is gone.
      |
      | Hidden on lg and up, where the sidebar takes over.
      */
@@ -55,33 +59,52 @@
     ];
 
     /*
-     | Per role: four tabs, the rows the More sheet holds, and Settings on
-     | its own. Plain data, so a route rename is one line rather than a hunt
-     | through markup.
+     | Per role: the bottom-bar tabs, and the rows the More sheet holds.
+     | Plain data, so a route rename is one line rather than a hunt through
+     | markup.
+     |
+     | Revision sections 13 to 18 fix these lists exactly. Two rules run
+     | through all of them:
+     |
+     |   Nothing that has a tab is repeated in More. A second door to the
+     |   same room is one more thing to scan past.
+     |
+     |   Notifications, My Profile and Account Settings are in neither.
+     |   The bell and the avatar menu in the top bar carry them on every
+     |   screen, which is why the Settings group that used to sit at the
+     |   bottom of this sheet is gone.
+     |
+     | Every role has a More sheet. The farmer was the one exception until
+     | revision section 4 added Membership Application and made six
+     | destinations; see the note on that role's own 'more' below.
      */
     $sets = [
         'farmer' => [
             'tabs' => [
-                ['label' => 'Home',     'route' => 'farmer.dashboard',      'pattern' => 'farmer.dashboard',      'icon' => $ico['home']],
-                ['label' => 'Planting', 'route' => 'farmer.planting.index', 'pattern' => 'farmer.planting.*',     'icon' => $ico['planting']],
-                /* "History", not "Reports": the tab beside it is also called
-                   Report, and two tabs a letter apart is not a choice a
-                   farmer should have to read twice. This one is the list of
-                   what they have already filed, so it takes the clock, the
-                   same icon the technician's History tab uses. */
-                ['label' => 'History',  'route' => 'farmer.reports.index',  'pattern' => 'farmer.reports.index',  'icon' => $ico['clock']],
-                ['label' => 'Report',   'route' => 'farmer.reports.create', 'pattern' => 'farmer.reports.create', 'icon' => $ico['report']],
+                ['label' => 'Home',       'route' => 'farmer.dashboard',       'pattern' => 'farmer.dashboard',     'icon' => $ico['home']],
+                ['label' => 'Planting',   'route' => 'farmer.planting.index',  'pattern' => 'farmer.planting.*',    'icon' => $ico['planting']],
+                /* The list of what they have filed, with the Report Damage
+                   button on it - the same single destination the sidebar
+                   now uses, so the phone and the laptop agree. */
+                ['label' => 'Report',     'route' => 'farmer.reports.index',   'pattern' => 'farmer.reports.*',     'icon' => $ico['report']],
+                ['label' => 'Assistance', 'route' => 'farmer.assistance.index','pattern' => 'farmer.assistance.*',  'icon' => $ico['assist']],
             ],
+            /* FOUR TABS AND A MORE SHEET, AS OF OCT 2026
+
+               This was five tabs and an empty 'more', deliberately, so that
+               no More button was rendered at all rather than one opening an
+               empty sheet. Revision section 4 adds Membership Application to
+               this role, which makes six destinations - too many for the bar
+               - and the same section says to "place secondary functions
+               under More when necessary".
+
+               So the four things a farmer DOES stay on the bar, and the two
+               they look things up in moved into the sheet. That also puts
+               this role in line with the other three, which have always been
+               four tabs plus More. */
             'more' => [
-                ['label' => 'My Profile',             'fil' => 'Aking Profile',       'route' => 'farmer.profile',             'icon' => $ico['user']],
-                ['label' => 'My Crop Planting',       'fil' => 'Aking Pagtatanim',    'route' => 'farmer.planting.index',      'icon' => $ico['planting']],
-                ['label' => 'My Reports',             'fil' => 'Aking Mga Ulat',      'route' => 'farmer.reports.index',       'icon' => $ico['reports']],
-                ['label' => 'Assistance',             'fil' => 'Tulong',              'route' => 'farmer.assistance.index',    'icon' => $ico['assist']],
-                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',           'route' => 'farmer.notifications.index', 'icon' => $ico['bell']],
-                ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong', 'route' => 'help',                       'icon' => $ico['help']],
-            ],
-            'settings' => [
-                ['label' => 'Settings', 'fil' => 'Mga Setting', 'route' => 'farmer.settings.index', 'icon' => $ico['cog']],
+                ['label' => 'Membership Application', 'fil' => 'Aplikasyon sa Pagkasapi', 'route' => 'farmer.application.index', 'icon' => $ico['people']],
+                ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong',     'route' => 'help',                     'icon' => $ico['help']],
             ],
         ],
 
@@ -90,80 +113,66 @@
                 ['label' => 'Home',        'route' => 'technician.dashboard',        'pattern' => 'technician.dashboard',    'icon' => $ico['home']],
                 ['label' => 'Assignments', 'route' => 'technician.reports.index',    'pattern' => 'technician.reports.*',    'icon' => $ico['reports']],
                 ['label' => 'Validation',  'route' => 'technician.validation.index', 'pattern' => 'technician.validation.*', 'icon' => $ico['check']],
-                ['label' => 'History',     'route' => 'technician.history.index',    'pattern' => 'technician.history.*',    'icon' => $ico['clock']],
+                ['label' => 'Map',         'route' => 'technician.map.index',        'pattern' => 'technician.map.*',        'icon' => $ico['map']],
             ],
+            /* Inspection History is not a row here: it lives inside Reports
+               & Analytics now, the same as on the sidebar. Planting Reports
+               is not a destination for this role at all - planting is
+               reference information shown inside the report being validated
+               (section 16). */
             'more' => [
-                ['label' => 'Assigned Reports',       'fil' => 'Mga Nakatalagang Ulat', 'route' => 'technician.reports.index',       'icon' => $ico['reports']],
-                ['label' => 'Planting Reports',       'fil' => 'Ulat ng Pagtatanim',    'route' => 'technician.planting.index',      'icon' => $ico['planting']],
-                ['label' => 'Validation',             'fil' => 'Pagsusuri',             'route' => 'technician.validation.index',    'icon' => $ico['check']],
-                ['label' => 'Maps & Visualization',   'fil' => 'Mapa',                  'route' => 'technician.map.index',           'icon' => $ico['map']],
-                ['label' => 'Inspection History',     'fil' => 'Kasaysayan ng Inspeksyon', 'route' => 'technician.history.index',    'icon' => $ico['clock']],
-                /* Not on the reference sheet, kept because the sheet is the
-                   only navigation below 1024px now and the page would
-                   otherwise have no door on a phone at all. */
-                ['label' => 'Summaries',              'fil' => 'Buod',                  'route' => 'technician.summaries.index',     'icon' => $ico['chart']],
-                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',             'route' => 'technician.notifications.index', 'icon' => $ico['bell']],
-                ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong',   'route' => 'help',                           'icon' => $ico['help']],
-            ],
-            'settings' => [
-                ['label' => 'Settings', 'fil' => 'Mga Setting', 'route' => 'technician.settings.index', 'icon' => $ico['cog']],
+                ['label' => 'Reports & Analytics', 'fil' => 'Mga Ulat',            'route' => 'technician.summaries.index', 'icon' => $ico['chart']],
+                ['label' => 'Need Help',           'fil' => 'Kailangan ng Tulong', 'route' => 'help',                       'icon' => $ico['help']],
             ],
         ],
 
         'association' => [
             'tabs' => [
-                ['label' => 'Home',       'route' => 'association.dashboard',        'pattern' => 'association.dashboard',    'icon' => $ico['home']],
-                ['label' => 'Members',    'route' => 'association.members.index',    'pattern' => 'association.members.*',    'icon' => $ico['people']],
-                ['label' => 'Reports',    'route' => 'association.reports.index',    'pattern' => 'association.reports.*',    'icon' => $ico['damage']],
-                ['label' => 'Assistance', 'route' => 'association.assistance.index', 'pattern' => 'association.assistance.*', 'icon' => $ico['assist']],
+                ['label' => 'Home',    'route' => 'association.dashboard',             'pattern' => 'association.dashboard',    'icon' => $ico['home']],
+                ['label' => 'Members', 'route' => 'association.members.index',         'pattern' => 'association.members.*',    'icon' => $ico['people']],
+                ['label' => 'Crops',   'route' => 'association.crop-management.index', 'pattern' => ['association.crop-management.*', 'association.planting.*', 'association.reports.*'], 'icon' => $ico['leaf']],
+                ['label' => 'Map',     'route' => 'association.map.index',             'pattern' => 'association.map.*',        'icon' => $ico['map']],
             ],
+            /* Planting Activities and Damage Reports are not rows here:
+               they are the two cards inside Crop Management, which has its
+               own tab (section 18). Announcements joins this list once the
+               page exists; until then Route::has drops it. */
             'more' => [
-                ['label' => 'Members',                'fil' => 'Mga Kasapi',          'route' => 'association.members.index',       'icon' => $ico['people']],
-                ['label' => 'Planting Activities',    'fil' => 'Mga Pagtatanim',      'route' => 'association.planting.index',      'icon' => $ico['planting']],
-                ['label' => 'Damage Reports',         'fil' => 'Ulat ng Pinsala',     'route' => 'association.reports.index',       'icon' => $ico['damage']],
-                ['label' => 'Assistance',             'fil' => 'Tulong',              'route' => 'association.assistance.index',    'icon' => $ico['assist']],
-                ['label' => 'Maps & Visualization',   'fil' => 'Mapa',                'route' => 'association.map.index',           'icon' => $ico['map']],
-                ['label' => 'Summaries',              'fil' => 'Buod',                'route' => 'association.summaries.index',     'icon' => $ico['chart']],
-                ['label' => 'Notifications & Alerts', 'fil' => 'Mga Abiso',           'route' => 'association.notifications.index', 'icon' => $ico['bell']],
-                ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong', 'route' => 'help',                            'icon' => $ico['help']],
-            ],
-            'settings' => [
-                ['label' => 'Settings', 'fil' => 'Mga Setting', 'route' => 'association.settings.index', 'icon' => $ico['cog']],
+                /* First in the More sheet, because it is the only entry in
+                   this role an officer has to ACT on rather than read
+                   (revision step 6), and it is not a tab: reviewing an
+                   application on a phone is possible but it is not the
+                   thing an officer opens the app for four times a day. */
+                ['label' => 'Membership Applications',          'fil' => 'Mga Aplikasyon',      'route' => 'association.membership-applications.index', 'icon' => $ico['user']],
+                ['label' => 'Assistance Allocation & Tracking', 'fil' => 'Tulong',              'route' => 'association.assistance.index',     'icon' => $ico['assist']],
+                ['label' => 'Announcements',                    'fil' => 'Mga Anunsyo',         'route' => 'association.announcements.index',  'icon' => $ico['megaphone']],
+                ['label' => 'Reports & Analytics',              'fil' => 'Mga Ulat',            'route' => 'association.summaries.index',      'icon' => $ico['chart']],
+                ['label' => 'Need Help',                        'fil' => 'Kailangan ng Tulong', 'route' => 'help',                             'icon' => $ico['help']],
             ],
         ],
 
         'mao' => [
             'tabs' => [
-                ['label' => 'Home',    'route' => 'mao.dashboard',            'pattern' => 'mao.dashboard',        'icon' => $ico['home']],
-                ['label' => 'Farmers', 'route' => 'mao.farmers.index',        'pattern' => 'mao.farmers.*',        'icon' => $ico['people']],
-                ['label' => 'Reports', 'route' => 'mao.damage-reports.index', 'pattern' => 'mao.damage-reports.*', 'icon' => $ico['damage']],
-                ['label' => 'Map',     'route' => 'mao.map.index',            'pattern' => 'mao.map.*',            'icon' => $ico['map']],
+                ['label' => 'Home',         'route' => 'mao.dashboard',             'pattern' => 'mao.dashboard',    'icon' => $ico['home']],
+                ['label' => 'Associations', 'route' => 'mao.associations.index',    'pattern' => ['mao.associations.*', 'mao.farmers.*'], 'icon' => $ico['people']],
+                ['label' => 'Crops',        'route' => 'mao.crop-management.index', 'pattern' => ['mao.crop-management.*', 'mao.crop-planting.*', 'mao.damage-reports.*', 'mao.validations.*'], 'icon' => $ico['leaf']],
+                ['label' => 'Map',          'route' => 'mao.map.index',             'pattern' => 'mao.map.*',        'icon' => $ico['map']],
             ],
+            /* Crop Planting Monitoring, Crop Damage Monitoring and
+               Validation are not rows here either: they are the three cards
+               inside Crop Management, which has its own tab. Allocation
+               History and Distribution Tracking are reached from the
+               allocations page itself. */
             'more' => [
-                ['label' => 'User Management',         'fil' => 'Mga Gumagamit',      'route' => 'mao.users.index',                   'icon' => $ico['people']],
-                ['label' => 'Membership Applications', 'fil' => 'Mga Aplikasyon',     'route' => 'mao.membership-applications.index', 'icon' => $ico['reports']],
-                ["label" => "Farmers' Associations",   'fil' => 'Mga Samahan',        'route' => 'mao.associations.index',            'icon' => $ico['leaf']],
-                ['label' => 'Crop Planting Monitoring','fil' => 'Pagsubaybay sa Pagtatanim', 'route' => 'mao.crop-planting.index',    'icon' => $ico['planting']],
-                ['label' => 'Crop Damage Monitoring',  'fil' => 'Pagsubaybay sa Pinsala',    'route' => 'mao.damage-reports.index',   'icon' => $ico['damage']],
-                ['label' => 'Validation',              'fil' => 'Pagsusuri',          'route' => 'mao.validations.index',             'icon' => $ico['check']],
-                ['label' => 'Assistance Allocation',   'fil' => 'Paglalaan ng Tulong','route' => 'mao.assistance-allocations.index',  'icon' => $ico['assist']],
-                /* Also not on the reference sheet. Unlike Allocation History,
-                   which the allocations page links to, nothing else in the
-                   system links here, so without this row the page has no
-                   door at all below 1024px. */
-                ['label' => 'Distribution Tracking',   'fil' => 'Pagsubaybay sa Pamamahagi', 'route' => 'mao.assistance-allocations.distribution-tracking', 'icon' => $ico['check']],
-                ['label' => 'Maps & Visualization',    'fil' => 'Mapa',               'route' => 'mao.map.index',                     'icon' => $ico['map']],
-                /* "Announcements", not "Notifications": this is where the
-                   office WRITES and reviews what it has sent. What the
-                   office has been sent is the bell in the top bar, a
-                   different page (see the note in layouts/app.blade.php). */
-                ['label' => 'Announcements',           'fil' => 'Mga Anunsyo',        'route' => 'mao.notifications.index',           'icon' => $ico['megaphone']],
-                ['label' => 'Reports',                 'fil' => 'Mga Ulat',           'route' => 'mao.reports.index',                 'icon' => $ico['chart']],
-                ['label' => 'Archive',                 'fil' => 'Archive',            'route' => 'mao.archive.index',                 'icon' => $ico['archive']],
-                ['label' => 'Need Help',               'fil' => 'Kailangan ng Tulong','route' => 'help',                              'icon' => $ico['help']],
-            ],
-            'settings' => [
-                ['label' => 'Settings', 'fil' => 'Mga Setting', 'route' => 'mao.settings', 'icon' => $ico['cog']],
+                ['label' => 'User Management',                 'fil' => 'Mga Gumagamit',       'route' => 'mao.users.index',                   'icon' => $ico['people']],
+                ['label' => 'Membership Applications',         'fil' => 'Mga Aplikasyon',      'route' => 'mao.membership-applications.index', 'icon' => $ico['reports']],
+                ['label' => 'Assistance Allocation & Tracking','fil' => 'Paglalaan ng Tulong', 'route' => 'mao.assistance-allocations.index',  'icon' => $ico['assist']],
+                /* Where the office WRITES what it sends. What has been sent
+                   to the office is the bell, a different page. */
+                ['label' => 'Announcements',                   'fil' => 'Mga Anunsyo',         'route' => 'mao.notifications.index',           'icon' => $ico['megaphone']],
+                ['label' => 'Reports & Analytics',             'fil' => 'Mga Ulat',            'route' => 'mao.reports.index',                 'icon' => $ico['chart']],
+                ['label' => 'Archive',                         'fil' => 'Archive',             'route' => 'mao.archive.index',                 'icon' => $ico['archive']],
+                ['label' => 'Need Help',                       'fil' => 'Kailangan ng Tulong', 'route' => 'help',                              'icon' => $ico['help']],
             ],
         ],
     ];
@@ -173,7 +182,6 @@
     $set = $sets[$role] ?? [
         'tabs' => [['label' => 'Home', 'route' => $role . '.dashboard', 'pattern' => $role . '.dashboard', 'icon' => $ico['home']]],
         'more' => [['label' => 'Need Help', 'fil' => 'Kailangan ng Tulong', 'route' => 'help', 'icon' => $ico['help']]],
-        'settings' => [],
     ];
 
     /* Drop any row whose route does not exist rather than letting one
@@ -189,8 +197,11 @@
         fn ($item) => \Illuminate\Support\Facades\Route::has($item['route'])
     ));
 
-    $more     = $keep($set['more'] ?? []);
-    $settings = $keep($set['settings'] ?? []);
+    $more = $keep($set['more'] ?? []);
+
+    // A tab whose route is missing would take the whole bar down, same as a
+    // row, so the tabs get the same treatment.
+    $tabs = $keep($set['tabs'] ?? []);
 @endphp
 
 <div x-data="{ sheet: false }" class="lg:hidden">
@@ -204,8 +215,8 @@
 
         <div class="mx-auto flex max-w-lg items-stretch">
 
-            @foreach ($set['tabs'] as $tab)
-                @php $active = request()->routeIs($tab['pattern']); @endphp
+            @foreach ($tabs as $tab)
+                @php $active = request()->routeIs(...(array) $tab['pattern']); @endphp
 
                 <a href="{{ route($tab['route']) }}"
                    @if ($active) aria-current="page" @endif
@@ -226,7 +237,7 @@
             @endforeach
 
             {{-- More. A button, not a link: it opens the sheet below. --}}
-            @if (count($more) || count($settings))
+            @if (count($more))
                 <button type="button" @click="sheet = true"
                         class="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-1.5 text-center"
                         aria-haspopup="dialog" :aria-expanded="sheet">
@@ -286,41 +297,6 @@
             @if (count($more))
                 <ul class="divide-y divide-border overflow-hidden rounded-2xl border border-border">
                     @foreach ($more as $item)
-                        <li>
-                            <a href="{{ route($item['route']) }}"
-                               class="flex items-center gap-3 bg-card p-3 transition active:bg-muted">
-
-                                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-primary"
-                                      aria-hidden="true">
-                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
-                                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                                        <path d="{{ $item['icon'] }}"/>
-                                    </svg>
-                                </span>
-
-                                <span class="min-w-0 flex-1">
-                                    <span class="block truncate text-base font-semibold text-foreground">{{ $item['label'] }}</span>
-                                    <span class="block truncate text-xs text-muted-foreground">{{ $item['fil'] }}</span>
-                                </span>
-
-                                <svg class="h-5 w-5 shrink-0 text-muted-foreground" fill="none" stroke="currentColor"
-                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                     viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M9 6l6 6-6 6"/>
-                                </svg>
-                            </a>
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
-
-            {{-- Settings, set apart. It is the one row here that changes the
-                 account rather than going somewhere, so it does not sit at
-                 the end of the list where a thumb scrolling to the bottom
-                 lands on it. --}}
-            @if (count($settings))
-                <ul class="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border">
-                    @foreach ($settings as $item)
                         <li>
                             <a href="{{ route($item['route']) }}"
                                class="flex items-center gap-3 bg-card p-3 transition active:bg-muted">

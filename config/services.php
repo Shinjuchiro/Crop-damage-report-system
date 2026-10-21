@@ -77,4 +77,34 @@ return [
         'sender_name' => env('SEMAPHORE_SENDER_NAME', 'Semaphore'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | OpenWeatherMap (the dashboard's weather card)
+    |--------------------------------------------------------------------------
+    |
+    | The same source the big search engines show for "weather in Tanza", so
+    | the figure on the dashboard agrees with the one a farmer or an officer
+    | would get by searching for it. See App\Services\Weather.
+    |
+    | The free plan is enough several times over: it allows about sixty calls
+    | a minute, and this app makes at most six an hour because the answer is
+    | cached. Sign up at openweathermap.org with an email, copy the key from
+    | My API keys, and put it in .env as OPENWEATHER_KEY - this file never
+    | holds the actual key. A new key takes a couple of hours to activate.
+    |
+    | Without a key the card simply does not appear. Nothing else on the
+    | dashboard depends on it.
+    |
+    */
+
+    'openweather' => [
+        'key' => env('OPENWEATHER_KEY'),
+
+        // Tanza, Cavite. The municipality, not the farmer: this is a
+        // municipal system covering one town, and a farm in Tres Cruces and
+        // one in Daang Amaya share their weather.
+        'lat' => env('OPENWEATHER_LAT', 14.3947),
+        'lon' => env('OPENWEATHER_LON', 120.8517),
+    ],
+
 ];

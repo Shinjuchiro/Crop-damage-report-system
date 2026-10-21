@@ -24,7 +24,10 @@ class CropController extends Controller
             ->when($request->filled('search'),
                 fn ($query) => $query->where('name', 'like', '%' . $request->search . '%'))
             ->withCount(['mainCrops', 'plantingRecordCrops', 'damageReportCrops'])
-            ->orderBy('name')
+            // Rice, Corn, HVCC, then whatever the office has added since.
+            // The same order the farmer sees on a form, so this screen is a
+            // recognisable picture of that list rather than a different one.
+            ->inDisplayOrder()
             ->paginate(15)
             ->withQueryString();
 
@@ -66,26 +69,6 @@ class CropController extends Controller
 
         return redirect()->route('mao.crops.index')
             ->with('status', 'Crop updated successfully.');
-    }
-
-    /**
-     * Take the crop out of the working system for good. Not a database
-     * delete: markDeleted() only stamps deleted_at/deleted_by, so every
-     * farmer profile, planting record and damage report that already cites
-     * this crop keeps resolving its name exactly as before (see
-     * app/Models/Concerns/SoftDeletable.php).
-     */
-    public function destroy(Crop $crop)
-    {
-        $name = $crop->name;
-        $crop->markDeleted(Auth::id());
-
-        $this->log('Deleted crop: ' . $name, $crop->id);
-
-        // back() rather than a fixed route: this action is reused by both the
-        // Crops list (an unarchived crop) and the Archive page (one already
-        // archived), so it returns the MAO to whichever of the two they were on.
-        return back()->with('status', 'Crop deleted. Its data is kept for audit purposes.');
     }
 
     /**

@@ -255,9 +255,9 @@
                          times are two different pieces of evidence. --}}
                     <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                         @foreach ($validation->photos as $photo)
-                            <a href="{{ asset('storage/' . $photo->file_path) }}" target="_blank" rel="noopener"
+                            <a href="{{ $photo->url }}" target="_blank" rel="noopener"
                                class="block overflow-hidden rounded-lg border border-border">
-                                <img src="{{ asset('storage/' . $photo->file_path) }}"
+                                <img src="{{ $photo->url }}"
                                      alt="Inspection photo {{ $loop->iteration }}"
                                      loading="lazy"
                                      class="h-24 w-full object-cover transition hover:opacity-90">

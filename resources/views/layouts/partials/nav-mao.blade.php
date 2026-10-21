@@ -8,13 +8,25 @@
     // submission is not something the office "sends" anyone.
     $pendingDamageReports = \App\Models\DamageReport::where('status', 'pending')->count();
 
-    // A farmer registration MAO hasn't approved or rejected yet - the same
-    // "pending" the Membership Applications page itself filters to by
-    // default (MembershipApplicationController::index()). Shown here for
-    // the same reason as the two badges below: a new registration already
-    // notifies MAO in the bell (RegisterController::notifyMaoOfNewRegistration()),
-    // but this is the queue itself, visible at a glance without opening it.
+    /* Registrations this office can actually decide: forwarded by a
+       farmers' association and not yet approved or rejected. The same list
+       the Membership Applications page opens on
+       (MembershipApplicationController::FILTERS, 'awaiting_mao').
+
+       It used to count every pending registration, which was the same
+       number because every registration came straight here. Since revision
+       step 6 it is not: an application still being read by an association,
+       or sitting with a farmer for correction, is also pending and is not
+       the office's to act on. Counting those would put a number on this
+       menu item that does not shrink when the office does its work, which
+       is the one thing a queue badge has to do.
+
+       Both halves of the condition are needed. An approved farmer's stage
+       column still reads 'forwarded_to_mao' - that is the record of how
+       their application reached its outcome and is deliberately left as it
+       was - so the stage alone would never let anybody out of this count. */
     $pendingRegistrations = \App\Models\Farmer::notDeleted()
+        ->where('membership_stage', \App\Support\MembershipApplication::FORWARDED)
         ->whereHas('user', fn ($user) => $user->where('status', 'pending'))
         ->count();
 
@@ -25,57 +37,51 @@
     // lists these.
     $verifiedAwaitingDecision = \App\Models\DamageReport::where('status', 'verified')->count();
 
-    // route => null renders a disabled item, so the sidebar always shows the full
-    // MAO menu even while a module is still being built.
+    /* THE OFFICE'S MENU (revision section 1 and 24)
+
+       Eleven entries, each one a job rather than a table. Crop Planting
+       Monitoring, Crop Damage Monitoring and Validation Monitoring used to
+       be three separate entries here, which put three of eleven slots on
+       one subject; they now live inside Crop Management Report, and this
+       item carries their combined attention badge so nothing waiting is
+       hidden a click away.
+
+       route => null renders a disabled item, so the menu can show a module
+       that is still being built rather than quietly missing an entry.
+       'pattern' may be a single route pattern or a list of them: a parent
+       item stays lit while you are on any of its children. */
     $items = [
         [
-            'label'   => 'Executive Dashboard',
+            'label'   => 'Dashboard',
             'route'   => 'mao.dashboard',
             'pattern' => 'mao.dashboard',
             'icon'    => 'M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9',
         ],
+        /* Opens the associations themselves, and a member list lives inside
+           each one. The farmer directory (mao.farmers.*) is the same branch
+           one level down, so it keeps this item lit. */
         [
-            'label'   => 'Users Management',
-            'route'   => 'mao.users.index',
-            'pattern' => 'mao.users.*',
-            'icon'    => 'M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6',
-        ],
-        [
-            'label'       => 'Membership Applications',
-            'route'       => 'mao.membership-applications.index',
-            'pattern'     => 'mao.membership-applications.*',
-            'icon'        => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM8.5 14l2 2 4-4',
-            'badge'       => $pendingRegistrations,
-            'badge_noun'  => 'application',
-            'badge_label' => 'awaiting review',
-        ],
-        [
-            'label'   => "Farmer's Association",
-            'route'   => 'mao.farmers.index',
-            'pattern' => 'mao.farmers.*',
+            'label'   => "Farmers' Associations",
+            'route'   => 'mao.associations.index',
+            'pattern' => ['mao.associations.*', 'mao.farmers.*'],
             'icon'    => 'M12 3a3 3 0 100 6 3 3 0 000-6zM5.5 21v-1.5a4 4 0 014-4h5a4 4 0 014 4V21M4 12.5a2 2 0 100-4 2 2 0 000 4zM20 12.5a2 2 0 100-4 2 2 0 000 4z',
         ],
         [
-            'label'   => 'Crop Planting Monitoring',
-            'route'   => 'mao.crop-planting.index',
-            'pattern' => 'mao.crop-planting.*',
+            'label'   => 'Crop Management Report',
+            'route'   => 'mao.crop-management.index',
+            'pattern' => [
+                'mao.crop-management.*',
+                'mao.crop-planting.*',
+                'mao.damage-reports.*',
+                'mao.validations.*',
+            ],
             'icon'    => 'M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14zM4 21h16',
-        ],
-        [
-            'label'   => 'Crop Damage Monitoring',
-            'route'   => 'mao.damage-reports.index',
-            'pattern' => 'mao.damage-reports.*',
-            'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
-            'badge'       => $pendingDamageReports,
-            'badge_label' => 'awaiting assignment',
-        ],
-        [
-            'label'   => 'Validation Monitoring',
-            'route'   => 'mao.validations.index',
-            'pattern' => 'mao.validations.*',
-            'icon'    => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
-            'badge'       => $verifiedAwaitingDecision,
-            'badge_label' => 'awaiting your decision',
+            /* Both queues the office owns, added together: a report nobody
+               has assigned, and an inspection waiting on a decision. The
+               breakdown is on the hub page itself. */
+            'badge'       => $pendingDamageReports + $verifiedAwaitingDecision,
+            'badge_noun'  => 'item',
+            'badge_label' => 'need attention',
         ],
         [
             'label'    => 'Assistance Allocation & Tracking',
@@ -103,19 +109,46 @@
             ],
         ],
         [
-            'label'   => 'Maps and Visualization',
+            'label'   => 'Map & Visualization',
             'route'   => 'mao.map.index',
             'pattern' => 'mao.map.*',
             'icon'    => 'M9 20l-5.4 1.8A1 1 0 013 20.9V6.4a1 1 0 01.7-1L9 3.7m0 16.3l6-2.1m-6 2.1V3.7m6 14.2l5.4 1.8a1 1 0 001.3-1V4.2a1 1 0 00-.7-1L15 1.7m0 16.2V1.7m0 0L9 3.7',
         ],
         [
-            'label'   => 'Notification and Alerts',
-            'route'   => 'mao.notifications.index',
-            'pattern' => 'mao.notifications.*',
-            'icon'    => 'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1',
+            'label'       => 'Membership Applications',
+            'route'       => 'mao.membership-applications.index',
+            'pattern'     => 'mao.membership-applications.*',
+            'icon'        => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM8.5 14l2 2 4-4',
+            'badge'       => $pendingRegistrations,
+            'badge_noun'  => 'application',
+            'badge_label' => 'awaiting review',
         ],
         [
-            'label'   => 'Reports',
+            'label'   => 'User Management',
+            'route'   => 'mao.users.index',
+            'pattern' => 'mao.users.*',
+            'icon'    => 'M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6',
+        ],
+        /* "Announcements", not "Notification and Alerts". This page is where
+           the office WRITES and reviews what it has SENT: advisories,
+           deadlines, announcements. What has been sent TO the signed-in user
+           is a different page, the inbox, and the bell in the top bar is the
+           only door to it - for every role, so there is one habit to learn
+           rather than two. The old name described the inbox and sat in the
+           sidebar next to it, which is why the two were constantly confused.
+
+           The megaphone replaces the bell for the same reason: the bell now
+           means "things sent to me" and nothing else. */
+        [
+            'label'   => 'Announcements',
+            'route'   => 'mao.notifications.index',
+            'pattern' => 'mao.notifications.index',
+            'icon'    => 'M3 11a1 1 0 011-1h2.5L15 5.5v13L6.5 14H4a1 1 0 01-1-1v-2zM7.5 14.2V19a1 1 0 001 1h1.5a1 1 0 001-1v-3.3M18.5 9a3.5 3.5 0 010 6',
+        ],
+        /* Separate from Crop Management Report on purpose (section 21): that
+           one is the operational records, this one is what they add up to. */
+        [
+            'label'   => 'Reports & Analytics',
             'route'   => 'mao.reports.index',
             'pattern' => 'mao.reports.*',
             'icon'    => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM9 17.5V14M12 17.5v-6M15 17.5v-3',
@@ -149,9 +182,9 @@
             so a person landing on Allocation History never finds the group
             collapsed and has to go hunting for what they are already on.
         --}}
-        <div x-data="{ open: {{ request()->routeIs($item['pattern']) ? 'true' : 'false' }} }">
+        <div x-data="{ open: {{ request()->routeIs(...(array) $item['pattern']) ? 'true' : 'false' }} }">
             <button type="button" @click="open = ! open"
-                    class="{{ request()->routeIs($item['pattern']) ? $current : $idle }} w-full min-w-0 justify-between">
+                    class="{{ request()->routeIs(...(array) $item['pattern']) ? $current : $idle }} w-full min-w-0 justify-between">
                 <span class="flex min-w-0 items-center gap-3">
                     <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
                          stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -177,7 +210,7 @@
         </div>
     @elseif ($item['route'])
         <a href="{{ route($item['route']) }}"
-           class="{{ request()->routeIs($item['pattern']) ? $current : $idle }} min-w-0 justify-between">
+           class="{{ request()->routeIs(...(array) $item['pattern']) ? $current : $idle }} min-w-0 justify-between">
             <span class="flex min-w-0 items-center gap-3">
                 <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
                      stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -217,7 +250,7 @@
                  stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                 <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM9.5 9.5a2.5 2.5 0 113.2 2.4c-.5.2-.7.6-.7 1.1v.5m0 3h.01"/>
             </svg>
-            <span class="truncate">Need Help?</span>
+            <span class="truncate">Need Help</span>
         </span>
     </a>
 </div>

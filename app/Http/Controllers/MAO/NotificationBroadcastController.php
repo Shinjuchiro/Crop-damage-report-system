@@ -10,7 +10,6 @@ use App\Models\NotificationBroadcast;
 use App\Models\User;
 use App\Services\SemaphoreSmsService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -29,8 +28,13 @@ class NotificationBroadcastController extends Controller
     {
         $category = $request->query('category');
 
+        /* officeAlerts(): an association's announcements to its own members
+           live in this same table and are that association's business, not
+           the office's. They are excluded here and from the counts below so
+           this page stays what it says it is - what the OFFICE has sent. */
         $alerts = NotificationBroadcast::query()
             ->notDeleted()
+            ->officeAlerts()
             ->with('createdBy')
             ->withCount([
                 'notifications',
@@ -52,6 +56,7 @@ class NotificationBroadcastController extends Controller
         // Counts for the tab row, so each tab shows how much sits behind it
         $perCategory = NotificationBroadcast::query()
             ->notDeleted()
+            ->officeAlerts()
             ->select('category', DB::raw('COUNT(*) as total'))
             ->groupBy('category')
             ->pluck('total', 'category');
@@ -227,28 +232,6 @@ class NotificationBroadcastController extends Controller
         ]);
 
         return back()->with('status', 'Alert restored.');
-    }
-
-    /**
-     * Take an alert out of the working system for good. Not a database
-     * delete: markDeleted() only stamps deleted_at/deleted_by, so the alert
-     * and every per-recipient notification row it already sent (read status,
-     * SMS status) are kept exactly as they were.
-     */
-    public function destroy(NotificationBroadcast $notification)
-    {
-        $title = $notification->title;
-        $notification->markDeleted(Auth::id());
-
-        AuditLog::create([
-            'user_id'      => Auth::id(),
-            'action'       => 'Deleted alert: ' . $title,
-            'target_table' => 'notification_broadcasts',
-            'target_id'    => $notification->id,
-            'created_at'   => now(),
-        ]);
-
-        return back()->with('status', 'Alert deleted. Its information is kept for audit purposes.');
     }
 
     /**

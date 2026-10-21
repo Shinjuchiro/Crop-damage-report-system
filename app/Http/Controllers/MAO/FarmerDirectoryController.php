@@ -19,7 +19,7 @@ class FarmerDirectoryController extends Controller
 {
     public function index(Request $request)
     {
-        // Section 22's 3-month rule: keep every farmer's Active/Inactive
+        // Section 22's inactivity rule: keep every farmer's Active/Inactive
         // status current before it is displayed, filtered, or counted below
         // - see Farmer::sweepInactive() for why this has to run here.
         Farmer::sweepInactive();
@@ -27,7 +27,6 @@ class FarmerDirectoryController extends Controller
         $farmers = Farmer::query()
             ->notDeleted()
             ->with(['user', 'barangay', 'association'])
-            ->withCount(['plantingRecords', 'damageReports'])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $term = '%' . $request->search . '%';
 
@@ -78,11 +77,30 @@ class FarmerDirectoryController extends Controller
         ]);
     }
 
-    public function show(Farmer $farmer)
+    /**
+     * One farmer's profile.
+     *
+     * Organised as six tabs rather than one long column (revision section
+     * 9): Overview, Crop Planted, Crop Damage, Validation & Assessment,
+     * Assistance and History. The tab is a query parameter, not script, so
+     * every tab has its own URL and the Back button behaves.
+     *
+     * Everything is loaded whichever tab is open. That is deliberate: the
+     * tab strip shows a count beside each tab, so the page needs all of it
+     * anyway, and one farmer's records are not a large query.
+     */
+    public const TABS = ['overview', 'planting', 'damage', 'validation', 'assistance', 'history'];
+
+    public function show(Request $request, Farmer $farmer)
     {
         $farmer->load($this->detailRelations());
 
-        return view('mao.farmers.show', compact('farmer'));
+        $tab = $request->query('tab');
+
+        return view('mao.farmers.show', [
+            'farmer' => $farmer,
+            'tab'    => in_array($tab, self::TABS, true) ? $tab : 'overview',
+        ]);
     }
 
     private function detailRelations(): array

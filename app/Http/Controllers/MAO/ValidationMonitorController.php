@@ -10,6 +10,8 @@ use App\Models\CropPlantingRecordCrop;
 use App\Models\DamageReport;
 use App\Models\NotificationBroadcast;
 use App\Models\User;
+use App\Models\Validation;
+use App\Services\RecordListExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -34,8 +36,24 @@ class ValidationMonitorController extends Controller
 {
     public function index(Request $request)
     {
+        /* By farmer, or flat (revision section 12). Same switch and the
+           same ordering helper the Crop Damage list uses, so the two pages
+           behave identically. */
+        $view = $request->query('view') === 'flat' ? 'flat' : 'grouped';
+
+        // Export Report, built from the same filtered query as the page.
+        if ($request->filled('export')) {
+            return $this->export($request);
+        }
+
         $reports = DamageReportMonitorController::baseQuery($request)
             ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
+            // Ordered by who was inspected last, not alphabetically. The
+            // true flag keeps the subquery to reports that have actually
+            // been inspected, which is all this page lists.
+            ->when($view === 'grouped', fn ($query) => $query
+                ->orderByDesc(DamageReportMonitorController::farmerLatestReport(true))
+                ->orderBy('damage_reports.farmer_id'))
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -55,6 +73,7 @@ class ValidationMonitorController extends Controller
             : null;
 
         return view('mao.validations.index', [
+            'view'               => $view,
             'reports'            => $reports,
             'selected'           => $selected,
             'plantingComparison' => $selected ? $this->plantingComparison($selected) : collect(),
@@ -62,6 +81,82 @@ class ValidationMonitorController extends Controller
             'associations'       => Association::orderBy('name')->get(),
             'barangays'          => Barangay::orderBy('name')->get(),
         ]);
+    }
+
+    /**
+     * Export Report: the completed field inspections, as currently filtered.
+     *
+     * The columns are the ones this page exists for: what the farmer
+     * estimated, what the technician assessed, and where the technician
+     * actually stood. Both coordinates are included, because section 49 is
+     * that the two locations are kept apart, and an export that carried
+     * only one of them would quietly undo that.
+     */
+    private function export(Request $request)
+    {
+        $reports = DamageReportMonitorController::baseQuery($request)
+            ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
+            ->latest()
+            ->get();
+
+        $rows = $reports->map(function ($report) {
+            $validation = $report->validation;
+
+            return [
+                $report->reference,
+                $report->farmer?->full_name ?? 'Unknown',
+                $report->farmer?->user?->phone_number ?: '-',
+                $report->farmer?->barangay?->name ?? '-',
+                $report->farmer?->association?->name ?? '-',
+                $report->assignedTechnician?->full_name
+                    ?: ($report->assignedTechnician?->username ?? '-'),
+                $validation?->inspection_started_at?->format('d M Y g:i A') ?? '-',
+                $validation?->validated_at?->format('d M Y g:i A') ?? '-',
+                $report->crops->max('estimated_damage_percent') !== null
+                    ? (float) $report->crops->max('estimated_damage_percent')
+                    : '',
+                $validation?->assessed_damage_percent !== null
+                    ? (float) $validation->assessed_damage_percent
+                    : '',
+                Validation::severityLabel($validation?->severity) ?? '-',
+                round((float) ($report->crops_sum_damaged_area_hectares ?? 0), 2),
+                $report->reported_latitude !== null && $report->reported_longitude !== null
+                    ? $report->reported_latitude . ', ' . $report->reported_longitude
+                    : '-',
+                $validation?->latitude !== null && $validation?->longitude !== null
+                    ? $validation->latitude . ', ' . $validation->longitude
+                    : '-',
+                DamageReport::STATUSES[$report->status]
+                    ?? ucwords(str_replace('_', ' ', (string) $report->status)),
+                (string) ($validation?->notes ?: '-'),
+            ];
+        })->all();
+
+        return RecordListExport::download(
+            $request->query('export') === 'pdf' ? 'pdf' : 'xlsx',
+            'Validation and Field Inspection Records',
+            [
+                'Status'      => $request->filled('status')
+                    ? (DamageReport::STATUSES[$request->status] ?? $request->status)
+                    : null,
+                'Association' => $request->filled('association_id')
+                    ? Association::find($request->association_id)?->name
+                    : null,
+                'Barangay'    => $request->filled('barangay_id')
+                    ? Barangay::find($request->barangay_id)?->name
+                    : null,
+                'Search'      => $request->query('search'),
+            ],
+            [
+                'Report ID', 'Farmer', 'Contact', 'Barangay', 'Association', 'Technician',
+                'Inspection Started', 'Inspection Submitted',
+                'Farmer Estimate (%)', 'Assessed Damage (%)',
+                'Severity', 'Damaged Area (ha)', 'Farmer-Reported Location',
+                'Technician-Verified Location', 'Status', 'Inspection Notes',
+            ],
+            $rows,
+            'validation-records'
+        );
     }
 
     /**

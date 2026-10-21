@@ -34,11 +34,41 @@ use Illuminate\Validation\ValidationException;
  */
 class DamageReportController extends Controller
 {
-    // Photos go to storage/app/public, which is served through the
-    // "storage" symlink. Run: php artisan storage:link
-    private const PHOTO_DISK = 'public';
+    /* Photos go to the PRIVATE disk: storage/app/private, which the web
+       server cannot reach at all. They are read through
+       App\Http\Controllers\AttachmentController, which checks on every
+       request that the person asking is this farmer, an officer of their
+       association, the technician handling the case, or the office
+       (revision section 3.4).
+
+       They used to go to 'public' and be served through the storage
+       symlink, so every damage photo in the system was readable by anybody
+       with the link and no login. Nothing here needs
+       `php artisan storage:link` any more. */
+    private const PHOTO_DISK = 'local';
     private const PHOTO_DIR  = 'damage-reports';
     private const MAX_PHOTOS = 10;
+
+    /*
+     | How many damaged crops one report may carry.
+     |
+     | The database is not limited: damage_report_crops is a child table and
+     | section 79 of the proposal is explicit that it must stay that way. This
+     | is a limit on one submission, not on the design, and it exists because
+     | the form had no ceiling at all - "Add another crop" could be pressed
+     | until the page gave out, and a report with forty crops on it is not a
+     | report a technician can verify in the field.
+     |
+     | Five covers the real case comfortably. A farm in Tanza growing more
+     | than five different crops and losing all of them to one event is rare
+     | enough that it is better handled as a second report than by letting
+     | every form grow without end.
+     |
+     | Enforced here as well as in the form. The form's own limit is a
+     | courtesy to the farmer; this one is the rule, because anything the
+     | browser enforces can be edited in the browser.
+     */
+    public const MAX_CROPS = 5;
 
     /**
      * "My Reports" page.
@@ -96,7 +126,7 @@ class DamageReportController extends Controller
             // Crops, disasters and barangays are managed by MAO in Settings.
             // The farmer only chooses from them. Archived items are retired
             // from these lists (see app/Models/Concerns/Archivable.php).
-            'crops'     => Crop::active()->orderBy('name')->get(),
+            'crops'     => Crop::active()->inDisplayOrder()->get(),
             'disasters' => Disaster::active()->orderByDesc('date_start')->orderBy('name')->get(),
             'barangays' => Barangay::orderBy('name')->get(),
 
@@ -107,6 +137,10 @@ class DamageReportController extends Controller
             // Which causes currently have a declared event to link to. Used by
             // the form to decide whether to ask for one at all.
             'causesWithEvents' => Disaster::distinct()->pluck('type')->all(),
+
+            // So the form stops at the same number the validation does. One
+            // constant, two places that need it.
+            'maxCrops' => self::MAX_CROPS,
         ]);
     }
 
@@ -233,8 +267,10 @@ class DamageReportController extends Controller
     /**
      * Proposal section 66: MAO should be told about a "new/unprocessed
      * damage report" - this was previously missing entirely, the same gap
-     * RegisterController::notifyMaoOfNewRegistration() closed for new farmer
-     * registrations. Runs after the transaction above has already committed,
+     * that was closed for new farmer registrations (the registration notice
+     * now goes to the farmers' association instead; see
+     * Auth\RegisterController and revision step 6).
+     * Runs after the transaction above has already committed,
      * and never throws - a notification failure must never make a farmer's
      * report appear to fail (see the Sept 2026 notification-system rule).
      *
@@ -381,7 +417,7 @@ class DamageReportController extends Controller
             'location_source' => ['nullable', Rule::in(['gps', 'manual', 'none'])],
 
             // Section 30: the fields the prompt says a damage report must have.
-            'crops'                            => ['required', 'array', 'min:1', 'max:20'],
+            'crops'                            => ['required', 'array', 'min:1', 'max:' . self::MAX_CROPS],
             'crops.*.crop_id'                  => ['required', Rule::exists('crops', 'id')->whereNull('archived_at')],
             'crops.*.crop_specify'             => ['nullable', 'string', 'max:100'],
             'crops.*.damaged_area_hectares'    => ['required', 'numeric', 'min:0.01', 'max:9999'],
@@ -403,6 +439,8 @@ class DamageReportController extends Controller
         ], [
             'farm_location_description.required'        => 'Please describe where the damaged farm is.',
             'crops.required'                            => 'Please add at least one damaged crop.',
+            'crops.max'                                 => 'One report can cover up to ' . self::MAX_CROPS
+                . ' crops. Please submit the rest as a separate report.',
             'crops.*.crop_id.required'                  => 'Please choose the damaged crop.',
             'crops.*.damaged_area_hectares.required'    => 'Please give the damaged area in hectares.',
             'crops.*.estimated_damage_percent.required' => 'Please give your estimate of the damage.',

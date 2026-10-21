@@ -64,11 +64,19 @@
 @endphp
 
 @section('content')
+
+{{-- Holds this screen to the size of the device. Unlike Login, nothing here
+     is marked to shrink: a step with a dozen fields cannot be squeezed onto
+     a phone and still be readable. So the frame is pinned to the viewport
+     and the form scrolls inside it, against the green scrollbar in app.css,
+     rather than the whole page moving. --}}
+@include('layouts.partials.fit-screen')
+
 {{-- On a phone this is just a stacked column, unchanged. From lg up, the
      whole screen gets a dark green frame (padding + gap) and the two panels
      become separate rounded cards floating inside it, rather than sitting
      edge to edge. --}}
-<div class="flex min-h-screen flex-col lg:flex-row lg:gap-4 lg:bg-[#0d3d1b] lg:p-4">
+<div class="fit-shell flex flex-col lg:flex-row lg:gap-4 lg:bg-[#0d3d1b] lg:p-4">
 
     {{-- =====================================================================
          LEFT PANEL - branding and illustration
@@ -112,7 +120,11 @@
     {{-- =====================================================================
          RIGHT PANEL - the registration wizard
     ====================================================================== --}}
-    <div class="flex-1 px-5 py-8 sm:px-8 lg:overflow-y-auto lg:rounded-2xl lg:bg-card lg:px-12 lg:py-10 lg:shadow-xl">
+    {{-- min-h-0 is what lets this column be shorter than its own content
+         inside a flex column: without it a flex item refuses to shrink past
+         its content and the overflow moves back out to the page. --}}
+    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-8
+                lg:rounded-2xl lg:bg-card lg:px-12 lg:py-10 lg:shadow-xl">
         <div class="mx-auto max-w-4xl" x-data="farmerRegistration()">
 
             <h1 class="text-2xl font-bold text-foreground sm:text-3xl">Create an Account</h1>

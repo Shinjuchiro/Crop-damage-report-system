@@ -51,7 +51,12 @@ class MapController extends Controller
 
         $memberIds = Farmer::where('association_id', $association->id)->select('id');
 
-        $reports = DamageReport::whereIn('farmer_id', $memberIds)
+        /* active() skips reports the office has archived or deleted. The
+           lists dropped them in Oct 2026 (section 16) and the map has to
+           agree: a pin for a report that is no longer on the officer's own
+           list is a pin they cannot click through to or act on. */
+        $reports = DamageReport::active()
+            ->whereIn('farmer_id', $memberIds)
             ->whereHas('validation', fn ($v) => $v->whereNotNull('latitude'))
             ->with(['farmer.barangay', 'reportedBarangay', 'crops.crop', 'validation'])
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
@@ -71,9 +76,7 @@ class MapController extends Controller
                 'report'   => $report->reference,
                 'farmer'   => $report->farmer?->full_name ?? 'Unknown',
                 'barangay' => $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Unknown barangay',
-                'severity' => $report->validation->severity
-                    ? Validation::SEVERITY_SCALE[$report->validation->severity]['label']
-                    : 'Not yet assessed',
+                'severity' => Validation::severityLabel($report->validation->severity) ?? 'Not yet assessed',
                 'color'    => $report->validation->severity
                     ? $report->validation->severity_color
                     : '#94a3b8',
@@ -86,7 +89,7 @@ class MapController extends Controller
         // report in, not every barangay in Tanza - the filter should only
         // ever offer choices that can change what's on the map.
         $barangayIds = Farmer::where('association_id', $association->id)->pluck('barangay_id')
-            ->merge(DamageReport::whereIn('farmer_id', $memberIds)->pluck('reported_barangay_id'))
+            ->merge(DamageReport::active()->whereIn('farmer_id', $memberIds)->pluck('reported_barangay_id'))
             ->filter()
             ->unique();
 

@@ -8,23 +8,32 @@
 @section('content')
 
 {{--
-    Proposal sections 64 and 65.
+    Proposal section 61: the association monitors.
 
-    Assistance moves MAO -> Association -> Farmer. This page is the middle of
-    that chain: everything the office has sent here, and how much of each one
-    has actually reached a member.
+    READ-ONLY SINCE OCT 2026 (client decision)
 
-    Open allocations sort to the top, because an allocation with something
-    left on it is aid that has arrived and not been handed out.
+    This page used to be the middle of the chain MAO -> Association ->
+    Farmer, and it carried a Distribute button on every open row. The
+    Municipal Agriculture Office hands assistance to the farmer itself now
+    and records it, so the buttons are gone and this is a monitoring screen:
+    what the office set aside for this association, and how far through it
+    they are.
+
+    The Remaining column went with the figures. There is no quantity on an
+    allocation any more - how much a named farmer received is a financial
+    detail about an identifiable person, and the client asked for it to stay
+    out of the system. "Members given" replaces it: a count of people, which
+    is what an officer actually wants to know and carries no figure.
 --}}
 
 <div class="space-y-4">
 
     <x-ui.alert variant="info">
-        The office allocates assistance to your association, and your association records giving it to
-        members. Nothing reaches a farmer's account until you record it here.
+        The Municipal Agriculture Office designates which of your members are assisted and records
+        handing it to them. This page is for monitoring: open an allocation to see who was designated
+        and who has already received theirs.
         <span class="mt-1 block">
-            Ang naitalang pamamahagi lamang ang lalabas sa account ng bawat kasapi.
+            Ang tanggapan na po ang nagtatala ng pamamahagi. Ito po ay para sa pagsubaybay lamang.
         </span>
     </x-ui.alert>
 
@@ -41,7 +50,7 @@
         @if ($allocations->isEmpty())
             <x-ui.empty title="Nothing allocated to you yet"
                         icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21"
-                        message="When the Municipal Agriculture Office allocates cash or in-kind assistance to your association, it appears here and you record handing it to members.">
+                        message="When the Municipal Agriculture Office allocates assistance to your association's members, it appears here for you to follow.">
                 <span class="text-xs text-muted-foreground">Wala pa pong naitalagang tulong sa inyong asosasyon.</span>
             </x-ui.empty>
         @else
@@ -49,14 +58,6 @@
             {{-- ---------- PHONE ---------- --}}
             <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
                 @foreach ($allocations as $allocation)
-                    @php
-                        $given  = (float) ($allocation->distributed_so_far ?? 0);
-                        $total  = (float) $allocation->allocated_quantity;
-                        $hasQty = $allocation->allocated_quantity !== null;
-                        $left   = $hasQty ? max($total - $given, 0) : null;
-                        $pct    = ($hasQty && $total > 0) ? min(100, round($given / $total * 100)) : 0;
-                        $closed = in_array($allocation->status, ['completed', 'cancelled'], true);
-                    @endphp
 
                     <li class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
                         <div class="flex items-start justify-between gap-3">
@@ -65,41 +66,17 @@
                                     {{ $allocation->display_name }}
                                 </p>
                                 <p class="mt-0.5 text-xs text-muted-foreground">
-                                    {{ $allocation->is_cash ? 'Cash' : 'In-Kind' }}
-                                    @if ($allocation->disaster)
-                                        &middot; for {{ $allocation->disaster->name }}
-                                    @endif
+                                    AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}
                                 </p>
                             </div>
                             <x-ui.status :value="$allocation->status" />
                         </div>
 
-                        @if ($hasQty)
-                            <p class="mt-2 text-sm">
-                                <span class="font-semibold">{{ number_format($left, 2) }}</span>
-                                <span class="text-muted-foreground">
-                                    left of {{ number_format($total, 2) }}
-                                </span>
-                            </p>
-                            <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                                <div class="h-full rounded-full bg-primary" style="width: {{ $pct }}%"></div>
-                            </div>
-                        @else
-                            <p class="mt-2 text-xs text-muted-foreground">Not tracked (cash assistance)</p>
-                        @endif
-
-                        <div class="mt-3 flex gap-2">
-                            <x-ui.button size="sm" variant="outline" class="flex-1"
+                        <div class="mt-3">
+                            <x-ui.button size="sm" variant="outline" class="w-full"
                                          :href="route('association.assistance.show', $allocation)">
                                 View
                             </x-ui.button>
-
-                            @unless ($closed)
-                                <x-ui.button size="sm" class="flex-1"
-                                             :href="route('association.assistance.distribute', $allocation)">
-                                    Distribute
-                                </x-ui.button>
-                            @endunless
                         </div>
                     </li>
                 @endforeach
@@ -109,80 +86,63 @@
             <div class="hidden lg:block">
                 <x-ui.table>
                     <x-slot:head>
+                        {{-- FOUR COLUMNS, PLUS THE ONE THIS SCREEN EXISTS FOR
+                             (revision section 3.1)
+
+                             Remaining used to be the extra column, because
+                             how much was left to hand out was why an officer
+                             opened this page. There is no quantity to be
+                             left of any more, so the column that earns its
+                             place is "Members given": the same question
+                             asked about people instead of goods, and it
+                             carries no figure about anyone.
+
+                             The disaster and the date allocated are in View.
+
+                             "Allocation Status" rather than "Status": this
+                             tracks the batch the office sent, not a member's
+                             own case. A member's case carries one of the
+                             four statuses in section 11.1 and is shown on
+                             their own records. --}}
                         <tr>
+                            <th>Allocation ID</th>
                             <th>Assistance</th>
-                            <th>For</th>
-                            <th>Progress</th>
-                            <th>Allocated</th>
-                            <th>Members Given</th>
-                            <th>Status</th>
+                            <th>Members given</th>
+                            <th>Allocation Status</th>
                             <th class="text-right">Action</th>
                         </tr>
                     </x-slot:head>
 
                     @foreach ($allocations as $allocation)
-                        @php
-                            $given  = (float) ($allocation->distributed_so_far ?? 0);
-                            $total  = (float) $allocation->allocated_quantity;
-                            $hasQty = $allocation->allocated_quantity !== null;
-                            $left   = $hasQty ? max($total - $given, 0) : null;
-                            $pct    = ($hasQty && $total > 0) ? min(100, round($given / $total * 100)) : 0;
-                            $closed = in_array($allocation->status, ['completed', 'cancelled'], true);
-                        @endphp
-
                         <tr>
+                            <td class="whitespace-nowrap font-medium">
+                                AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}
+                            </td>
+
                             <td>
                                 <span class="font-medium">
                                     {{ $allocation->display_name }}
                                 </span>
-                                <span class="block text-xs text-muted-foreground">
-                                    {{ $allocation->is_cash ? 'Cash' : 'In-Kind' }}
+                            </td>
+
+                            {{-- Counted from the rows, through the relations
+                                 the controller eager-loads. Designated is
+                                 how many members the office picked; given is
+                                 how many of them it has handed to. --}}
+                            <td class="whitespace-nowrap">
+                                <span class="font-semibold">{{ $allocation->distributions_count ?? 0 }}</span>
+                                <span class="text-xs text-muted-foreground">
+                                    of {{ $allocation->beneficiaries_count ?? 0 }} designated
                                 </span>
                             </td>
-
-                            <td class="text-muted-foreground">
-                                {{ $allocation->disaster?->name ?? 'Any disaster' }}
-                                @if ($allocation->crop)
-                                    <span class="block text-xs text-muted-foreground">{{ $allocation->crop->name }}</span>
-                                @endif
-                            </td>
-
-                            <td class="whitespace-nowrap">
-                                @if ($hasQty)
-                                    <span class="font-semibold">{{ number_format($left, 2) }}</span>
-                                    <span class="text-xs text-muted-foreground">
-                                        left of {{ number_format($total, 2) }}
-                                    </span>
-                                    <div class="mt-1 h-1.5 w-32 overflow-hidden rounded-full bg-secondary">
-                                        <div class="h-full rounded-full bg-primary" style="width: {{ $pct }}%"></div>
-                                    </div>
-                                @else
-                                    <span class="text-muted-foreground">Not tracked</span>
-                                @endif
-                            </td>
-
-                            <td class="whitespace-nowrap text-muted-foreground">
-                                {{ $allocation->allocated_at?->format('M d, Y') ?? '-' }}
-                            </td>
-
-                            <td class="text-muted-foreground">{{ $allocation->distributions_count }}</td>
 
                             <td><x-ui.status :value="$allocation->status" /></td>
 
                             <td class="whitespace-nowrap text-right">
-                                <div class="flex justify-end gap-2">
-                                    <x-ui.button size="sm" variant="outline"
-                                                 :href="route('association.assistance.show', $allocation)">
-                                        View
-                                    </x-ui.button>
-
-                                    @unless ($closed)
-                                        <x-ui.button size="sm"
-                                                     :href="route('association.assistance.distribute', $allocation)">
-                                            Distribute
-                                        </x-ui.button>
-                                    @endunless
-                                </div>
+                                <x-ui.button size="sm" variant="outline"
+                                             :href="route('association.assistance.show', $allocation)">
+                                    View
+                                </x-ui.button>
                             </td>
                         </tr>
                     @endforeach

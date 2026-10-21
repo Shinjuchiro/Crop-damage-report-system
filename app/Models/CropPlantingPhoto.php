@@ -15,4 +15,13 @@ class CropPlantingPhoto extends Model
     {
         return $this->belongsTo(CropPlantingRecord::class, 'crop_planting_record_id');
     }
+
+    /**
+     * An authorised URL for this photo (revision section 3.4, Oct 2026).
+     * See AttachmentController::plantingPhoto() for who may follow it.
+     */
+    public function getUrlAttribute(): string
+    {
+        return route('attachments.planting-photo', $this);
+    }
 }

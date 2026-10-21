@@ -58,6 +58,18 @@ class MapController extends Controller
         ['min' => 11, 'label' => '11 or more', 'color' => '#881337'],
     ];
 
+    /**
+     * Worst-first ranking for the severity shading, lowest to highest.
+     *
+     * 'partial' is retired (Oct 2026: the client cut the scale to three)
+     * and is not offered in the legend or the filter, which are both built
+     * from Validation::SEVERITY_SCALE. It stays in this ranking, and in the
+     * FIELD() list below that has to match it position for position,
+     * because inspections recorded under the old scale still exist: drop it
+     * here and FIELD() returns 0 for those rows, which this code reads as
+     * "not yet assessed", so a barangay whose only inspection found heavy
+     * damage would shade as though nobody had ever been there.
+     */
     private const SEVERITY_ORDER = ['slight', 'moderate', 'partial', 'total'];
 
     /**
@@ -124,13 +136,17 @@ class MapController extends Controller
             ->groupBy('association_id')
             ->pluck('total', 'association_id');
 
+        // The legend and the severity filter are built from this, so both
+        // offer the three current levels only. Retired severities are read
+        // through Validation::severityLabel()/severityColor() where an old
+        // record has to be displayed, not offered as something to pick.
         $severityScale = Validation::SEVERITY_SCALE;
 
         $associations = Association::with(['barangay', 'coverage'])
             ->orderBy('name')
             ->get()
             ->values()
-            ->map(function (Association $association, int $index) use ($totals, $areas, $registered, $severityScale) {
+            ->map(function (Association $association, int $index) use ($totals, $areas, $registered) {
                 $row     = $totals->get($association->id);
                 $reports = (int) ($row->reports ?? 0);
                 $rank    = (int) ($row->severity_rank ?? 0);
@@ -147,9 +163,14 @@ class MapController extends Controller
                     'farmers'        => (int) ($row->farmers ?? 0),
                     'area'           => round((float) ($areas[$association->id] ?? 0), 2),
                     'severity'       => $key,
-                    'severity_label' => $key ? $severityScale[$key]['label'] : 'Not yet assessed',
+                    // Through severityLabel()/severityColor() rather than
+                    // $severityScale[$key], because $key can be a retired
+                    // severity from an old inspection and the scale no
+                    // longer holds those - a direct lookup would print an
+                    // empty label and lose the pin's colour.
+                    'severity_label' => $key ? Validation::severityLabel($key) : 'Not yet assessed',
                     'count_color'    => $this->countColor($reports),
-                    'severity_color' => $key ? $severityScale[$key]['color'] : '#cbd5e1',
+                    'severity_color' => $key ? Validation::severityColor($key) : '#cbd5e1',
                     'url'            => route('mao.damage-reports.index', ['association_id' => $association->id]),
 
                     // The shading. 'coverage' is the PSGC codes of the
@@ -176,18 +197,22 @@ class MapController extends Controller
             ->whereIn('damage_report_id', $reportIds)
             ->with(['damageReport.farmer.association', 'damageReport.farmer.barangay', 'damageReport.crops.crop'])
             ->get()
-            ->map(function (Validation $validation) use ($severityScale) {
+            ->map(function (Validation $validation) {
                 $report = $validation->damageReport;
                 $farmer = $report?->farmer;
 
                 return [
                     'lat'         => (float) $validation->latitude,
                     'lng'         => (float) $validation->longitude,
-                    'color'       => $severityScale[$validation->severity]['color'] ?? '#94a3b8',
-                    'label'       => $severityScale[$validation->severity]['label'] ?? 'Not assessed',
+                    'color'       => Validation::severityColor($validation->severity),
+                    'label'       => Validation::severityLabel($validation->severity) ?? 'Not assessed',
                     'report'      => 'DR-' . str_pad($report->id, 4, '0', STR_PAD_LEFT),
                     'farmer'      => $farmer?->full_name ?? 'Unknown',
                     'association' => $farmer?->association?->name ?? 'No association',
+                    // So the chips under the map can take a pin off with the
+                    // association it belongs to, rather than leaving the
+                    // reports of a hidden association sitting on the map.
+                    'association_id' => $farmer?->association_id,
                     'barangay'    => $farmer?->barangay?->name ?? 'Unknown barangay',
                     'crops'       => $report->crops->map(fn ($c) => $c->crop?->name)->filter()->join(', ') ?: 'Not specified',
                     'assessed'    => $validation->assessed_damage_percent,
@@ -197,13 +222,35 @@ class MapController extends Controller
 
         /*
         |------------------------------------------------------------------
+        | What actually goes on the map
+        |------------------------------------------------------------------
+        | This is a coverage map, and coverage comes from the office's area
+        | coverage sheet. An association with no coverage recorded has no
+        | area to shade, so it has no place here: it was drawing a bubble at
+        | its office barangay and claiming a colour in the key, which put
+        | rows that are not on the sheet - a half-finished entry, a test
+        | record - on the map beside the eight that are.
+        |
+        | The one exception is an association that HAS damage reports. The
+        | map's first job is showing damage, and dropping an association
+        | whose members have filed reports would hide real figures to tidy
+        | up the key. Those still appear, and the amber notice above the map
+        | counts every association missing coverage either way, so nothing
+        | goes missing quietly.
+        */
+        $withCoverage = $associations->filter(
+            fn ($row) => $row['coverage']->isNotEmpty() || $row['reports'] > 0
+        )->values();
+
+        /*
+        |------------------------------------------------------------------
         | Legends and coverage
         |------------------------------------------------------------------
         */
-        $countLegend = collect(self::COUNT_SCALE)->map(function ($band, $index) use ($associations) {
+        $countLegend = collect(self::COUNT_SCALE)->map(function ($band, $index) use ($withCoverage) {
             $next = self::COUNT_SCALE[$index + 1]['min'] ?? null;
 
-            $band['total'] = $associations->filter(fn ($row) => $row['reports'] >= $band['min']
+            $band['total'] = $withCoverage->filter(fn ($row) => $row['reports'] >= $band['min']
                 && ($next === null || $row['reports'] < $next))->count();
 
             return $band;
@@ -211,17 +258,18 @@ class MapController extends Controller
 
         $severityLegend = collect($severityScale)->map(fn ($row, $key) => $row + [
             'key'   => $key,
-            'total' => $associations->where('severity', $key)->count(),
+            'total' => $withCoverage->where('severity', $key)->count(),
         ])->values();
 
         $coverage = [
             'reports'      => $reportIds->count(),
-            'associations' => $associations->where('reports', '>', 0)->count(),
-            'total_assoc'  => $associations->count(),
-            'area'         => $associations->sum('area'),
+            'associations' => $withCoverage->where('reports', '>', 0)->count(),
+            'total_assoc'  => $withCoverage->count(),
+            'area'         => $withCoverage->sum('area'),
             'pinned'       => $points->count(),
-            // Without coverage an association shades nothing, so it is worth
-            // saying out loud rather than leaving a quietly blank map.
+            // Counted over ALL associations, not just the drawn ones: the
+            // whole point of this notice is to name the ones that are
+            // missing from the map.
             'unplaced'     => $associations->filter(fn ($row) => $row['coverage']->isEmpty())->count(),
         ];
 
@@ -235,7 +283,7 @@ class MapController extends Controller
         }
 
         return view('mao.map.index', [
-            'associationStats' => $associations->values(),
+            'associationStats' => $withCoverage,
             'points'           => $points,
             'shading'          => $shading,
             'countLegend'      => $countLegend,
@@ -245,7 +293,7 @@ class MapController extends Controller
             'years'            => $years,
             'barangays'        => Barangay::orderBy('name')->get(),
             'associations'     => Association::orderBy('name')->get(),
-            'crops'            => Crop::orderBy('name')->get(),
+            'crops'            => Crop::inDisplayOrder()->get(),
             'disasters'        => Disaster::orderByDesc('date_start')->get(),
             'statuses'         => DamageReportMonitorController::STATUSES,
         ]);

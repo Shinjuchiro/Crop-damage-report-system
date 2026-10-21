@@ -1,11 +1,13 @@
 @extends('layouts.app')
 
 @section('title', 'Inspection History')
-@section('heading', 'Inspection History')
-@section('heading-fil', 'Kasaysayan ng Pagsusuri')
+@section('heading', 'Reports & Analytics')
+@section('heading-fil', 'Mga Ulat at Pagsusuri')
 @section('subheading', 'Every inspection you have submitted, newest first.')
 
 @section('content')
+
+@include('technician.partials.analytics-tabs')
 
 {{--
     Driven off the validations table rather than the report status.
@@ -96,9 +98,6 @@
                             <th>Report Id</th>
                             <th>Farmer</th>
                             <th>Barangay</th>
-                            <th>Severity</th>
-                            <th>Farmer / You</th>
-                            <th>Photos</th>
                             <th>Submitted</th>
                             <th class="text-right">Action</th>
                         </tr>
@@ -121,21 +120,9 @@
                                 {{ $report?->reportedBarangay?->name ?? $report?->farmer?->barangay?->name ?? '-' }}
                             </td>
 
-                            <td><x-ui.status :value="$inspection->severity" /></td>
-
                             {{-- Both figures side by side. Section 45: the
                                  farmer's estimate is never overwritten, so the
                                  gap between the two stays visible forever. --}}
-                            <td class="whitespace-nowrap">
-                                <span class="text-muted-foreground">
-                                    {{ $estimate !== null ? round($estimate) . '%' : '-' }}
-                                </span>
-                                <span class="mx-1 text-muted-foreground">/</span>
-                                <span class="font-semibold">{{ round($inspection->assessed_damage_percent) }}%</span>
-                            </td>
-
-                            <td class="text-muted-foreground">{{ $inspection->photos_count }}</td>
-
                             <td class="whitespace-nowrap text-muted-foreground">
                                 {{ $inspection->validated_at?->format('M d, Y g:i A') }}
                             </td>

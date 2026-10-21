@@ -27,7 +27,11 @@ class AssociationController extends Controller
                     ->orWhere('location', 'like', $term));
             })
             ->with('barangay')
-            ->withCount(['farmers', 'officers', 'assistanceAllocations'])
+            // No withCount here any more. The list showed three count
+            // columns and now shows none of them (revision section 3.1);
+            // the three subqueries per page were being run for figures
+            // nothing printed. $selected below still counts, because the
+            // panel prints all three.
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();
@@ -89,24 +93,6 @@ class AssociationController extends Controller
 
         return redirect()->route('mao.associations.index')
             ->with('status', 'Farmers\' Association updated successfully.');
-    }
-
-    /**
-     * Take the association out of the working system for good. Not a
-     * database delete: markDeleted() only stamps deleted_at/deleted_by, so
-     * every farmer, officer and assistance allocation that already points at
-     * it keeps resolving its name exactly as before.
-     */
-    public function destroy(Association $association)
-    {
-        $name = $association->name;
-        $association->markDeleted(Auth::id());
-
-        $this->log('Deleted association: ' . $name, $association->id);
-
-        // back() rather than a fixed route: reused by both the Associations
-        // list and the Archive page's permanent-delete action.
-        return back()->with('status', 'Farmers\' Association deleted. Its data is kept for audit purposes.');
     }
 
     /**

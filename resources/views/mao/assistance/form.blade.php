@@ -2,9 +2,26 @@
 
 @section('title', $assistance ? 'Edit Assistance' : 'Add Assistance')
 @section('heading', $assistance ? 'Edit Assistance' : 'Add Assistance')
-@section('subheading', 'A pool of assistance the MAO can later allocate to associations.')
+@section('subheading', 'A kind of assistance the Municipal Agriculture Office can allocate to farmers.')
 
 @php
+    /* ONE PAGE, NOT TWO STEPS (Oct 2026, client decision)
+
+       This form used to open on a step that asked whether the assistance
+       was Cash or In-Kind, and everything after it was gated on that
+       answer: the quantity field changed its own label, and the review
+       dialog printed the type back.
+
+       Assistance is no longer classified, and no figure is recorded against
+       it, so the first step had nothing to ask and the second had nothing
+       to branch on. What is left is a name, what it is for, and whether it
+       can be allocated, which fits on one page.
+
+       The reason the figures went is privacy, and it is the client's own:
+       how much a named farmer received is a financial detail about an
+       identifiable person, and the people who work these screens have no
+       need to see it. See App\Models\Assistance for the full note. */
+
     $inputClass = 'w-full rounded-lg border border-input px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring';
     $labelClass = 'mb-1.5 block text-sm font-medium text-foreground';
 @endphp
@@ -25,13 +42,10 @@
           @submit.prevent="confirm = true"
           x-data="{
               confirm: false,
-              step: @js($assistance ? 'details' : 'type'),
               name: @js(old('name', $assistance->name ?? '')),
-              type: @js(old('type', $assistance->type ?? 'in_kind')),
               description: @js(old('description', $assistance->description ?? '')),
               disasterId: @js((string) old('disaster_id', $assistance->disaster_id ?? '')),
               cropId: @js((string) old('crop_id', $assistance->crop_id ?? '')),
-              available: @js((string) old('available_quantity_or_amount', $assistance->available_quantity_or_amount ?? '')),
               status: @js(old('status', $assistance->status ?? 'active')),
               lookup: {
                   disasters: @js($disasters->pluck('name', 'id')),
@@ -42,60 +56,21 @@
         @csrf
         @if ($assistance) @method('PUT') @endif
 
-        <input type="hidden" name="type" :value="type">
-
-        {{-- Step 1: choose the assistance type before anything else --}}
-        <div x-show="step === 'type'" x-cloak x-transition.opacity
-             class="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 class="mb-1 text-base font-semibold text-foreground">Assistance Type</h3>
-            <p class="mb-5 text-sm text-muted-foreground">
-                Choose the kind of assistance this pool provides. You can change this later.
-            </p>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <button type="button" @click="type = 'in_kind'; step = 'details'"
-                        class="rounded-xl border-2 p-5 text-left transition"
-                        :class="type === 'in_kind' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'">
-                    <span class="mb-1 block text-sm font-bold text-foreground">In-Kind</span>
-                    <span class="block text-xs text-muted-foreground">Seeds, fertilizer, farm tools, or other physical goods.</span>
-                </button>
-                <button type="button" @click="type = 'cash'; step = 'details'"
-                        class="rounded-xl border-2 p-5 text-left transition"
-                        :class="type === 'cash' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'">
-                    <span class="mb-1 block text-sm font-bold text-foreground">Cash</span>
-                    <span class="block text-xs text-muted-foreground">Financial assistance disbursed directly to the recipient.</span>
-                </button>
-            </div>
-
-            <a href="{{ route('mao.assistance.index') }}" class="mt-5 inline-block text-sm text-muted-foreground hover:text-foreground">
-                Cancel
-            </a>
-        </div>
-
-        {{-- Step 2: item details, gated on a type having been chosen --}}
-        <div x-show="step === 'details'" x-cloak x-transition.opacity>
-
-            <div class="mb-5 flex items-center justify-between rounded-lg bg-muted px-4 py-3">
-                <div>
-                    <span class="block text-xs uppercase tracking-wide text-muted-foreground">Assistance Type</span>
-                    <span class="text-sm font-bold text-foreground" x-text="type === 'cash' ? 'Cash' : 'In-Kind'"></span>
-                </div>
-                <button type="button" @click="step = 'type'" class="text-sm font-medium text-primary hover:underline">
-                    Change
-                </button>
-            </div>
-
         <div class="space-y-5 rounded-xl border border-border bg-card p-6 shadow-sm">
 
             <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 <div class="sm:col-span-2 xl:col-span-3">
-                    <label class="{{ $labelClass }}">Assistance Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" x-model="name" required maxlength="255"
-                           placeholder="e.g. Rice Seeds, Financial Assistance" class="{{ $inputClass }}">
+                    <label for="name" class="{{ $labelClass }}">Assistance Name <span class="text-red-500">*</span></label>
+                    <input id="name" type="text" name="name" x-model="name" required maxlength="255"
+                           placeholder="e.g. Rice Seeds, Fertilizer, Farm Tools" class="{{ $inputClass }}">
+                    <p class="mt-1.5 text-xs text-muted-foreground">
+                        The name is what every screen shows, so make it the name the office says out loud.
+                    </p>
                 </div>
 
                 <div>
-                    <label class="{{ $labelClass }}">Status <span class="text-red-500">*</span></label>
-                    <select name="status" x-model="status" required class="{{ $inputClass }}">
+                    <label for="status" class="{{ $labelClass }}">Status <span class="text-red-500">*</span></label>
+                    <select id="status" name="status" x-model="status" required class="{{ $inputClass }}">
                         @foreach ($statuses as $value)
                             <option value="{{ $value }}">{{ ucfirst($value) }}</option>
                         @endforeach
@@ -104,14 +79,14 @@
                 </div>
 
                 <div class="sm:col-span-2 xl:col-span-3">
-                    <label class="{{ $labelClass }}">Description</label>
-                    <textarea name="description" x-model="description" rows="3" maxlength="1000"
+                    <label for="description" class="{{ $labelClass }}">Description</label>
+                    <textarea id="description" name="description" x-model="description" rows="3" maxlength="1000"
                               placeholder="What this assistance covers" class="{{ $inputClass }}"></textarea>
                 </div>
 
                 <div>
-                    <label class="{{ $labelClass }}">For Disaster Event</label>
-                    <select name="disaster_id" x-model="disasterId" class="{{ $inputClass }}">
+                    <label for="disaster_id" class="{{ $labelClass }}">For Disaster Event</label>
+                    <select id="disaster_id" name="disaster_id" x-model="disasterId" class="{{ $inputClass }}">
                         <option value="">Any disaster</option>
                         @foreach ($disasters as $disaster)
                             <option value="{{ $disaster->id }}">{{ $disaster->name }}</option>
@@ -120,25 +95,13 @@
                 </div>
 
                 <div>
-                    <label class="{{ $labelClass }}">For Crop</label>
-                    <select name="crop_id" x-model="cropId" class="{{ $inputClass }}">
+                    <label for="crop_id" class="{{ $labelClass }}">For Crop</label>
+                    <select id="crop_id" name="crop_id" x-model="cropId" class="{{ $inputClass }}">
                         <option value="">Any crop</option>
                         @foreach ($crops as $crop)
                             <option value="{{ $crop->id }}">{{ $crop->name }}</option>
                         @endforeach
                     </select>
-                </div>
-
-                <div class="sm:col-span-2 xl:col-span-3 sm:max-w-xs">
-                    <label class="{{ $labelClass }}">
-                        <span x-show="type !== 'cash'">Available Quantity</span>
-                        <span x-show="type === 'cash'" x-cloak>Available Amount</span>
-                    </label>
-                    <input type="number" step="0.01" min="0" name="available_quantity_or_amount"
-                           x-model="available" placeholder="Leave blank if not tracked" class="{{ $inputClass }}">
-                    <p class="mt-1.5 text-xs text-muted-foreground">
-                        The total pool. Allocations are subtracted from it.
-                    </p>
                 </div>
             </div>
         </div>
@@ -154,9 +117,7 @@
             </button>
         </div>
 
-        </div>{{-- /step: details --}}
-
-        {{-- Review before saving --}}
+        {{-- Review before saving (revision section 91) --}}
         <div x-show="confirm" x-cloak x-transition.opacity
              class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
             <div x-show="confirm" x-transition class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
@@ -171,20 +132,12 @@
                         <dd class="min-w-0 text-right font-medium text-foreground" x-text="name || '-'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
-                        <dt class="shrink-0 text-muted-foreground">Type</dt>
-                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="type === 'cash' ? 'Cash' : 'In-Kind'"></dd>
-                    </div>
-                    <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">For Disaster</dt>
                         <dd class="min-w-0 text-right font-medium text-foreground" x-text="label('disasters', disasterId)"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">For Crop</dt>
                         <dd class="min-w-0 text-right font-medium text-foreground" x-text="label('crops', cropId)"></dd>
-                    </div>
-                    <div class="flex justify-between gap-4">
-                        <dt class="shrink-0 text-muted-foreground">Available</dt>
-                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="available || 'Not tracked'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Status</dt>
@@ -195,9 +148,7 @@
                         <div class="border-t border-border pt-3">
                             <p class="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Previously</p>
                             <p class="text-xs text-muted-foreground">
-                                {{ $assistance->name }} &middot;
-                                {{ $assistance->type === 'cash' ? 'Cash' : 'In-Kind' }} &middot;
-                                {{ ucfirst($assistance->status) }}
+                                {{ $assistance->name }} &middot; {{ ucfirst($assistance->status) }}
                             </p>
                         </div>
                     @endif

@@ -9,12 +9,10 @@
 @endphp
 
 @section('content')
-<div x-data="{ archiving: null }">
 
-    {{-- Summary --}}
-    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-ui.stat label="Planting Submissions" :value="number_format($summary['records'])"
-                   icon="M12 21v-8m0 0C12 9 9 6 5 6c0 4 3 7 7 7zm0 0c0-4 3-7 7-7 0 4-3 7-7 7z" />
+<x-crop-management.header tab="planting">
+    {{-- This page's own figures, rendered above the tabs. --}}
+    <div class="grid gap-4 sm:grid-cols-3">
         <x-ui.stat label="Submitted This Month" :value="number_format($summary['this_month'])"
                    icon="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0119 21H5a1.5 1.5 0 01-1.5-1.5v-13A1.5 1.5 0 015 5z" />
         <x-ui.stat label="Farmers Reporting" :value="number_format($summary['farmers'])"
@@ -23,14 +21,46 @@
         <x-ui.stat label="Total Area Planted" :value="number_format($summary['area_planted'], 2)" suffix="ha"
                    icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
+</x-crop-management.header>
+<div x-data="{ archiving: null }">
 
-    {{-- List + detail. Side by side from lg up; on a phone only one half
-         shows at a time - the list, or (once a row's View is followed)
-         the detail panel full-screen with its own Back link. --}}
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
+            @php
+                /* GROUPED BY FARMER, OR FLAT (revision section 10)
+
+                   The controller does the ordering - grouped means a
+                   farmer's crops arrive together - and this works out, for
+                   the page in hand, how many each farmer has and where each
+                   one sits inside their block. That feeds the group
+                   heading's count and the first column's "Record 1, Record
+                   2", which is how the revision's examples read.
+
+                   Counted on the page, not in the database: the heading
+                   says how many are in front of you, which is the honest
+                   claim when a list is paginated. */
+                $grouped  = ($view ?? 'grouped') !== 'flat';
+                $rows     = $plantings->getCollection();
+                $perGroup = $rows->groupBy(fn ($row) => $row->plantingRecord?->farmer?->id)->map->count();
+
+                $seq = [];
+                $running = [];
+                foreach ($rows as $row) {
+                    $key = $row->plantingRecord?->farmer?->id;
+                    $running[$key] = ($running[$key] ?? 0) + 1;
+                    $seq[$row->id] = $running[$key];
+                }
+            @endphp
+
+            <x-record.view-toggle :view="$grouped ? 'grouped' : 'flat'" class="mb-4" />
+
             <x-ui.card title="Crop Planting Monitoring">
                 <x-slot:actions>
                     <a href="{{ route('mao.archive.index', ['type' => 'crop_planting']) }}"
@@ -39,43 +69,82 @@
                     </a>
                 </x-slot:actions>
 
-                {{-- Filters. No visible Search button - Enter in the field, or
-                     choosing a dropdown option, submits the form. --}}
-                <form method="GET" class="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
-                                 :options="$associations->pluck('name', 'id')" :selected="request('association_id')" class="sm:w-56" />
+                {{-- Filters, Export Report and the search box, on one row.
 
-                    <x-ui.select name="crop_id" placeholder="All Crops" onchange="this.form.submit()"
-                                 :options="$crops->pluck('name', 'id')" :selected="request('crop_id')" class="sm:w-44" />
+                     Export sits beside the filters on purpose: it exports
+                     exactly what they are showing, so standing next to them
+                     says so without a word of explanation. It is outside the
+                     <form> because it is a link, not a submission - putting a
+                     link inside a GET form is harmless but misleading to
+                     anyone reading this later.
 
-                    <x-ui.select name="barangay_id" placeholder="All Barangays" onchange="this.form.submit()"
-                                 :options="$barangays->pluck('name', 'id')" :selected="request('barangay_id')" class="sm:w-48" />
+                     No visible Search button: Enter in the field, or choosing
+                     a dropdown option, submits the form. --}}
+                <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
 
-                    <x-ui.input type="text" name="search" value="{{ request('search') }}" placeholder="Search farmer"
-                                class="sm:min-w-[12rem] sm:flex-1" />
+                    <form method="GET" class="flex flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                        <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
+                                     :options="$associations->pluck('name', 'id')" :selected="request('association_id')" class="sm:w-52" />
 
-                    @if (request()->hasAny(['search', 'association_id', 'crop_id', 'barangay_id']))
-                        <a href="{{ route('mao.crop-planting.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
-                    @endif
-                </form>
+                        <x-ui.select name="crop_id" placeholder="All Crops" onchange="this.form.submit()"
+                                     :options="$crops->pluck('name', 'id')" :selected="request('crop_id')" class="sm:w-40" />
+
+                        <x-ui.select name="barangay_id" placeholder="All Barangays" onchange="this.form.submit()"
+                                     :options="$barangays->pluck('name', 'id')" :selected="request('barangay_id')" class="sm:w-44" />
+
+                        {{-- The magnifier sits inside the field, as the design
+                             draws it. pointer-events-none so it never steals
+                             the click that should land in the input. --}}
+                        <div class="relative sm:min-w-[14rem] sm:flex-1">
+                            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
+                                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+                                </svg>
+                            </span>
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                   placeholder="Search farmer name"
+                                   class="h-11 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm
+                                          placeholder:text-muted-foreground focus:border-primary focus:outline-none">
+                        </div>
+
+                        @if (request()->hasAny(['search', 'association_id', 'crop_id', 'barangay_id']))
+                            <a href="{{ route('mao.crop-planting.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
+                        @endif
+                    </form>
+
+                    <x-record.export-button class="lg:order-first" />
+                </div>
 
                 {{-- Table --}}
                 {{-- ---------- PHONE: one card per planting ----------
                      Archive stays on the table and the detail panel. --}}
-                <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
+                <ul class="space-y-3 lg:hidden">
+                    @php $phoneLast = null; @endphp
+
                     @forelse ($plantings as $planting)
                         @php $cardFarmer = $planting->plantingRecord?->farmer; @endphp
-                        <li>
+
+                        @if ($grouped && $cardFarmer?->id !== $phoneLast)
+                            @php $phoneLast = $cardFarmer?->id; @endphp
+                            <li class="flex flex-wrap items-center justify-between gap-2 pt-2 first:pt-0">
+                                <span class="text-sm font-bold">{{ $cardFarmer?->full_name ?? 'Unknown' }}</span>
+                                <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
+                                    {{ $perGroup[$cardFarmer?->id] ?? 1 }}
+                                    {{ \Illuminate\Support\Str::plural('record', $perGroup[$cardFarmer?->id] ?? 1) }}
+                                </span>
+                            </li>
+                        @endif
+
+                        <li class="{{ $grouped ? 'ml-3' : '' }}">
                             <x-ui.record-card :href="$viewUrl($planting->crop_planting_record_id)"
-                                              :eyebrow="$cardFarmer ? 'FARM-' . str_pad($cardFarmer->id, 3, '0', STR_PAD_LEFT) : '-'"
-                                              :title="$cardFarmer?->full_name ?? 'Unknown'"
-                                              :subtitle="$cardFarmer?->association?->name ?? 'No association'"
-                                              :status="$cardFarmer?->activity_status"
-                                              :fields="[
-                                                  'Crop'          => $planting->crop_specify ?: ($planting->crop?->name ?? '-'),
-                                                  'Planting date' => $planting->date_planted?->format('M d, Y'),
-                                                  'Farm area'     => $planting->area_hectares . ' ha',
-                                              ]" />
+                                              :eyebrow="$grouped
+                                                  ? 'RECORD ' . $seq[$planting->id]
+                                                  : ($cardFarmer ? 'FARM-' . str_pad($cardFarmer->id, 3, '0', STR_PAD_LEFT) : '-')"
+                                              :title="$grouped
+                                                  ? ($planting->crop_specify ?: $planting->crop?->name ?? 'Crop')
+                                                  : ($cardFarmer?->full_name ?? 'Unknown')"
+                                              :status="$cardFarmer?->activity_status" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -84,43 +153,70 @@
                     @endforelse
                 </ul>
 
-                <div class="hidden overflow-x-auto lg:block">
+                {{-- The heading row is a filled band rather than a heavy
+                     rule, and its labels are small caps - the same treatment
+                     x-ui.table gives every other table in the system, and
+                     what the design draws. Written out here rather than
+                     switching to that component because this table carries
+                     group heading rows and a hover state keyed to the open
+                     record, neither of which the shared component knows
+                     about. --}}
+                <div class="hidden overflow-hidden rounded-xl border border-border lg:block">
                     <table class="w-full text-left">
-                        <thead>
-                            <tr class="border-b-2 border-border text-sm font-bold text-foreground">
-                                <th class="px-3 py-3">Farmer ID</th>
-                                <th class="px-3 py-3">Name</th>
-                                <th class="px-3 py-3">Association</th>
-                                <th class="px-3 py-3">Crop</th>
-                                <th class="px-3 py-3">Planting Date</th>
-                                <th class="px-3 py-3">Farm Area</th>
-                                <th class="px-3 py-3 text-center">Status</th>
-                                <th class="px-3 py-3 text-right">Action</th>
+                        <thead class="bg-muted/70">
+                            <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                {{-- FOUR COLUMNS (revision section 3.1)
+
+                                     ID, Name, Status, Action, and nothing
+                                     else. Association and Planting Date used
+                                     to sit between them; both are in View,
+                                     which is where the revision asks for
+                                     anything the office does not need in
+                                     order to pick a row out of a list. --}}
+                                <th class="px-4 py-3">Farmer ID</th>
+                                <th class="px-4 py-3">Name</th>
+                                <th class="px-4 py-3 text-center">Status</th>
+                                <th class="px-4 py-3 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border text-sm">
+                            @php $lastFarmer = null; @endphp
+
                             @forelse ($plantings as $planting)
                                 @php $farmer = $planting->plantingRecord?->farmer; @endphp
+
+                                @if ($grouped && $farmer?->id !== $lastFarmer)
+                                    @php $lastFarmer = $farmer?->id; @endphp
+                                    <x-record.group-head :farmer="$farmer"
+                                                         :count="$perGroup[$farmer?->id] ?? 1"
+                                                         noun="planting record"
+                                                         :colspan="4"
+                                                         :href="$farmer ? route('mao.farmers.show', $farmer) : null" />
+                                @endif
+
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $planting->crop_planting_record_id ? 'bg-muted/60' : '' }}">
-                                    <td class="px-3 py-4 text-foreground">
-                                        {{ $farmer ? 'FARM-' . str_pad($farmer->id, 3, '0', STR_PAD_LEFT) : '-' }}
-                                    </td>
-                                    <td class="px-3 py-4 font-bold text-foreground">{{ $farmer?->full_name ?? 'Unknown' }}</td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $farmer?->association?->name ?? '-' }}</td>
-                                    <td class="px-3 py-4 text-muted-foreground">
-                                        {{ $planting->crop?->name ?? '-' }}
-                                        @if ($planting->crop_specify)
-                                            <span class="block text-xs text-muted-foreground">{{ $planting->crop_specify }}</span>
+                                    <td class="px-4 py-4 text-foreground">
+                                        @if ($grouped)
+                                            <span class="pl-3 text-muted-foreground">Record {{ $seq[$planting->id] }}</span>
+                                        @else
+                                            {{ $farmer ? 'FARM-' . str_pad($farmer->id, 3, '0', STR_PAD_LEFT) : '-' }}
                                         @endif
                                     </td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $planting->date_planted?->format('M d, Y') }}</td>
-                                    <td class="px-3 py-4 tabular-nums text-muted-foreground">{{ $planting->area_hectares }} ha</td>
-                                    <td class="px-3 py-4 text-center">
+                                    <td class="px-4 py-4 font-bold text-foreground">
+                                        @if ($grouped)
+                                            <span class="font-medium text-muted-foreground">
+                                                {{ $planting->crop_specify ?: $planting->crop?->name ?? '-' }}
+                                            </span>
+                                        @else
+                                            {{ $farmer?->full_name ?? 'Unknown' }}
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-4 text-center">
                                         <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $farmer?->activity_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' }}">
                                             {{ $farmer?->activity_status === 'active' ? 'Active' : 'In-Active' }}
                                         </span>
                                     </td>
-                                    <td class="px-3 py-4">
+                                    <td class="px-4 py-4">
                                         <div class="flex justify-end gap-2">
                                             <x-ui.button :href="$viewUrl($planting->crop_planting_record_id)" variant="view" size="sm">View</x-ui.button>
 
@@ -134,7 +230,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-3 py-14 text-center">
+                                    <td colspan="4" class="px-4 py-14 text-center">
                                         <p class="text-sm font-medium text-muted-foreground">No planting records yet</p>
                                         <p class="mt-1 text-xs text-muted-foreground">
                                             Records appear here once farmers submit their crop planting activity.
@@ -146,7 +242,25 @@
                     </table>
                 </div>
 
-                <div class="mt-6 border-t border-border pt-5">{{ $plantings->links() }}</div>
+                {{-- "Showing 1 to 3 of 3 entries" on the left, the pages on
+                     the right, as the design draws it. firstItem() is null on
+                     an empty page, which is why the count is written rather
+                     than assumed. --}}
+                <div class="mt-6 flex flex-col gap-3 border-t border-border pt-5
+                            sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-muted-foreground">
+                        @if ($plantings->total() > 0)
+                            Showing {{ number_format($plantings->firstItem()) }}
+                            to {{ number_format($plantings->lastItem()) }}
+                            of {{ number_format($plantings->total()) }}
+                            {{ \Illuminate\Support\Str::plural('entry', $plantings->total()) }}
+                        @else
+                            No entries
+                        @endif
+                    </p>
+
+                    <div>{{ $plantings->links() }}</div>
+                </div>
             </x-ui.card>
         </div>
 
@@ -199,9 +313,9 @@
                     @if ($plantingRecord->photos->isNotEmpty())
                         <div class="grid grid-cols-3 gap-2">
                             @foreach ($plantingRecord->photos as $photo)
-                                <a href="{{ asset('storage/' . $photo->file_path) }}" target="_blank"
+                                <a href="{{ $photo->url }}" target="_blank"
                                    class="block overflow-hidden rounded-lg border border-border">
-                                    <img src="{{ asset('storage/' . $photo->file_path) }}" alt="Planting photo"
+                                    <img src="{{ $photo->url }}" alt="Planting photo"
                                          class="h-16 w-full object-cover transition hover:scale-105">
                                 </a>
                             @endforeach

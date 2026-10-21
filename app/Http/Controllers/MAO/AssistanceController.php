@@ -14,12 +14,26 @@ use Illuminate\Validation\Rule;
 /**
  * The catalogue of assistance the MAO can hand out.
  *
- * An entry here is the pool ("Rice Seeds", "Financial Assistance"); allocating
- * it to an association happens in AssistanceAllocationController.
+ * An entry here is the kind of assistance ("Rice Seeds", "Fertilizer");
+ * allocating it happens in AssistanceAllocationController.
+ *
+ * It used to be a POOL, with a type and an available quantity that
+ * allocations drew down. Both are gone (Oct 2026): an item is now a name, a
+ * description and what it is for, with no figure anywhere. See the note on
+ * App\Models\Assistance for the client's reason, which is privacy.
  */
 class AssistanceController extends Controller
 {
-    public const TYPES    = ['cash', 'in_kind'];
+    /* TYPES IS GONE (Oct 2026, client decision)
+ 
+       It held ['cash', 'in_kind']. An assistance item is no longer
+       classified, and no figure is recorded against one, because how much
+       a named farmer received is a financial detail about an identifiable
+       person and the client asked for it to stay out of this system. See
+       the note on App\Models\Assistance.
+ 
+       Anything that imported AssistanceController::TYPES was updated in
+       the same pass; nothing should reintroduce it. */
     public const STATUSES = ['active', 'inactive', 'closed'];
 
     public function index(Request $request)
@@ -28,8 +42,6 @@ class AssistanceController extends Controller
             ->notDeleted()
             ->with(['disaster', 'crop'])
             ->withCount('allocations')
-            ->withSum('allocations', 'allocated_quantity')
-            ->when($request->filled('type'), fn ($query) => $query->where('type', $request->type))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
             ->when($request->filled('search'),
                 fn ($query) => $query->where('name', 'like', '%' . $request->search . '%'))
@@ -43,13 +55,11 @@ class AssistanceController extends Controller
         $selected = $request->filled('selected')
             ? Assistance::with(['disaster', 'crop'])
                 ->withCount('allocations')
-                ->withSum('allocations', 'allocated_quantity')
                 ->find($request->selected)
             : null;
 
         return view('mao.assistance.index', [
             'assistances' => $assistances,
-            'types'       => self::TYPES,
             'statuses'    => self::STATUSES,
             'selected'    => $selected,
         ]);
@@ -86,24 +96,6 @@ class AssistanceController extends Controller
     }
 
     /**
-     * Take the assistance item out of the working system for good. Not a
-     * database delete: markDeleted() only stamps deleted_at/deleted_by, so
-     * every allocation and distribution already made against it keeps
-     * resolving its name exactly as before.
-     */
-    public function destroy(Assistance $assistance)
-    {
-        $name = $assistance->name;
-        $assistance->markDeleted(Auth::id());
-
-        $this->log('Deleted assistance: ' . $name, $assistance->id);
-
-        // back() rather than a fixed route: reused by both the Assistance
-        // catalogue and the Archive page's permanent-delete action.
-        return back()->with('status', 'Assistance deleted. Its data is kept for audit purposes.');
-    }
-
-    /**
      * Archive rather than delete once assistance has already been allocated
      * (proposal section 72). Distinct from 'closed', which means the pool
      * itself ran out; 'inactive' just takes it off the active catalogue.
@@ -134,7 +126,6 @@ class AssistanceController extends Controller
     {
         return [
             'assistance' => $assistance,
-            'types'      => self::TYPES,
             'statuses'   => self::STATUSES,
             // Archived events and crops should not be offered when defining
             // a NEW assistance item, though an existing one that already
@@ -142,7 +133,7 @@ class AssistanceController extends Controller
             'disasters'  => Disaster::active()->orderByDesc('date_start')->get()
                 ->when($assistance?->disaster && $assistance->disaster->is_archived,
                     fn ($list) => $list->push($assistance->disaster)),
-            'crops'      => Crop::active()->orderBy('name')->get()
+            'crops'      => Crop::active()->inDisplayOrder()->get()
                 ->when($assistance?->crop && $assistance->crop->is_archived,
                     fn ($list) => $list->push($assistance->crop)),
         ];
@@ -151,13 +142,11 @@ class AssistanceController extends Controller
     private function validatedData(Request $request): array
     {
         return $request->validate([
-            'name'                         => ['required', 'string', 'max:255'],
-            'type'                         => ['required', Rule::in(self::TYPES)],
-            'description'                  => ['nullable', 'string', 'max:1000'],
-            'disaster_id'                  => ['nullable', 'exists:disasters,id'],
-            'crop_id'                      => ['nullable', 'exists:crops,id'],
-            'available_quantity_or_amount' => ['nullable', 'numeric', 'min:0'],
-            'status'                       => ['required', Rule::in(self::STATUSES)],
+            'name'        => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'disaster_id' => ['nullable', 'exists:disasters,id'],
+            'crop_id'     => ['nullable', 'exists:crops,id'],
+            'status'      => ['required', Rule::in(self::STATUSES)],
         ]);
     }
 

@@ -41,11 +41,6 @@
         default        => 'Waiting ' . $days . ' days',
     };
 
-    $rowCrops = $report->crops
-        ->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)
-        ->filter()
-        ->join(', ');
-
     $rowBarangay = $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name;
 @endphp
 
@@ -86,9 +81,6 @@
 
             <span class="mt-0.5 block truncate text-sm text-muted-foreground">
                 {{ $rowBarangay ?: 'Location not set' }}
-                @if ($rowCrops)
-                    &middot; {{ $rowCrops }}
-                @endif
             </span>
 
             <span class="mt-1 block text-xs font-semibold {{ $ageTone }}">

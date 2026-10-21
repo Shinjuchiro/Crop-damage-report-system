@@ -53,12 +53,12 @@
                    :href="route('association.members.index')" />
 
         <x-ui.stat label="Active Members" :value="number_format($summary['active_members'])"
-                   tone="primary" hint="Active in the last 3 months"
+                   tone="primary" :hint="'Active in the last ' . \App\Models\Farmer::INACTIVITY_MONTHS . ' months'"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6"
                    :href="route('association.members.index', ['status' => 'active'])" />
 
         <x-ui.stat label="Inactive Members" :value="number_format($summary['inactive_members'])"
-                   hint="No planting activity for 3 months"
+                   :hint="'No planting activity for ' . \App\Models\Farmer::INACTIVITY_MONTHS . ' months'"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM17 11h5"
                    :href="route('association.members.index', ['status' => 'inactive'])" />
 
@@ -91,49 +91,61 @@
                    :href="route('association.assistance.index')" />
     </div>
 
-    {{-- Allocated against distributed. Two figures that only mean anything
-         beside each other: the gap is what is still sitting here. --}}
-    <x-ui.card title="Assistance" description="Ang tulong na natanggap at naipamahagi">
+    {{-- MEMBERS, NOT QUANTITIES (Oct 2026, client decision)
+
+         These three cards were Allocated, Distributed and Remaining, all
+         sums of goods. There are no quantities: how much a named farmer
+         received is a financial detail about an identifiable person and is
+         out of this system.
+
+         The same shape, counted in people. Selected is how many members the
+         office has designated, Received is how many of them it has handed
+         to, and Still waiting is the gap - which is the number an officer
+         acts on, because those are the members they still have to call in.
+         All three count this association's own members only. --}}
+    <x-ui.card title="Assistance" description="Ang tulong para sa inyong mga kasapi">
         <div class="grid gap-4 sm:grid-cols-3">
             <div class="rounded-xl border border-border bg-muted p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Allocated</p>
-                <p class="mt-1 text-2xl font-bold">{{ number_format($summary['allocated_quantity'], 2) }}</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Members selected</p>
+                <p class="mt-1 text-2xl font-bold">{{ number_format($summary['designated_members']) }}</p>
             </div>
             <div class="rounded-xl border border-primary/40 bg-accent p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-accent-foreground/70">Distributed</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-accent-foreground/70">Already received</p>
                 <p class="mt-1 text-2xl font-bold text-accent-foreground">
-                    {{ number_format($summary['distributed_quantity'], 2) }}
+                    {{ number_format($summary['members_handed_to']) }}
                 </p>
             </div>
             <div class="rounded-xl border border-border bg-muted p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Remaining</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Still waiting</p>
                 <p class="mt-1 text-2xl font-bold">
-                    {{ number_format(max($summary['allocated_quantity'] - $summary['distributed_quantity'], 0), 2) }}
+                    {{ number_format(max($summary['designated_members'] - $summary['members_handed_to'], 0)) }}
                 </p>
             </div>
         </div>
 
         <p class="mt-3 text-xs text-muted-foreground">
-            Quantities are counted across every in-kind allocation. Cash assistance is recorded without a
-            quantity, so it does not appear in these three figures.
+            The Municipal Agriculture Office hands assistance to your members and records it. Please tell the
+            members still waiting when and where to collect theirs.
         </p>
     </x-ui.card>
 
     {{-- ================= TWO WORKING LISTS ================= --}}
     <div class="grid gap-4 xl:grid-cols-2">
 
-        <x-ui.card title="Waiting to be distributed" description="Hindi pa naipamamahagi" :padded="false">
+        <x-ui.card title="Members still to collect" description="Mga kasaping hindi pa nakakakuha" :padded="false">
             @if ($needsDistribution->isEmpty())
                 <x-ui.empty title="Nothing waiting"
                             icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"
-                            message="Every allocation the office sent you has been given out." />
+                            message="Every member the office selected has already received theirs." />
             @else
                 <ul class="divide-y divide-border">
                     @foreach ($needsDistribution as $allocation)
                         @php
-                            $given = (float) ($allocation->distributed_so_far ?? 0);
-                            $total = (float) $allocation->allocated_quantity;
-                            $left  = $allocation->allocated_quantity === null ? null : max($total - $given, 0);
+                            // This association's own members on this batch,
+                            // counted by the controller's scoped withCount.
+                            $mine  = $allocation->beneficiaries_count;
+                            $given = $allocation->distributions_count;
+                            $left  = max($mine - $given, 0);
                         @endphp
 
                         <li>
@@ -142,31 +154,29 @@
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-semibold">
-                                            {{ $allocation->display_name }}
+                                            AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}
                                         </p>
                                         <p class="mt-0.5 text-xs text-muted-foreground">
-                                            @if ($allocation->disaster)
-                                                For {{ $allocation->disaster->name }} &middot;
-                                            @endif
-                                            allocated {{ $allocation->allocated_at?->format('M d, Y') }}
+                                            Allocated {{ $allocation->allocated_at?->format('M d, Y') }}
                                         </p>
                                     </div>
                                     <x-ui.status :value="$allocation->status" />
                                 </div>
 
-                                @if ($left !== null)
+                                @if ($mine > 0)
                                     <p class="mt-2 text-sm">
-                                        <span class="font-semibold">{{ number_format($left, 2) }}</span>
+                                        <span class="font-semibold">{{ $left }}</span>
                                         <span class="text-muted-foreground">
-                                            left of {{ number_format($total, 2) }}
+                                            of your {{ $mine }} selected {{ \Illuminate\Support\Str::plural('member', $mine) }}
+                                            still to collect
                                         </span>
                                     </p>
 
-                                    {{-- A bar, because "80 of 100" is read faster
+                                    {{-- A bar, because "8 of 10" is read faster
                                          as a shape than as two numbers. --}}
                                     <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                                         <div class="h-full rounded-full bg-primary"
-                                             style="width: {{ $total > 0 ? min(100, round($given / $total * 100)) : 0 }}%"></div>
+                                             style="width: {{ min(100, round($given / $mine * 100)) }}%"></div>
                                     </div>
                                 @endif
                             </a>

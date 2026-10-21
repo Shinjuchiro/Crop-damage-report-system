@@ -13,14 +13,29 @@
         'cancelled'   => 'bg-secondary text-muted-foreground',
     ];
 
-    $isCash = $allocation->is_cash;
+    /* $isCash is gone with the cash/in-kind distinction (Oct 2026, client
+       decision). Nothing on this page branches on it any more, and no
+       figure is shown: how much a named farmer received is a financial
+       detail about an identifiable person, and the client asked for it out
+       of the system. See App\Models\Assistance. */
 @endphp
 
 @section('header-actions')
-    <a href="{{ route('mao.assistance-allocations.index') }}"
-       class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
-        Back to Allocations
-    </a>
+    <div class="flex flex-wrap items-center gap-3">
+        {{-- The office hands assistance over itself now; this is the way in
+             to that form (Oct 2026). Hidden once the allocation is closed,
+             and the controller refuses it there too. --}}
+        @unless (in_array($allocation->status, ['completed', 'cancelled'], true))
+            <x-ui.button :href="route('mao.assistance-allocations.distribute', $allocation)">
+                Record a hand-over
+            </x-ui.button>
+        @endunless
+
+        <a href="{{ route('mao.assistance-allocations.index') }}"
+           class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
+            Back to Allocations
+        </a>
+    </div>
 @endsection
 
 @section('content')
@@ -38,9 +53,6 @@
             <span class="inline-flex rounded px-3 py-1.5 text-sm font-semibold {{ $statusBadges[$allocation->status] ?? $statusBadges['pending'] }}">
                 {{ ucfirst($allocation->status) }}
             </span>
-            <span class="inline-flex rounded px-3 py-1.5 text-sm font-medium {{ $isCash ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' }}">
-                {{ $isCash ? 'Cash' : 'In-Kind' }}
-            </span>
         </div>
 
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -48,22 +60,23 @@
             <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $allocation->association?->name ?? '-' }}</dd></div>
             <div><dt class="text-muted-foreground">Disaster Event</dt><dd class="font-medium text-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</dd></div>
             <div><dt class="text-muted-foreground">Crop</dt><dd class="font-medium text-foreground">{{ $allocation->crop?->name ?? 'Not crop specific' }}</dd></div>
+            {{-- Amount Allocated and Amount Released were here. Two
+                 counts of people replace them, which answer the same
+                 question without a figure about anyone. --}}
             <div>
-                <dt class="text-muted-foreground">{{ $isCash ? 'Amount Allocated' : 'Quantity Allocated' }}</dt>
-                <dd class="font-medium text-foreground">
-                    {{ $allocation->allocated_quantity !== null ? number_format($allocation->allocated_quantity, 2) : 'Not specified' }}
-                </dd>
+                <dt class="text-muted-foreground">Farmers Designated</dt>
+                <dd class="font-medium text-foreground">{{ $allocation->beneficiaries->count() }}</dd>
             </div>
             <div>
-                <dt class="text-muted-foreground">{{ $isCash ? 'Amount Released' : 'Quantity Released' }}</dt>
+                <dt class="text-muted-foreground">Already Handed Over</dt>
                 <dd class="font-medium text-foreground">
-                    {{ $allocation->distributed_quantity !== null ? number_format($allocation->distributed_quantity, 2) : 'Not yet released' }}
+                    {{ $allocation->distributions->pluck('farmer_id')->unique()->count() }}
                 </dd>
             </div>
             <div class="sm:col-span-2 lg:col-span-3">
                 <dt class="text-muted-foreground">Description</dt>
                 <dd class="font-medium text-foreground">
-                    {{ $allocation->in_kind_description ?: ($allocation->assistance?->description ?: 'Not specified') }}
+                    {{ $allocation->assistance?->description ?: 'Not specified' }}
                 </dd>
             </div>
             <div><dt class="text-muted-foreground">Allocated On</dt><dd class="font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
@@ -181,7 +194,6 @@
                             <th class="px-6 py-3 font-medium">Distribution ID</th>
                             <th class="px-6 py-3 font-medium">Farmer</th>
                             <th class="px-6 py-3 font-medium">Damage Report</th>
-                            <th class="px-6 py-3 text-right font-medium">Quantity</th>
                             <th class="px-6 py-3 font-medium">Distributed</th>
                             <th class="px-6 py-3 text-center font-medium">Distribution</th>
                             <th class="px-6 py-3 text-center font-medium">Farmer Confirmation</th>
@@ -205,9 +217,6 @@
                                     @else
                                         -
                                     @endif
-                                </td>
-                                <td class="px-6 py-3 text-right tabular-nums text-foreground">
-                                    {{ $distribution->quantity !== null ? number_format($distribution->quantity, 2) : '-' }}
                                 </td>
                                 <td class="px-6 py-3 text-muted-foreground">{{ $distribution->distributed_at?->format('M d, Y') }}</td>
                                 <td class="px-6 py-3 text-center">
@@ -284,17 +293,9 @@
                     @csrf @method('PUT')
                     <input type="hidden" name="status" :value="action">
 
-                    <div x-show="action === 'distributed'" x-cloak class="mb-4">
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">
-                            {{ $isCash ? 'Amount released' : 'Quantity released' }}
-                        </label>
-                        <input type="number" step="0.01" min="0" name="distributed_quantity"
-                               value="{{ $allocation->allocated_quantity }}"
-                               class="w-full rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                        <p class="mt-1.5 text-xs text-muted-foreground">
-                            This can legitimately differ from what was allocated.
-                        </p>
-                    </div>
+                    {{-- The "quantity released" input was here. Marking an
+                         allocation distributed now records only the date and
+                         the officer, because there is no figure to release. --}}
 
                     <label class="mb-1.5 block text-sm font-medium text-foreground">Remarks (optional)</label>
                     <textarea name="remarks" rows="3"

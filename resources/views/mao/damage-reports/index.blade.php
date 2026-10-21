@@ -19,29 +19,78 @@
 @endphp
 
 @section('content')
-<div x-data="{ assigning: null }">
 
-    {{-- Summary --}}
-    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <x-ui.stat label="Total Reports" :value="number_format($summary['total'])"
-                   icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
+<x-crop-management.header tab="damage">
+    {{-- This page's own figures, rendered above the tabs.
+
+         THREE CARDS, IN THE SAME GRID AS THE OTHER TWO TABS (section 5)
+
+         This was four cards in `sm:grid-cols-2 xl:grid-cols-4`, while Crop
+         Planted and Validation Monitoring both had three in
+         `sm:grid-cols-3`. So the row of figures changed shape as you moved
+         between tabs - four boxes on one, three on the next, and a different
+         number of columns at every breakpoint. Revision section 5 asks for
+         the opposite: "Keep the three summary cards in consistent positions
+         across tabs."
+
+         WHICH CARD WENT, AND WHY THAT ONE
+
+         Total Affected Area. The other three are the pipeline this screen
+         exists to move - what has not been assigned, what a technician is
+         working on, what has come back verified - and Pending is the one
+         that needs somebody to act. Dropping any of them would take a stage
+         of the workflow off the screen that manages it.
+
+         The area total also has a problem of its own, which is the better
+         reason. It is a sum of affected hectares over every damage report on
+         this list, all time, so the same field reported in two separate
+         typhoons is counted twice. Section 14 names that exact fault:
+         "Avoid adding repeated historical farm areas in ways that
+         incorrectly represent unique farmland." It read as "this much
+         farmland in Tanza is damaged" and it was not that number.
+
+         Affected area is still reported, per period and without the
+         double-count, in Reports & Analytics, which is where a total
+         belongs. Nothing else on this page read the figure, so the query
+         behind it came out of the controller too rather than being left to
+         run unread on every page load. --}}
+    <div class="grid gap-4 sm:grid-cols-3">
         <x-ui.stat label="Pending" :value="number_format($summary['pending'])" hint="Not yet assigned"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2" />
         <x-ui.stat label="Under Verification" :value="number_format($summary['under_verification'])"
                    icon="M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15zM21 21l-5.2-5.2" />
         <x-ui.stat label="Verified" :value="number_format($summary['verified'])"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
-        <x-ui.stat label="Total Affected Area" :value="number_format($summary['affected_area'], 2)" suffix="ha"
-                   icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
+</x-crop-management.header>
+<div x-data="{ assigning: null }">
 
-    {{-- List + detail. Side by side from lg up; on a phone only one half
-         shows at a time - the list, or (once a row's View is followed)
-         the detail panel full-screen with its own Back link. --}}
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+
+    {{-- The record opens in a modal now (see x-ui.detail-panel), so the
+         list keeps the full width and stays put underneath it. This was
+         a two-column grid with a 380px detail column pinned on the
+         right. --}}
+    <div>
 
         {{-- LIST --}}
-        <div class="{{ $selected ? 'hidden lg:block' : 'block' }}">
+        <div>
+            @php
+                /* Grouped by farmer, or flat (revision section 11). The
+                   controller orders; this works out each farmer's count on
+                   the page, for the heading above their block.
+
+                   There used to be a running "Report 1, Report 2" number in
+                   the first column as well. It was dropped: every row
+                   already carries its reference, and a second number beside
+                   DR-0003 only invited the question of which of the two to
+                   quote. */
+                $grouped  = ($view ?? 'grouped') !== 'flat';
+                $rows     = $reports->getCollection();
+                $perGroup = $rows->groupBy(fn ($row) => $row->farmer?->id)->map->count();
+            @endphp
+
+            <x-record.view-toggle :view="$grouped ? 'grouped' : 'flat'" class="mb-4" />
+
             <x-ui.card title="Crop Damage Monitoring">
                 <x-slot:actions>
                     <a href="{{ route('mao.archive.index', ['type' => 'damage_reports']) }}"
@@ -52,47 +101,76 @@
 
                 {{-- Filters. No visible Search button - Enter in the field, or
                      choosing a dropdown option, submits the form. --}}
-                <form method="GET" class="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
-                                 :options="$associations->pluck('name', 'id')" :selected="request('association_id')" class="sm:w-52" />
+                {{-- Filters, Export Report and the search box, on one row.
+                     Export sits beside the filters because it exports exactly
+                     what they are showing. It is outside the <form> because
+                     it is a link, not a submission. --}}
+                <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
 
-                    <x-ui.select name="disaster_id" placeholder="All Disasters" onchange="this.form.submit()"
-                                 :options="$disasters->pluck('name', 'id')" :selected="request('disaster_id')" class="sm:w-52" />
+                    <form method="GET" class="flex flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                        <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
+                                     :options="$associations->pluck('name', 'id')" :selected="request('association_id')" class="sm:w-52" />
 
-                    <x-ui.select name="status" placeholder="All Statuses" onchange="this.form.submit()"
-                                 :options="collect($statuses)->mapWithKeys(fn ($v) => [$v => ucwords(str_replace('_', ' ', $v))])"
+                        <x-ui.select name="disaster_id" placeholder="All Disasters" onchange="this.form.submit()"
+                                     :options="$disasters->pluck('name', 'id')" :selected="request('disaster_id')" class="sm:w-52" />
+
+                        <x-ui.select name="status" placeholder="All Statuses" onchange="this.form.submit()"
+                                     :options="collect($statuses)->mapWithKeys(fn ($v) => [$v => ucwords(str_replace('_', ' ', $v))])"
                                  :selected="request('status')" class="sm:w-44" />
 
-                    <x-ui.input type="text" name="search" value="{{ request('search') }}" placeholder="Search farmer"
-                                class="sm:min-w-[12rem] sm:flex-1" />
+                        {{-- The magnifier sits inside the field, as the design
+                             draws it. pointer-events-none so it never steals
+                             the click that should land in the input. --}}
+                        <div class="relative sm:min-w-[14rem] sm:flex-1">
+                            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
+                                     stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+                                </svg>
+                            </span>
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                   placeholder="Search farmer name"
+                                   class="h-11 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm
+                                          placeholder:text-muted-foreground focus:border-primary focus:outline-none">
+                        </div>
 
-                    @if (request()->hasAny(['search', 'association_id', 'disaster_id', 'status']))
-                        <a href="{{ route('mao.damage-reports.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
-                    @endif
-                </form>
+                        @if (request()->hasAny(['search', 'association_id', 'disaster_id', 'status']))
+                            <a href="{{ route('mao.damage-reports.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
+                        @endif
+                    </form>
+
+                    <x-record.export-button class="lg:order-first" />
+                </div>
 
                 {{-- ---------- PHONE: one card per report ----------
-                     The table below keeps all nine columns, which on a phone
-                     means 460px of it sits off-screen inside its own scroller,
-                     Action column included. Cards instead, from the shared
-                     x-ui.record-card. --}}
-                <ul class="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
+                     Cards rather than a sideways-scrolling table, from the
+                     shared x-ui.record-card. Each one now carries exactly
+                     what the four columns carry - reference, name, status
+                     and the tap that opens it - since the disaster, the date
+                     and the inspection state moved into View with the rest
+                     (revision section 3.1). --}}
+                <ul class="space-y-3 lg:hidden">
+                    @php $phoneLast = null; @endphp
+
                     @forelse ($reports as $report)
-                        <li>
+                        @if ($grouped && $report->farmer?->id !== $phoneLast)
+                            @php $phoneLast = $report->farmer?->id; @endphp
+                            <li class="flex flex-wrap items-center justify-between gap-2 pt-2 first:pt-0">
+                                <span class="text-sm font-bold">{{ $report->farmer?->full_name ?? 'Unknown' }}</span>
+                                <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
+                                    {{ $perGroup[$report->farmer?->id] ?? 1 }}
+                                    {{ \Illuminate\Support\Str::plural('report', $perGroup[$report->farmer?->id] ?? 1) }}
+                                </span>
+                            </li>
+                        @endif
+
+                        <li class="{{ $grouped ? 'ml-3' : '' }}">
                             <x-ui.record-card :href="$viewUrl($report->id)"
-                                              :eyebrow="$report->reference"
-                                              :title="$report->farmer?->full_name ?? 'Unknown'"
-                                              :subtitle="($report->farmer?->barangay?->name ?? 'No barangay')
-                                                    . ' · ' . ($report->farmer?->association?->name ?? 'No association')"
-                                              :status="$report->status"
-                                              :fields="[
-                                                  'Disaster'     => $report->disasters->map(fn ($d) => ucwords(str_replace('_', ' ', $d->type)))->join(', ') ?: '-',
-                                                  'Reported'     => $report->created_at?->format('M d, Y'),
-                                                  'Damaged area' => number_format((float) $report->crops_sum_damaged_area_hectares, 2) . ' ha',
-                                                  'Inspection'   => $report->validation?->validated_at
-                                                        ? 'Validated'
-                                                        : ($report->validation ? 'In progress' : 'Pending'),
-                                              ]" />
+                                              :eyebrow="$grouped ? null : $report->reference"
+                                              :title="$grouped
+                                                  ? $report->reference
+                                                  : ($report->farmer?->full_name ?? 'Unknown')"
+                                              :status="$report->status" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -105,59 +183,65 @@
                 </ul>
 
                 {{-- ---------- TABLET AND UP: the table ---------- --}}
-                <div class="hidden overflow-x-auto lg:block">
+                {{-- The heading row is a filled band rather than a heavy
+                     rule, and its labels are small caps - the same treatment
+                     x-ui.table gives every other table in the system, and
+                     what the design draws. --}}
+                <div class="hidden overflow-x-auto rounded-xl border border-border lg:block">
                     <table class="w-full text-left">
-                        <thead>
-                            <tr class="border-b-2 border-border text-sm font-bold text-foreground">
-                                <th class="px-3 py-3">Report ID</th>
-                                <th class="px-3 py-3">Farmer</th>
-                                <th class="px-3 py-3">Association</th>
-                                <th class="px-3 py-3">Disaster Type</th>
-                                <th class="px-3 py-3">Date Reported</th>
-                                <th class="px-3 py-3">Damaged Area</th>
-                                <th class="px-3 py-3 text-center">Status</th>
-                                <th class="px-3 py-3 text-center">Validation</th>
-                                <th class="px-3 py-3 text-right">Action</th>
+                        <thead class="bg-muted/70">
+                            <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                {{-- FOUR COLUMNS (revision section 3.1 and 9.5)
+
+                                     ID, Name, Status, Action. Association,
+                                     Disaster Type, Date Reported and a
+                                     second Validation badge used to sit
+                                     between them. All four are in View, and
+                                     the Validation badge in particular said
+                                     again what Status already says: a report
+                                     under verification has an inspection in
+                                     progress by definition. --}}
+                                <th class="px-4 py-3">Report ID</th>
+                                <th class="px-4 py-3">Farmer</th>
+                                <th class="px-4 py-3 text-center">Status</th>
+                                <th class="px-4 py-3 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border text-sm">
+                            @php $lastFarmer = null; @endphp
+
                             @forelse ($reports as $report)
+                                @if ($grouped && $report->farmer?->id !== $lastFarmer)
+                                    @php $lastFarmer = $report->farmer?->id; @endphp
+                                    <x-record.group-head :farmer="$report->farmer"
+                                                         :count="$perGroup[$report->farmer?->id] ?? 1"
+                                                         noun="damage report"
+                                                         :colspan="4"
+                                                         :href="$report->farmer ? route('mao.farmers.show', $report->farmer) : null" />
+                                @endif
+
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
-                                    <td class="px-3 py-4 text-foreground">{{ $report->reference }}</td>
-                                    <td class="px-3 py-4">
-                                        <p class="font-bold text-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</p>
-                                        <p class="text-xs text-muted-foreground">{{ $report->farmer?->barangay?->name }}</p>
+                                    <td class="px-4 py-4 text-foreground">
+                                        {{-- Indented under the farmer's heading when grouped, so
+                                             the block still reads as theirs without repeating
+                                             anything. --}}
+                                        <span class="{{ $grouped ? 'pl-3' : '' }}">{{ $report->reference }}</span>
                                     </td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $report->farmer?->association?->name ?? '-' }}</td>
-                                    <td class="px-3 py-4 text-muted-foreground">
-                                        @forelse ($report->disasters as $disaster)
-                                            <span class="block">
-                                                {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
-                                                <span class="text-xs text-muted-foreground">{{ $disaster->name }}</span>
-                                            </span>
-                                        @empty
-                                            -
-                                        @endforelse
+                                    {{-- The name in both views, muted under a
+                                         group heading that already carries it
+                                         in bold. It used to be the barangay
+                                         alone when grouped, which left the
+                                         column saying something its own
+                                         header did not. --}}
+                                    <td class="px-4 py-4 {{ $grouped ? 'text-muted-foreground' : 'font-bold text-foreground' }}">
+                                        {{ $report->farmer?->full_name ?? 'Unknown' }}
                                     </td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $report->created_at?->format('M d, Y') }}</td>
-                                    <td class="px-3 py-4 tabular-nums text-muted-foreground">
-                                        {{ number_format((float) $report->crops_sum_damaged_area_hectares, 2) }} ha
-                                    </td>
-                                    <td class="px-3 py-4 text-center">
+                                    <td class="px-4 py-4 text-center">
                                         <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $statusBadges[$report->status] ?? $statusBadges['pending'] }}">
                                             {{ ucwords(str_replace('_', ' ', $report->status)) }}
                                         </span>
                                     </td>
-                                    <td class="px-3 py-4 text-center">
-                                        @if ($report->validation?->validated_at)
-                                            <span class="inline-flex rounded bg-green-100 px-3 py-1 text-xs font-medium text-green-800">Validated</span>
-                                        @elseif ($report->validation)
-                                            <span class="inline-flex rounded bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">In progress</span>
-                                        @else
-                                            <span class="inline-flex rounded bg-secondary px-3 py-1 text-xs font-medium text-foreground">Pending</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-3 py-4">
+                                    <td class="px-4 py-4">
                                         <div class="flex justify-end gap-2">
                                             <x-ui.button :href="$viewUrl($report->id)" variant="view" size="sm">View</x-ui.button>
                                         </div>
@@ -165,7 +249,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="px-3 py-14 text-center">
+                                    <td colspan="4" class="px-4 py-14 text-center">
                                         <p class="text-sm font-medium text-muted-foreground">No damage reports yet</p>
                                         <p class="mt-1 text-xs text-muted-foreground">
                                             Reports appear here as soon as farmers submit them.
@@ -177,7 +261,25 @@
                     </table>
                 </div>
 
-                <div class="mt-6 border-t border-border pt-5">{{ $reports->links() }}</div>
+                {{-- "Showing 1 to 3 of 3 entries" on the left, the pages on
+                     the right, as the design draws it. firstItem() is null on
+                     an empty page, which is why the count is written rather
+                     than assumed. --}}
+                <div class="mt-6 flex flex-col gap-3 border-t border-border pt-5
+                            sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-muted-foreground">
+                        @if ($reports->total() > 0)
+                            Showing {{ number_format($reports->firstItem()) }}
+                            to {{ number_format($reports->lastItem()) }}
+                            of {{ number_format($reports->total()) }}
+                            {{ \Illuminate\Support\Str::plural('entry', $reports->total()) }}
+                        @else
+                            No entries
+                        @endif
+                    </p>
+
+                    <div>{{ $reports->links() }}</div>
+                </div>
             </x-ui.card>
         </div>
 
@@ -323,8 +425,8 @@
                             @if ($damageReport->photos->isNotEmpty())
                                 <div class="grid grid-cols-3 gap-2">
                                     @foreach ($damageReport->photos as $photo)
-                                        <a href="{{ asset('storage/' . $photo->file_path) }}" target="_blank" class="block overflow-hidden rounded-lg border border-border">
-                                            <img src="{{ asset('storage/' . $photo->file_path) }}" alt="Damage photo" class="h-16 w-full object-cover transition hover:scale-105">
+                                        <a href="{{ $photo->url }}" target="_blank" class="block overflow-hidden rounded-lg border border-border">
+                                            <img src="{{ $photo->url }}" alt="Damage photo" class="h-16 w-full object-cover transition hover:scale-105">
                                         </a>
                                     @endforeach
                                 </div>

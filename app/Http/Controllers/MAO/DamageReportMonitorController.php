@@ -9,8 +9,10 @@ use App\Models\AuditLog;
 use App\Models\Barangay;
 use App\Models\DamageReport;
 use App\Models\Disaster;
+use App\Models\Farmer;
 use App\Models\NotificationBroadcast;
 use App\Models\User;
+use App\Services\RecordListExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +48,30 @@ class DamageReportMonitorController extends Controller
 
     public function index(Request $request)
     {
+        /* By farmer, or flat (revision section 11). Ordering only - the
+           same rows either way. Grouped puts a farmer's reports together so
+           the page prints the name once above them; flat is newest first,
+           which is what the office wants when the question is "what came in
+           today" or "what is still unassigned".
+
+           Grouped is ordered by who reported last, not alphabetically: see
+           farmerLatestReport(). The farmer_id is a tie-breaker only, for the
+           rare case of two farmers whose newest report carries the same
+           timestamp - without it their rows could interleave and break both
+           blocks. */
+        $view = $request->query('view') === 'flat' ? 'flat' : 'grouped';
+
+        // Export Report. Handled here rather than on a route of its own so
+        // that the file is built from exactly the query the page is showing,
+        // filters and all, with no chance of the two drifting apart.
+        if ($request->filled('export')) {
+            return $this->export($request);
+        }
+
         $reports = $this->baseQuery($request)
+            ->when($view === 'grouped', fn ($query) => $query
+                ->orderByDesc(self::farmerLatestReport())
+                ->orderBy('damage_reports.farmer_id'))
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -62,7 +87,29 @@ class DamageReportMonitorController extends Controller
             'under_verification' => (int) $statusCounts->get('under_verification', 0),
             'verified'           => (int) $statusCounts->get('verified', 0),
             'flagged'            => (int) $statusCounts->get('flagged', 0),
-            'affected_area'      => (float) DB::table('damage_report_crops')->sum('damaged_area_hectares'),
+            /* 'affected_area' was here and is gone (revision sections 5 and
+               14, Oct 2026).
+
+               It summed damaged_area_hectares across every damage report
+               ever filed, and the Crop Damage tab showed it as "Total
+               Affected Area". Two things wrong with that:
+
+               The figure double-counted. One field reported in two separate
+               typhoons was added twice, so the card read as "this much
+               farmland in Tanza is damaged" while being a number that does
+               not describe any area of land. Section 14: "Avoid adding
+               repeated historical farm areas in ways that incorrectly
+               represent unique farmland."
+
+               And it was the fourth card on a tab whose two siblings have
+               three, which section 5 asks to be consistent.
+
+               Removed rather than left unused, because it was an unfiltered
+               SUM over the whole child table on every load of this page,
+               paying for a query nothing reads. Affected area is still
+               reported per period, without the double-count, in Reports &
+               Analytics - see MonthlyReportBuilder, which is where a total
+               belongs. */
         ];
 
         // List + detail panel (Sept 2026): "View" loads the report inline
@@ -73,6 +120,7 @@ class DamageReportMonitorController extends Controller
             : null;
 
         return view('mao.damage-reports.index', [
+            'view'    => $view,
             'reports'      => $reports,
             'selected'     => $selected,
             'availableDisasters' => $selected ? Disaster::active()->orderByDesc('date_start')->orderBy('name')->get() : collect(),
@@ -89,6 +137,98 @@ class DamageReportMonitorController extends Controller
             'technicians'  => User::where('role', 'technician')->where('status', 'active')
                 ->orderBy('full_name')->orderBy('username')->get(),
         ]);
+    }
+
+    /**
+     * Export Report: the Crop Damage list as it is currently filtered, as
+     * Excel or PDF.
+     *
+     * Every matching report, not just the page on screen - see
+     * RecordListExport. The rows are built here rather than in the service
+     * because only this controller knows what a damage report is worth
+     * putting in a column.
+     *
+     * One row per report, with the crops listed in a cell, which is how the
+     * table reads on screen. A row per crop would be a different document
+     * and would make the report count disagree with the dashboard.
+     */
+    private function export(Request $request)
+    {
+        $reports = $this->baseQuery($request)->latest()->get();
+
+        $rows = $reports->map(fn ($report) => [
+            $report->reference,
+            $report->farmer?->full_name ?? 'Unknown',
+            $report->farmer?->user?->phone_number ?: '-',
+            $report->farmer?->barangay?->name ?? '-',
+            $report->farmer?->association?->name ?? '-',
+            $report->created_at?->format('d M Y g:i A') ?? '-',
+            DamageReport::CAUSES[$report->damage_cause] ?? ucwords(str_replace('_', ' ', (string) $report->damage_cause)),
+            $report->disasters->map(fn ($disaster) => $disaster->name)->implode('; ') ?: '-',
+            $report->crops->map(fn ($crop) => $crop->crop_specify ?: $crop->crop?->name)->filter()->implode('; ') ?: '-',
+            round((float) ($report->crops_sum_damaged_area_hectares ?? 0), 2),
+            $report->crops->max('estimated_damage_percent') !== null
+                ? (float) $report->crops->max('estimated_damage_percent')
+                : '',
+            round((float) $report->crops->sum('production_cost'), 2),
+            $report->crops->max('farmgate_price_per_kg') !== null
+                ? round((float) $report->crops->max('farmgate_price_per_kg'), 2)
+                : '',
+            round((float) $report->crops->sum('total_damage_cost'), 2),
+            DamageReport::STATUSES[$report->status] ?? ucwords(str_replace('_', ' ', (string) $report->status)),
+            $report->assigned_at?->format('d M Y') ?? '-',
+            $report->assignedTechnician?->full_name ?: ($report->assignedTechnician?->username ?? '-'),
+            $report->validation?->assessed_damage_percent !== null
+                ? (float) $report->validation->assessed_damage_percent
+                : '',
+            \App\Models\Validation::severityLabel($report->validation?->severity) ?? '-',
+            $report->validation?->validated_at?->format('d M Y') ?? '-',
+            (string) ($report->description ?: '-'),
+        ])->all();
+
+        return RecordListExport::download(
+            $request->query('export') === 'pdf' ? 'pdf' : 'xlsx',
+            'Crop Damage Reports',
+            $this->exportFilters($request),
+            [
+                'Report ID', 'Farmer', 'Contact', 'Barangay', 'Association', 'Date Reported',
+                'Cause', 'Disaster Event', 'Crops', 'Damaged Area (ha)',
+                'Farmer Estimate (%)', 'Production Cost', 'Farmgate Price/kg',
+                'Estimated Damage Cost', 'Status', 'Date Assigned', 'Technician',
+                'Assessed Damage (%)', 'Severity', 'Date Inspected', 'Farmer Remarks',
+            ],
+            $rows,
+            'crop-damage-reports'
+        );
+    }
+
+    /**
+     * The filters in force, in words, for the file's own header. Ids would
+     * be useless to the person reading the file, so each one is resolved to
+     * the name the office knows it by.
+     */
+    private function exportFilters(Request $request): array
+    {
+        return [
+            'Status'      => $request->filled('status')
+                ? (DamageReport::STATUSES[$request->status] ?? $request->status)
+                : null,
+            'Association' => $request->filled('association_id')
+                ? Association::find($request->association_id)?->name
+                : null,
+            'Barangay'    => $request->filled('barangay_id')
+                ? Barangay::find($request->barangay_id)?->name
+                : null,
+            'Disaster'    => $request->filled('disaster_id')
+                ? Disaster::find($request->disaster_id)?->name
+                : null,
+            'Technician'  => $request->filled('technician_id')
+                ? ($request->technician_id === 'unassigned'
+                    ? 'Unassigned'
+                    : (User::find($request->technician_id)?->full_name ?? 'Assigned'))
+                : null,
+            'Search'      => $request->query('search'),
+        ];
     }
 
     public function show(DamageReport $damageReport)
@@ -303,19 +443,56 @@ class DamageReportMonitorController extends Controller
         return back()->with('status', 'Damage report restored.');
     }
 
-    public function destroy(DamageReport $damageReport)
+    /**
+     * A farmer's name as a correlated subquery, for ordering a report list
+     * by member without joining (a join would multiply rows against the
+     * crops and disasters this query already eager-loads).
+     *
+     * Shared with the Validation Monitoring page, which groups the same way.
+     */
+    public static function farmerColumn(string $column)
     {
-        $damageReport->markDeleted(Auth::id());
+        return Farmer::select('farmers.' . $column)
+            ->whereColumn('farmers.id', 'damage_reports.farmer_id')
+            ->limit(1);
+    }
 
-        AuditLog::create([
-            'user_id'      => Auth::id(),
-            'action'       => 'Deleted damage report ' . $damageReport->reference,
-            'target_table' => 'damage_reports',
-            'target_id'    => $damageReport->id,
-            'created_at'   => now(),
-        ]);
-
-        return back()->with('status', 'Damage report deleted. Its data is kept for audit purposes.');
+    /**
+     * When this row's farmer last filed a report.
+     *
+     * The grouped view used to list farmers alphabetically, so a report that
+     * came in this morning could sit three screens down behind every member
+     * whose surname begins with A. The office's question on opening this page
+     * is "what is new", so the blocks are now ordered by how recently each
+     * farmer filed: whoever reported last is at the top, with their own
+     * newest report first inside their block.
+     *
+     * A correlated subquery rather than a join, for the same reason
+     * farmerColumn() above is one: a join would multiply this row against the
+     * crops and disasters already being eager-loaded.
+     *
+     * It returns one value per farmer, so every row belonging to the same
+     * farmer sorts to the same place and their block stays in one piece.
+     * Deleted and archived reports are left out, so a report the office has
+     * retired cannot keep a farmer floating at the top.
+     *
+     * $inspectedOnly is for the Validation Monitoring page, which only lists
+     * reports a technician has finished. Without it, a farmer could be pushed
+     * to the top of that page by a report that is not on it.
+     */
+    public static function farmerLatestReport(bool $inspectedOnly = false)
+    {
+        return DB::table('damage_reports as latest_of_farmer')
+            ->selectRaw('MAX(latest_of_farmer.created_at)')
+            ->whereColumn('latest_of_farmer.farmer_id', 'damage_reports.farmer_id')
+            ->whereNull('latest_of_farmer.deleted_at')
+            ->whereNull('latest_of_farmer.archived_at')
+            ->when($inspectedOnly, fn ($query) => $query->whereExists(
+                fn ($exists) => $exists->select(DB::raw(1))
+                    ->from('validations')
+                    ->whereColumn('validations.damage_report_id', 'latest_of_farmer.id')
+                    ->whereNotNull('validations.validated_at')
+            ));
     }
 
     /**

@@ -8,9 +8,30 @@ class AssistanceAllocation extends Model
 {
     protected $table = 'assistance_allocations';
 
+    /* NO TYPE, NO QUANTITIES (Oct 2026, client decision)
+
+       See the note on App\Models\Assistance for why: how much a named
+       farmer received is a financial detail about an identifiable person,
+       and it is out of this system by the client's own request.
+
+       `in_kind_description` held the free-typed name of an allocation not
+       linked to a catalogue item. It came out of this list when the
+       assistance item itself went: an allocation does not name what is
+       being given at all now, so there is no name to type.
+
+       `assistance_id`, `association_id`, `disaster_id` and `crop_id` are
+       all still here even though store() no longer sets any of them. They
+       are what rows created BEFORE this change recorded, those rows are
+       still read, and leaving a column writable costs nothing while taking
+       one out of the list is the kind of change that quietly breaks a
+       restore or a seeder. Nothing writes them; the columns simply stay
+       available.
+
+       `type`, `allocated_quantity` and `distributed_quantity` are left on
+       the table and OUT of this list, so nothing can write them and no
+       screen reads them. */
     protected $fillable = [
-        'assistance_id', 'type', 'association_id', 'disaster_id', 'crop_id',
-        'in_kind_description', 'allocated_quantity', 'distributed_quantity',
+        'assistance_id', 'association_id', 'disaster_id', 'crop_id',
         'allocated_by', 'allocated_at', 'distributed_to_association_at', 'distributed_by',
         'remarks', 'supporting_evidence_path', 'status',
     ];
@@ -73,31 +94,60 @@ class AssistanceAllocation extends Model
         return $this->hasMany(AssistanceAllocationDocument::class);
     }
 
-    /**
-     * Whether this allocation is cash. `type` is what this is actually
-     * decided from now (an allocation no longer has to link to a catalogue
-     * row at all - see the Sept 2026 "no more create a new item" change to
-     * the Allocate Assistance modal). Falling back to the linked catalogue
-     * item's own type only covers a row from before `type` existed that
-     * somehow never got backfilled.
-     */
-    public function getIsCashAttribute(): bool
-    {
-        return ($this->type ?? $this->assistance?->type) === 'cash';
-    }
+    /* getIsCashAttribute() was removed with the cash/in-kind distinction.
+       Nothing in the system now asks whether an allocation is cash,
+       because nothing displays or records a figure either way. Every
+       screen that used to branch on it now prints the same thing for
+       every allocation. */
 
     /**
-     * What to actually show for this allocation: the catalogue item's name
-     * when it is linked to one, otherwise the free-typed description
-     * (In-Kind "Other"), otherwise a generic label for its type. Never
-     * null, so every place that used to chain
-     * `$allocation->assistance?->name ?? $allocation->in_kind_description ?? 'Assistance'`
-     * can just read this instead.
+     * What to show for this allocation. Always the one word.
+     *
+     * IT USED TO NAME THE ITEM (changed Oct 2026, client decision)
+     *
+     * It returned the catalogue item's name, or a free-typed one, so an
+     * allocation read "Rice Seeds" or "Fertilizer". The client asked for
+     * the item to go: an allocation says that assistance is being given and
+     * nothing more, the same way it no longer says cash or in-kind and no
+     * longer carries a figure.
+     *
+     * Nothing is destroyed by this. assistance_id and in_kind_description
+     * still hold whatever older rows recorded, so if the office ever wants
+     * the names back it is this method that changes, not the data.
+     *
+     * Kept as an accessor rather than replaced with the literal string at
+     * every call site, so that remains true: one method decides, and about
+     * twenty screens read it.
      */
     public function getDisplayNameAttribute(): string
     {
-        return $this->assistance?->name
-            ?? $this->in_kind_description
-            ?? ($this->is_cash ? 'Cash Assistance' : 'Assistance');
+        return 'Assistance';
+    }
+
+    /**
+     * The associations an allocation concerns: the ones the designated
+     * farmers belong to.
+     *
+     * This replaces the association_id column as the answer to "who is this
+     * for" (migration 2024_01_22_000001). An allocation is a batch of
+     * farmers now, chosen from across the municipality, so it can concern
+     * several associations at once, which a single column could not say.
+     *
+     * association_id itself is kept and is still readable: on a row created
+     * before this change it records the one association the allocation was
+     * addressed to, and that is a true fact about it. On a new row it is
+     * null.
+     *
+     * Needs beneficiaries.farmer.association loaded; a caller that does not
+     * load them pays a query per beneficiary.
+     */
+    public function getConcernedAssociationsAttribute()
+    {
+        return $this->beneficiaries
+            ->map(fn ($beneficiary) => $beneficiary->farmer?->association)
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
     }
 }

@@ -227,8 +227,6 @@
                         <th>Report Id</th>
                         <th>Farmer</th>
                         <th>Barangay</th>
-                        <th>Crop</th>
-                        <th>Severity</th>
                         <th>Submitted</th>
                         <th>Status</th>
                         <th class="text-right">Action</th>
@@ -246,15 +244,13 @@
                         $shown    = $assessed ?? $estimate;
 
                         /* The little pin in the first column, coloured by that
-                           percentage. Same bands as the severity scale, so the
-                           colour means the same thing here as on the map. */
-                        $pin = match (true) {
-                            $shown === null => '#94a3b8',
-                            $shown >= 100   => '#6b21a8',
-                            $shown >= 51    => '#e11d48',
-                            $shown >= 26    => '#ca8a04',
-                            default         => '#22c55e',
-                        };
+                           percentage. The bands come from the severity scale
+                           itself, so the colour means the same thing here as
+                           on the map. It used to be a match() with the four
+                           old boundaries written into it, which is precisely
+                           the copy that would have been left behind when the
+                           client cut the scale to three levels. */
+                        $pin = \App\Models\Validation::colorForPercent($shown);
                     @endphp
 
                     <tr>
@@ -284,27 +280,6 @@
 
                         <td class="text-muted-foreground">
                             {{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? '-' }}
-                        </td>
-
-                        <td>
-                            <div class="flex flex-wrap gap-1">
-                                @foreach ($report->crops as $crop)
-                                    <x-ui.badge variant="primary">
-                                        {{ $crop->crop_specify ?: $crop->crop?->name }}
-                                    </x-ui.badge>
-                                @endforeach
-                            </div>
-                        </td>
-
-                        <td class="whitespace-nowrap">
-                            @if ($shown === null)
-                                <span class="text-muted-foreground">-</span>
-                            @else
-                                <span class="font-semibold">{{ round($shown) }}%</span>
-                                <span class="block text-xs text-muted-foreground">
-                                    {{ $assessed !== null ? 'you assessed' : 'farmer estimate' }}
-                                </span>
-                            @endif
                         </td>
 
                         <td class="whitespace-nowrap text-muted-foreground">

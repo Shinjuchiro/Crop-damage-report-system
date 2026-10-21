@@ -30,6 +30,13 @@
      in the app layout. --}}
 @include('layouts.partials.splash')
 
+{{-- And underneath it, once per device, what the system says for itself
+     before anyone has signed in. It is deliberately included AFTER the
+     splash: the splash is z-index 9999 and this is 9998, so this is already
+     painted while the green is still up and is simply what is there when
+     the green clears. No timer, and nothing to keep in step. --}}
+@include('layouts.partials.welcome')
+
 @yield('content')
 
 @include('layouts.partials.confirm-dialog')

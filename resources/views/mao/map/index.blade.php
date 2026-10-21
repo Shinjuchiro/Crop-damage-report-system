@@ -30,8 +30,11 @@
             {{ $coverage['unplaced'] }}
             {{ \Illuminate\Support\Str::plural('association', $coverage['unplaced']) }}
             {{ $coverage['unplaced'] === 1 ? 'has' : 'have' }} no area coverage recorded, so
-            {{ $coverage['unplaced'] === 1 ? 'it shades' : 'they shade' }} no barangay on the map.
-            Coverage comes from the office's area coverage sheet; see
+            {{ $coverage['unplaced'] === 1 ? 'it is' : 'they are' }} not drawn on the map
+            {{ $coverage['unplaced'] === 1 ? 'unless it has' : 'unless they have' }} damage reports.
+            Coverage comes from the office's area coverage sheet. If
+            {{ $coverage['unplaced'] === 1 ? 'the association does' : 'an association does' }}
+            not belong in the system at all, archive it under
             <a href="{{ route('mao.associations.index') }}" class="font-medium underline">Manage Associations</a>.
         </div>
     @endif
@@ -516,10 +519,14 @@
             const coverage = L.layerGroup().addTo(map);
             const bubbles  = L.layerGroup().addTo(map);
 
-            /* association id -> its shape and its bubble, so the chips under
-               the map can show and hide one association at a time. */
-            const shapes  = {};
-            const markers = {};
+            /* association id -> everything that belongs to it, so a chip can
+               take the whole association off the map in one go: its area, its
+               bubble and name, and the verified pins its members' reports
+               put there. 'hidden' is what the heatmap reads. */
+            const shapes      = {};
+            const markers     = {};
+            const pinsByAssoc = {};
+            const hidden      = {};
 
             fetch(el.dataset.geojson)
                 .then(response => response.json())
@@ -700,6 +707,17 @@
                        bubble there would put the figures outside the area they
                        describe. An association with no coverage recorded falls
                        back to its office barangay so it is still on the map. */
+                    /* Two associations covering the same ground land on the
+                       same point, and their bubbles and names then print on
+                       top of each other - "Calibuyo Farmers Assoc" and a
+                       second association both sitting on Calibuyo came out as
+                       one unreadable smear. Each one after the first is
+                       stepped around a small circle so every name can be
+                       read. Rounded to 4 decimals, about 11 metres, which is
+                       far finer than two bubbles ever need to be apart to
+                       count as the same place. */
+                    const taken = {};
+
                     associations.forEach(function (row) {
                         let centre = null;
 
@@ -712,7 +730,21 @@
                         if (! centre) centre = centres[row.psgc];
                         if (! centre) return;
 
-                        const lat = centre.lat, lng = centre.lng;
+                        const spot = centre.lat.toFixed(4) + ',' + centre.lng.toFixed(4);
+                        const nth  = taken[spot] = (taken[spot] || 0);
+                        taken[spot]++;
+
+                        let lat = centre.lat, lng = centre.lng;
+
+                        if (nth > 0) {
+                            // Six to a ring before the ring widens, so a spot
+                            // shared by many still spreads rather than piling
+                            // up at one angle.
+                            const angle = (nth - 1) * (Math.PI / 3);
+                            const step  = 0.009 * (1 + Math.floor((nth - 1) / 6));
+                            lat += Math.cos(angle) * step;
+                            lng += Math.sin(angle) * step;
+                        }
 
                         const fill = shading === 'severity' ? row.severity_color : row.count_color;
 
@@ -730,8 +762,7 @@
                         })
                         .on('click', function () {
                             if (row.reports > 0) window.location = row.url;
-                        })
-                        .addTo(bubbles);
+                        });
 
                         const label = L.marker([lat, lng], {
                             icon: L.divIcon({
@@ -742,11 +773,16 @@
                                 iconAnchor: [45, -8],
                             }),
                             interactive: false,
-                        }).addTo(bubbles);
+                        });
 
-                        // The bubble and its name travel together, so a chip
-                        // never leaves a label floating over nothing.
-                        markers[row.id] = L.layerGroup([bubble, label]);
+                        /* The bubble and its name travel together, in a group
+                           of their own that is then put inside `bubbles`.
+                           Adding them to `bubbles` directly as well was a bug:
+                           hiding the pair removed the wrapper from the map,
+                           but `bubbles` still held the two layers and kept
+                           drawing them, so a switched-off association left its
+                           circle and its name sitting there. */
+                        markers[row.id] = L.layerGroup([bubble, label]).addTo(bubbles);
                     });
 
                     /* ---------- The chips under the map ----------
@@ -757,11 +793,27 @@
                        only key to the shape it controls. */
                     const chips = document.querySelectorAll('[data-assoc]');
 
+                    /* Each thing goes in and out of the group that owns it,
+                       never off the map directly. That keeps the chips and
+                       the Pins and Heatmap checkboxes from fighting over the
+                       same layers: the checkbox decides whether a group is on
+                       the map at all, the chip decides what is in it. */
                     function setVisible(id, on) {
-                        [shapes[id], markers[id]].forEach(function (layer) {
-                            if (! layer) return;
-                            on ? layer.addTo(map) : map.removeLayer(layer);
+                        hidden[id] = ! on;
+
+                        if (shapes[id]) {
+                            on ? coverage.addLayer(shapes[id]) : coverage.removeLayer(shapes[id]);
+                        }
+
+                        if (markers[id]) {
+                            on ? bubbles.addLayer(markers[id]) : bubbles.removeLayer(markers[id]);
+                        }
+
+                        (pinsByAssoc[id] || []).forEach(function (pin) {
+                            on ? pins.addLayer(pin) : pins.removeLayer(pin);
                         });
+
+                        if (window.redrawHeat) window.redrawHeat();
                     }
 
                     chips.forEach(function (chip) {
@@ -796,7 +848,7 @@
             const pins = L.layerGroup();
 
             points.forEach(function (point) {
-                L.circleMarker([point.lat, point.lng], {
+                const pin = L.circleMarker([point.lat, point.lng], {
                     radius: 6,
                     color: '#ffffff',
                     weight: 2,
@@ -816,11 +868,31 @@
                     '</div>'
                 )
                 .addTo(pins);
+
+                // Filed under its association, so switching that association
+                // off takes its reports with it.
+                const key = point.association_id;
+                if (key) {
+                    if (! pinsByAssoc[key]) pinsByAssoc[key] = [];
+                    pinsByAssoc[key].push(pin);
+                }
             });
 
             const heat = (typeof L.heatLayer === 'function' && points.length > 0)
                 ? L.heatLayer(points.map(p => [p.lat, p.lng, 1]), { radius: 28, blur: 20, maxZoom: 16 })
                 : null;
+
+            /* The heatmap is one layer built from a list of points rather
+               than a marker each, so hiding an association means handing it
+               a shorter list instead of removing anything. */
+            window.redrawHeat = function () {
+                if (! heat) return;
+                heat.setLatLngs(
+                    points
+                        .filter(p => hidden[p.association_id] !== true)
+                        .map(p => [p.lat, p.lng, 1])
+                );
+            };
 
             window.toggleMapLayer = function (which, on) {
                 const layer = which === 'heat' ? heat : pins;

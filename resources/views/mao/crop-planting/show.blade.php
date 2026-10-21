@@ -103,9 +103,9 @@
         @if ($plantingRecord->photos->isNotEmpty())
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 @foreach ($plantingRecord->photos as $photo)
-                    <a href="{{ asset('storage/' . $photo->file_path) }}" target="_blank"
+                    <a href="{{ $photo->url }}" target="_blank"
                        class="block overflow-hidden rounded-lg border border-border">
-                        <img src="{{ asset('storage/' . $photo->file_path) }}" alt="Planting photo"
+                        <img src="{{ $photo->url }}" alt="Planting photo"
                              class="h-36 w-full object-cover transition hover:scale-105">
                     </a>
                 @endforeach

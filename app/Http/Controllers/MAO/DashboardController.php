@@ -27,9 +27,16 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        $period = array_key_exists($request->query('period'), self::PERIODS)
-            ? $request->query('period')
-            : 'month';
+        /* The dropdown is safe from the trap that caught Membership
+           Applications' status filter: "All Time" is a named value ('all'),
+           not an empty option, so ConvertEmptyStringsToNull has nothing to
+           turn into null. The cast is here only so an absent or emptied
+           period is compared as a string rather than as null, and falls to
+           'month' on purpose - that is the intended default, not a filter
+           silently refusing to clear. */
+        $requested = (string) $request->query('period');
+
+        $period = array_key_exists($requested, self::PERIODS) ? $requested : 'month';
 
         $since = match ($period) {
             'quarter' => Carbon::now()->startOfMonth()->subMonths(2),
@@ -43,7 +50,15 @@ class DashboardController extends Controller
         | Headline figures
         |------------------------------------------------------------------
         */
+        /* active() is what keeps this page agreeing with the lists it
+           summarises: it drops archived and deleted reports, the same way
+           Damage Reports, Validation, the Map and the monthly report all do
+           (Oct 2026 decision). Without it the dashboard was the one screen
+           in the system still counting records the office had taken out of
+           circulation, so a figure here could be higher than the list it
+           sits above. */
         $reportsInPeriod = DamageReport::query()
+            ->active()
             ->when($since, fn ($query) => $query->where('created_at', '>=', $since));
 
         $totalReports = (clone $reportsInPeriod)->count();
@@ -58,10 +73,48 @@ class DashboardController extends Controller
             ->whereIn('status', ['verified', 'approved'])
             ->count();
 
-        $beneficiaries = DB::table('assistance_distributions')
-            ->where('receipt_status', 'confirmed_received')
-            ->distinct('farmer_id')
-            ->count('farmer_id');
+        /* THE NUMERATOR HAS TO COME OUT OF THE DENOMINATOR
+           (fixed Oct 2026: the card read 200%)
+
+           This counts the farmers behind "Assistance Distributed", which the
+           card prints as a percentage "of affected farmers". For that
+           sentence to be true, every farmer counted here has to also be one
+           of the $affectedFarmers above - same period, same set of reports.
+
+           It used to be neither. The old version counted every confirmed
+           receipt the office had ever recorded, with no period and no link
+           back to the reports in view, and divided it by the farmers
+           affected in the selected period. In a month with one affected
+           farmer and two historical receipts on file, that is 200%, which
+           is what the office saw. It is not a rounding problem: the two
+           populations were different in kind, because a farmer can receive
+           assistance for a report filed months before the one in view.
+
+           Joining through damage_reports fixes it at the root rather than
+           by clamping the result at 100, which would have hidden the
+           mismatch instead of removing it. The period filter and the
+           archived/deleted exclusions come along for free, because they are
+           the ones already applied to $reportsInPeriod.
+
+           Two details that make this provably a subset rather than merely
+           a closer guess. The join is an inner one and loses nothing:
+           damage_report_id on assistance_distributions is NOT NULL and
+           constrained (migration 2024_01_01_000020), so every distribution
+           has exactly one report behind it - "which report made them
+           eligible", in that migration's own words. And it counts
+           dr.farmer_id, not ad.farmer_id: those should always be the same
+           person, but it is dr.farmer_id that $affectedFarmers counted, so
+           taking it from the same column is what guarantees the ratio
+           cannot climb above 100% even if a row is ever written with the
+           two disagreeing. */
+        $beneficiaries = DB::table('assistance_distributions as ad')
+            ->join('damage_reports as dr', 'dr.id', '=', 'ad.damage_report_id')
+            ->whereNull('dr.archived_at')
+            ->whereNull('dr.deleted_at')
+            ->where('ad.receipt_status', 'confirmed_received')
+            ->when($since, fn ($query) => $query->where('dr.created_at', '>=', $since))
+            ->distinct('dr.farmer_id')
+            ->count('dr.farmer_id');
 
         // Office-wide, not scoped to the period filter above - a dispute
         // from three months ago is just as unresolved today as a new one.
@@ -87,12 +140,20 @@ class DashboardController extends Controller
         $windowStart = Carbon::now()->startOfMonth()->subMonths(4);
 
         $submittedByMonth = DamageReport::query()
+            ->active()
             ->where('created_at', '>=', $windowStart)
             ->select(DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"), DB::raw('COUNT(*) as total'))
             ->groupBy('period')
             ->pluck('total', 'period');
 
+        /* An inspection is counted through its report, not on its own: if
+           the report has been archived or deleted it is not on the Damage
+           Reports list any more, so counting its inspection here would draw
+           a validated line above a submitted line that no longer includes
+           it. Same reasoning, and the same whereHas, as
+           MonthlyReportBuilder::inspections(). */
         $validatedByMonth = Validation::query()
+            ->whereHas('damageReport', fn ($report) => $report->active())
             ->whereNotNull('validated_at')
             ->where('validated_at', '>=', $windowStart)
             ->select(DB::raw("DATE_FORMAT(validated_at, '%Y-%m') as period"), DB::raw('COUNT(*) as total'))
@@ -116,6 +177,7 @@ class DashboardController extends Controller
         |------------------------------------------------------------------
         */
         $severityCounts = Validation::query()
+            ->whereHas('damageReport', fn ($report) => $report->active())
             ->whereNotNull('severity')
             ->when($since, fn ($query) => $query->where('inspection_started_at', '>=', $since))
             ->select('severity', DB::raw('COUNT(*) as total'))
@@ -180,6 +242,10 @@ class DashboardController extends Controller
     {
         $totals = DB::table('damage_reports as dr')
             ->join('farmers as f', 'f.id', '=', 'dr.farmer_id')
+            // Written out rather than ->active(), because this is the query
+            // builder and not the model. Same two columns the scope checks.
+            ->whereNull('dr.archived_at')
+            ->whereNull('dr.deleted_at')
             ->select('f.association_id', DB::raw('COUNT(DISTINCT dr.id) as reports'))
             ->groupBy('f.association_id')
             ->pluck('reports', 'association_id');

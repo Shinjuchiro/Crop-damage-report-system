@@ -144,9 +144,9 @@
             </p>
             <div class="grid grid-cols-3 gap-2">
                 @foreach ($report->photos->take(6) as $photo)
-                    <a href="{{ asset('storage/' . $photo->file_path) }}" target="_blank" rel="noopener"
+                    <a href="{{ $photo->url }}" target="_blank" rel="noopener"
                        class="block overflow-hidden rounded-lg border border-border">
-                        <img src="{{ asset('storage/' . $photo->file_path) }}"
+                        <img src="{{ $photo->url }}"
                              alt="Damage photo {{ $loop->iteration }}" loading="lazy"
                              class="h-20 w-full object-cover transition hover:opacity-90">
                     </a>

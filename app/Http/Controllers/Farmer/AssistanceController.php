@@ -52,9 +52,16 @@ class AssistanceController extends Controller
             'farmer'        => $farmer,
             'distributions' => $distributions,
 
-            // Drives the prompt at the top of the page. Nothing shouts at the
-            // farmer when there is nothing waiting on them.
+            /* Drives the prompt at the top of the page. Nothing shouts at
+               the farmer when there is nothing waiting on them.
+
+               It counts the rows the page actually asks about, which means
+               the hand-over has to be recorded as well (section 11.4).
+               Without the distribution_status clause the banner could say
+               "1 item waiting for your answer" above a card with no
+               question on it. */
             'awaiting' => AssistanceDistribution::where('farmer_id', $farmer->id)
+                ->whereIn('distribution_status', ['distributed', 'completed'])
                 ->where('receipt_status', 'pending_confirmation')
                 ->count(),
         ]);
@@ -81,6 +88,23 @@ class AssistanceController extends Controller
         if ($distribution->receipt_status !== 'pending_confirmation') {
             return back()->withErrors([
                 'receipt' => 'You have already answered this one. Please contact your association if it needs changing.',
+            ]);
+        }
+
+        /* Section 11.4: nothing can be marked received before the hand-over
+           itself is on the record. The association writes 'distributed' when
+           it records giving something out, so a row still at
+           'pending_distribution' is one nobody has handed over.
+           
+           The page does not show the question for such a row either, so this
+           is unreachable through the interface and is here for the request
+           that does not come from the interface. A farmer confirming receipt
+           of something never given out would be the one piece of data in
+           this module that nobody could later untangle. */
+        if (! in_array($distribution->distribution_status, ['distributed', 'completed'], true)) {
+            return back()->withErrors([
+                'receipt' => 'This assistance has not been handed over yet, so there is nothing to confirm. '
+                    . 'Please ask your association about it.',
             ]);
         }
 
@@ -148,7 +172,7 @@ class AssistanceController extends Controller
         string $receiptStatus,
         ?string $note
     ): void {
-        $distribution->loadMissing('allocation.assistance');
+        $distribution->loadMissing('allocation');
         $allocationId  = $distribution->allocation?->id;
         $associationId = $distribution->allocation?->association_id;
 
@@ -156,9 +180,10 @@ class AssistanceController extends Controller
             return;
         }
 
-        $what = $distribution->allocation?->display_name
-            ?? $distribution->in_kind_description
-            ?? 'Assistance';
+        // display_name is never null (it returns the one word), so the old
+        // in_kind_description fallback behind it was unreachable once the
+        // assistance item was removed in Oct 2026.
+        $what = $distribution->allocation?->display_name ?? 'Assistance';
 
         [$title, $message, $priority] = $receiptStatus === 'confirmed_received'
             ? [
@@ -203,11 +228,12 @@ class AssistanceController extends Controller
      */
     private function notifyMaoOfNonReceipt(AssistanceDistribution $distribution, Farmer $farmer, ?string $note): void
     {
-        $distribution->loadMissing('allocation.assistance');
+        $distribution->loadMissing('allocation');
         $allocationId = $distribution->allocation?->id;
-        $what = $distribution->allocation?->display_name
-            ?? $distribution->in_kind_description
-            ?? 'Assistance';
+        // display_name is never null (it returns the one word), so the old
+        // in_kind_description fallback behind it was unreachable once the
+        // assistance item was removed in Oct 2026.
+        $what = $distribution->allocation?->display_name ?? 'Assistance';
 
         try {
             $alert = NotificationBroadcast::create([

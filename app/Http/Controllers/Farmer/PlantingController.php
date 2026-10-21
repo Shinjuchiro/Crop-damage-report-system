@@ -20,14 +20,31 @@ use Illuminate\Validation\ValidationException;
  * The farmer records what crop they planted, when they planted it,
  * and how big the area was. That is all a planting record needs.
  *
- * This module also has a second job. Proposal section 22 says a farmer
- * becomes Inactive after 3 months with no activity, and section 21 says
+ * This module also has a second job. Section 22 says a farmer becomes
+ * Inactive after a stretch with no activity (Farmer::INACTIVITY_MONTHS,
+ * seven months as the client and adviser settled it), and section 21 says
  * we must NOT use damage reports for that (a farmer with no damage is
  * doing fine). So submitting a planting record is what counts as the
  * "qualifying activity" and resets the timer.
  */
 class PlantingController extends Controller
 {
+    /*
+     | How many crops one planting record may carry.
+     |
+     | The same ceiling, and the same reasoning, as a damage report (see
+     | DamageReportController::MAX_CROPS). The table behind this is still a
+     | child table with no limit of its own, as section 79 requires; this
+     | caps one submission so that "Add another crop" cannot be pressed
+     | forever, and it is checked here as well as in the form because the
+     | form's limit can be edited in the browser.
+     |
+     | A farmer planting more than five crops in one go records the rest as
+     | a second planting activity, which is also closer to how planting
+     | actually happens: different crops, different days.
+     */
+    public const MAX_CROPS = 5;
+
     /**
      * List all planting records of the logged in farmer.
      */
@@ -69,7 +86,10 @@ class PlantingController extends Controller
         return view('farmer.planting.create', [
             'farmer' => $this->farmer(),
             // crop list is managed by MAO; archived crops are retired
-            'crops'  => Crop::active()->orderBy('name')->get(),
+            'crops'  => Crop::active()->inDisplayOrder()->get(),
+
+            // So the form stops where the validation stops.
+            'maxCrops' => self::MAX_CROPS,
         ]);
     }
 
@@ -156,7 +176,10 @@ class PlantingController extends Controller
         return view('farmer.planting.edit', [
             'record' => $planting->load('crops.crop'),
             'farmer' => $this->farmer(),
-            'crops'  => Crop::active()->orderBy('name')->get(),
+            'crops'  => Crop::active()->inDisplayOrder()->get(),
+
+            // So the form stops where the validation stops.
+            'maxCrops' => self::MAX_CROPS,
         ]);
     }
 
@@ -220,7 +243,7 @@ class PlantingController extends Controller
         ]);
 
         $validated = $request->validate([
-            'crops'                 => ['required', 'array', 'min:1', 'max:20'],
+            'crops'                 => ['required', 'array', 'min:1', 'max:' . self::MAX_CROPS],
             'crops.*.crop_id'       => ['required', Rule::exists('crops', 'id')->whereNull('archived_at')],
             'crops.*.crop_specify'  => ['nullable', 'string', 'max:100'],
 
@@ -232,6 +255,8 @@ class PlantingController extends Controller
         ], [
             // Plain error messages, because farmers will be reading these.
             'crops.required'                       => 'Please add at least one crop.',
+            'crops.max'                            => 'One planting record can cover up to ' . self::MAX_CROPS
+                . ' crops. Please record the rest as a separate planting activity.',
             'crops.*.crop_id.required'             => 'Please choose a crop.',
             'crops.*.date_planted.required'        => 'Please give the date this crop was planted.',
             'crops.*.date_planted.before_or_equal' => 'The planting date cannot be in the future.',

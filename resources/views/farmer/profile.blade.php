@@ -52,9 +52,13 @@
         <dl class="mt-5 grid gap-4 border-t border-border pt-5 text-center
                    sm:grid-cols-3 sm:text-left xl:grid-cols-5">
             <div>
-                <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Last Activity</dt>
+                {{-- Relabelled with revision section 15: a Crop Planted
+                     Report is the only thing that counts as activity here, so
+                     the field says which thing it is waiting for rather than
+                     leaving the farmer to guess what "activity" means. --}}
+                <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Last Planting Report</dt>
                 <dd class="mt-1 text-sm font-medium">
-                    {{ $farmer->last_activity_date?->format('F d, Y') ?? 'None recorded' }}
+                    {{ $farmer->last_activity_date?->format('F d, Y') ?? 'None yet' }}
                 </dd>
             </div>
 

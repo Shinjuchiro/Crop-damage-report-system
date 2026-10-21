@@ -20,13 +20,17 @@
         </x-ui.alert>
     @endif
 
-    {{-- List on the left, detail on the right from lg up. Cards rather
-         than a table, same as My Reports: a farmer on a phone reads one
-         planting record at a time, and a wide table just forces horizontal
-         scrolling to see anything past the first two columns. --}}
-    <div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
+    {{-- Cards rather than a table: a farmer on a phone reads one planting
+         record at a time, and a wide table forces horizontal scrolling to
+         see anything past the first two columns.
 
-    <div class="{{ $selected ? 'hidden space-y-4 lg:block' : 'block space-y-4' }}">
+         This used to be a two-column grid, the list in a 1fr column with a
+         380px column beside it for the detail panel. The panel became a
+         modal (see x-ui.detail-panel), so that second column had nothing
+         in it and the list sat in two thirds of the page with a bite taken
+         out of the right-hand side. The same change was made to the office
+         and association lists at the time; these two were missed. --}}
+    <div class="space-y-4">
 
         @forelse ($records as $record)
             <x-ui.card class="card-hover">
@@ -70,14 +74,14 @@
         @if ($records->hasPages())
             <div class="pt-2">{{ $records->links() }}</div>
         @endif
-    </div>{{-- /list column --}}
+    </div>{{-- /list --}}
 
-    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-4 lg:mt-0"
+    {{-- A modal over the list, not a column beside it: it renders nothing
+         at all until a record is picked. --}}
+    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl"
                         empty-text="Select a record from the list to see what was planted.">
         @if ($selected)
             @include('farmer.planting._record-detail', ['record' => $selected])
         @endif
     </x-ui.detail-panel>
-
-    </div>{{-- /lg:grid --}}
 @endsection

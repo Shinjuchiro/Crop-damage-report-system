@@ -194,15 +194,22 @@
     {{-- Assistance Summary --}}
     <x-ui.card title="Assistance Summary">
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <x-stat-card label="Cash Allocated" :value="number_format($data['assistance']['cash_allocated'], 2)" />
-            <x-stat-card label="In-Kind Allocated" :value="number_format($data['assistance']['in_kind_allocated'], 2)" />
+            {{-- Cash Allocated, In-Kind Allocated and Total Distributed
+                 were the first three cards here. Every amount left the
+                 system in Oct 2026, at the client's request, for privacy.
+                 Batches and people are counted instead. --}}
             <x-stat-card label="Allocations Made" :value="$data['assistance']['total_allocated']" />
+            <x-stat-card label="Farmers Selected" :value="$data['assistance']['farmers_designated']" />
             <x-stat-card label="Distributions Recorded" :value="$data['assistance']['distributions_recorded']" />
-            <x-stat-card label="Total Distributed" :value="number_format($data['assistance']['total_distributed_quantity'], 2)" />
             <x-stat-card label="Beneficiaries" :value="$data['assistance']['beneficiaries']" />
             <x-stat-card label="Confirmed Received" :value="$data['assistance']['confirmed_received']" />
             <x-stat-card label="Not Received" :value="$data['assistance']['not_received']" />
         </div>
     </x-ui.card>
+
+    {{-- The rows behind every figure above, named, and scoped to this
+         association's own members exactly as the figures are - see
+         x-report.listings and MonthlyReportBuilder::records(). --}}
+    <x-report.listings :records="$data['records'] ?? []" />
 </div>
 @endsection

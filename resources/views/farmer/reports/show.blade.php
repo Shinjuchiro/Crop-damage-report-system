@@ -171,9 +171,9 @@
         @else
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 @foreach ($report->photos as $photo)
-                    <a href="{{ Storage::url($photo->file_path) }}" target="_blank" rel="noopener"
+                    <a href="{{ $photo->url }}" target="_blank" rel="noopener"
                        class="aspect-square overflow-hidden rounded-lg border border-border">
-                        <img src="{{ Storage::url($photo->file_path) }}"
+                        <img src="{{ $photo->url }}"
                              alt="Damage photo {{ $loop->iteration }}"
                              loading="lazy" class="h-full w-full object-cover">
                     </a>

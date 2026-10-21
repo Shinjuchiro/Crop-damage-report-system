@@ -84,7 +84,6 @@
                             <th>Farmer</th>
                             <th>Barangay</th>
                             <th>Reason</th>
-                            <th>Your Assessment</th>
                             <th>Status</th>
                         </tr>
                     </x-slot:head>
@@ -123,12 +122,6 @@
                                         <x-ui.badge variant="danger">Rejected by MAO</x-ui.badge>
                                     @endif
                                 </div>
-                            </td>
-
-                            <td class="whitespace-nowrap">
-                                {{ $report->validation?->assessed_damage_percent !== null
-                                    ? round($report->validation->assessed_damage_percent) . '%'
-                                    : 'not recorded' }}
                             </td>
 
                             <td><x-ui.status :value="$report->status" /></td>

@@ -24,9 +24,13 @@
     button on each card and from "Open full page" inside the panel.
 --}}
 
-<div class="lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-5">
-
-<div class="{{ $selected ? 'hidden space-y-4 lg:block' : 'block space-y-4' }}">
+{{-- This used to be a two-column grid, the list in a 1fr column with a
+     380px column beside it for the detail panel. The panel became a modal
+     (see x-ui.detail-panel), so that second column had nothing in it and
+     the list sat in two thirds of the page with a bite out of the right.
+     The office and association lists were changed at the time; this page
+     and Crop Planting were missed. --}}
+<div class="space-y-4">
 
     @forelse ($reports as $report)
         {{-- Cards rather than a table. A farmer on a phone reads one report at
@@ -112,14 +116,14 @@
     @if ($reports->hasPages())
         <div class="pt-2">{{ $reports->links() }}</div>
     @endif
-</div>{{-- /list column --}}
+</div>{{-- /list --}}
 
-<x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-4 lg:mt-0"
+{{-- A modal over the list, not a column beside it: it renders nothing at
+     all until a report is picked. --}}
+<x-ui.detail-panel :selected="$selected" :back-url="$backUrl"
                     empty-text="Select a report from the list to see where it has got to.">
     @if ($selected)
         @include('farmer.reports._report-detail', ['report' => $selected])
     @endif
 </x-ui.detail-panel>
-
-</div>{{-- /lg:grid --}}
 @endsection

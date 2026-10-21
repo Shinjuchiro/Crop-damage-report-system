@@ -44,7 +44,7 @@
          'id'   => $crop->id,
          'name' => $crop->name,
          'hvcc' => (bool) $crop->is_hvcc,
-     ])->values()))">
+     ])->values()), @js($maxCrops))">
 
     @if ($errors->any())
         <x-ui.alert variant="destructive" title="Please check the form" class="mb-5">
@@ -157,7 +157,11 @@
                     </div>
                 </template>
 
-                <button type="button" @click="addRow()"
+                {{-- The button goes away at the limit and is replaced by the
+                     line below, rather than sitting there greyed out. A
+                     disabled button that does nothing when pressed is read as
+                     a fault; a sentence saying why is not. --}}
+                <button type="button" @click="addRow()" x-show="canAddRow()"
                         class="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed
                                border-input px-4 py-4 text-sm font-medium text-muted-foreground
                                transition-colors hover:border-primary hover:bg-accent hover:text-accent-foreground">
@@ -167,6 +171,15 @@
                     </svg>
                     Add another crop &middot; Magdagdag pa
                 </button>
+
+                <p x-show="! canAddRow()" x-cloak
+                   class="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                    One planting record covers up to <strong x-text="maxCrops"></strong> crops. If you
+                    planted more, remove one here or record them as a separate planting activity.
+                    <span class="mt-0.5 block text-xs">
+                        Hanggang <span x-text="maxCrops"></span> na pananim lamang sa isang talaan.
+                    </span>
+                </p>
 
                 <div class="flex items-center justify-between rounded-xl bg-accent px-4 py-3
                             text-sm font-medium text-accent-foreground">
@@ -190,9 +203,14 @@
 
 @push('scripts')
 <script>
-    function plantingForm(crops) {
+    function plantingForm(crops, maxCrops) {
         return {
             crops,
+
+            /* The ceiling on one planting record, handed down from
+               PlantingController::MAX_CROPS so the form and the validation
+               can never disagree. */
+            maxCrops,
 
             // Opens with Crop 1 required and Crop 2 optional, matching the
             // prototype. Neither the form nor the database stops at two.
@@ -200,9 +218,17 @@
             // rather than blank: see the $oldRows note at the top of the file.
             rows: @js($oldRows).length ? @js($oldRows) : [emptyRow(), emptyRow()],
 
+            /* Guarded, not just hidden. The button above disappears at the
+               limit, but a stray double click or a keyboard press landing
+               just as it goes could still get through, and the server would
+               then reject a form that has already been filled in. */
             addRow() {
+                if (this.rows.length >= this.maxCrops) return;
+
                 this.rows.push(emptyRow());
             },
+
+            canAddRow() { return this.rows.length < this.maxCrops; },
 
             removeRow(index) {
                 this.rows.splice(index, 1);

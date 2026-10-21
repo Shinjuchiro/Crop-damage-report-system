@@ -42,7 +42,8 @@
             [
                 'q'   => 'Why does my account say Inactive?',
                 'fil' => 'Bakit Inactive ang aking account?',
-                'a'   => 'Because no farm activity has been recorded for three months. Record a crop '
+                'a'   => 'Because no farm activity has been recorded for '
+                       . \App\Models\Farmer::INACTIVITY_MONTHS . ' months. Record a crop '
                        . 'planting activity and your account becomes Active again straight away. '
                        . 'Having no damage to report does not make you inactive.',
             ],
