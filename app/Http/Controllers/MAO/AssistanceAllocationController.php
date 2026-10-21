@@ -538,18 +538,35 @@ class AssistanceAllocationController extends Controller
      ===================================================================== */
 
     /**
-     * Every association -> farmer hand-out, office-wide. Where Allocation
-     * History shows what MAO sent to associations, this shows what
-     * associations actually did with it - and whether the farmer confirms
-     * receiving it. The Disputes list is the "not received" slice of
-     * exactly this same table.
+     * Every hand-over the office has recorded, office-wide, and whether the
+     * farmer confirms receiving it. The Disputes list is the "not received"
+     * slice of exactly this same table.
+     *
+     * WHICH ASSOCIATION A DISTRIBUTION BELONGS TO (fixed Oct 2026)
+     *
+     * This filtered on `allocation.association_id`, and so did disputes()
+     * below. That column stopped being what an allocation is addressed to
+     * in migration 2024_01_22_000001 and store() has left it NULL ever
+     * since, so picking an association from the filter matched nothing at
+     * all: every allocation made after the change has a null there, and
+     * `where('association_id', 4)` cannot match a null. The page did not
+     * error, it just came back empty, which reads as "this association has
+     * received nothing" - the most misleading possible answer.
+     *
+     * The same mistake had already been found and fixed on Allocation
+     * History; these were the two sibling methods it was missed in.
+     *
+     * A distribution names one farmer, so its association is that farmer's
+     * association, which is both correct and more precise than the
+     * allocation's: an allocation now spans several associations, while a
+     * hand-over is to one person.
      */
     public function distributionTracking(Request $request)
     {
         $distributions = AssistanceDistribution::query()
-            ->with(['farmer', 'allocation.assistance', 'allocation.association', 'distributedBy'])
+            ->with(['farmer.association', 'allocation', 'distributedBy'])
             ->when($request->filled('association_id'), fn ($q) => $q
-                ->whereHas('allocation', fn ($a) => $a->where('association_id', $request->association_id)))
+                ->whereHas('farmer', fn ($f) => $f->where('association_id', $request->association_id)))
             ->when($request->filled('distribution_status'),
                 fn ($q) => $q->where('distribution_status', $request->distribution_status))
             ->when($request->filled('receipt_status'),
@@ -562,7 +579,7 @@ class AssistanceAllocationController extends Controller
         // "View" loads the distribution inline via ?selected=<id> instead
         // of jumping straight to the allocation's own show page.
         $selected = $request->filled('selected')
-            ? AssistanceDistribution::with(['farmer', 'allocation.assistance', 'allocation.association', 'distributedBy'])
+            ? AssistanceDistribution::with(['farmer.association', 'allocation', 'distributedBy'])
                 ->find($request->selected)
             : null;
 
@@ -583,15 +600,16 @@ class AssistanceAllocationController extends Controller
         $disputes = AssistanceDistribution::query()
             ->where('receipt_status', 'not_received')
             ->with([
-                'farmer',
-                'allocation.assistance',
-                'allocation.association',
-                'allocation.disaster',
+                'farmer.association',
+                'allocation',
                 'damageReport',
                 'distributedBy',
             ])
+            /* Through the farmer, not allocation.association_id - see the
+               note on distributionTracking() above for why that column
+               cannot answer this any more. */
             ->when($request->filled('association_id'), fn ($query) => $query
-                ->whereHas('allocation', fn ($a) => $a->where('association_id', $request->association_id)))
+                ->whereHas('farmer', fn ($f) => $f->where('association_id', $request->association_id)))
             ->orderByDesc('receipt_confirmed_at')
             ->paginate(15)
             ->withQueryString();
@@ -600,8 +618,7 @@ class AssistanceAllocationController extends Controller
         // "View" loads the disputed distribution inline via ?selected=<id>.
         $selected = $request->filled('selected')
             ? AssistanceDistribution::with([
-                    'farmer', 'allocation.assistance', 'allocation.association',
-                    'allocation.disaster', 'damageReport', 'distributedBy',
+                    'farmer.association', 'allocation', 'damageReport', 'distributedBy',
                 ])
                 ->where('receipt_status', 'not_received')
                 ->find($request->selected)

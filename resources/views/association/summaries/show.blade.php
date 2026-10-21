@@ -72,7 +72,8 @@
         <div class="mb-5 grid gap-4 sm:grid-cols-3">
             <x-stat-card label="Planting Activities" :value="$data['planting']['activities']" />
             <x-stat-card label="Crops Planted" :value="$data['planting']['crops_planted']" />
-            <x-stat-card label="Total Area Planted" :value="number_format($data['planting']['total_area'], 2)" suffix="hectares" />
+            {{-- Same relabel as mao/reports/show: planted area in the period, not acreage. --}}
+            <x-stat-card label="Area Planted This Month" :value="number_format($data['planting']['total_area'], 2)" suffix="hectares" />
         </div>
         <x-ui.table>
             <x-slot:head><tr><th>Crop</th><th class="text-right">Records</th><th class="text-right">Area (ha)</th></tr></x-slot:head>

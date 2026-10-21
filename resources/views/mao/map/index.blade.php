@@ -140,8 +140,15 @@
         </form>
     </div>
 
-    {{-- Map --}}
-    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    {{-- Map
+
+         x-data moved up to the whole card (Oct 2026) so the heatmap legend
+         further down can read the same `heat` flag as the checkbox that
+         turns the layer on. It used to live on the checkbox row alone,
+         which is why there was nowhere to put a legend that appears with
+         the layer. --}}
+    <div x-data="{ pins: false, heat: false }"
+         class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
 
         <div class="flex flex-col gap-3 border-b border-border px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -163,8 +170,7 @@
                     </a>
                 </div>
 
-                <div class="inline-flex items-center gap-4 rounded-lg border border-input px-4 py-2 text-xs text-muted-foreground"
-                     x-data="{ pins: false, heat: false }">
+                <div class="inline-flex items-center gap-4 rounded-lg border border-input px-4 py-2 text-xs text-muted-foreground">
                     <label class="flex cursor-pointer items-center gap-2">
                         <input type="checkbox" x-model="pins"
                                @change="window.toggleMapLayer && window.toggleMapLayer('pins', pins)"
@@ -268,6 +274,51 @@
                     Circle size still shows how many reports there were.
                 </p>
             @endif
+        </div>
+
+        {{-- HEATMAP LEGEND (added Oct 2026)
+
+             Revision section 12.3: "If a heatmap is used, clearly define
+             what it represents. A report-count heatmap must represent the
+             concentration or number of relevant reports. It must not imply
+             that report density equals damage severity."
+
+             The heatmap had no legend and no definition anywhere on the
+             page: a checkbox labelled "Heatmap" and a wash of colour over
+             the municipality, which a reader would reasonably take for
+             severity, since red means severe everywhere else in this
+             system. Both bubble legends above were careful to say the
+             opposite ("not necessarily worse damage") and this layer was
+             left to be guessed at. Proposal section 59 also asks the legend
+             to carry "Higher Report Concentration".
+
+             The claim below is exactly what the code does: L.heatLayer is
+             handed [lat, lng, 1] per report, so every report counts the
+             same and severity is not a factor. If the weight ever stops
+             being 1, this wording has to change with it.
+
+             It appears with the layer rather than always, because a legend
+             for something not on the map is clutter. --}}
+        <div x-show="heat" x-cloak class="border-t border-border px-6 py-4">
+            <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Heatmap: report concentration
+            </span>
+
+            <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+                <span class="flex items-center gap-2 text-sm text-foreground">
+                    <span class="h-4 w-16 rounded"
+                          style="background: linear-gradient(to right, #2563eb, #22c55e, #eab308, #ef4444)"></span>
+                    Fewer reports to more reports
+                </span>
+            </div>
+
+            <p class="mt-3 text-xs text-muted-foreground">
+                The heatmap shows <span class="font-medium text-foreground">how many damage reports were
+                filed near each other</span>, and nothing else. Every report counts the same, whatever a
+                technician assessed it at, so a hot area means many reports in one place, not severe damage.
+                One total loss on its own farm stays cool; ten slight reports in one barangay run hot. For
+                severity, use "By worst severity" above, or the verified pins.
+            </p>
         </div>
     </div>
 </div>

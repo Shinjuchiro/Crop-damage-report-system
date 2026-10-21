@@ -2,7 +2,13 @@
 
 @section('title', 'Distribution Tracking')
 @section('heading', 'Distribution Tracking')
-@section('subheading', "Every hand-out an association has recorded for its members, and whether the farmer confirms receiving it.")
+{{-- The wording here and in the notice below used to say the ASSOCIATION
+     records the hand-over. It does not, and has not since the Oct 2026
+     client decision: the office hands assistance to the farmer and records
+     it itself, and the association monitors. Left uncorrected, this page was
+     telling the office that somebody else keeps the record it is looking
+     at. --}}
+@section('subheading', "Every hand-over the office has recorded, and whether the farmer confirms receiving it.")
 
 @section('header-actions')
     <a href="{{ route('mao.assistance-allocations.index') }}"
@@ -15,7 +21,7 @@
 <div>
 
     <x-ui.alert variant="info" class="mb-5">
-        Distribution and receipt are two separate facts in this system: the association records handing
+        Distribution and receipt are two separate facts in this system: the office records handing
         something over, and the farmer separately confirms whether they actually received it. A distribution
         can be "Distributed" while its receipt is still "Waiting" - that gap is exactly what this page tracks.
         Anything a farmer marked "not received" also shows up on the
@@ -169,8 +175,11 @@
                             DIST-{{ str_pad($selected->id, 3, '0', STR_PAD_LEFT) }}
                         </p>
                         <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $selected->farmer?->full_name ?? 'Unknown farmer' }}</h3>
+                        {{-- The farmer's own association. This read the
+                             allocation's association_id, null on every
+                             allocation since migration 2024_01_22_000001. --}}
                         <p class="text-sm text-muted-foreground">
-                            {{ $selected->allocation?->association?->name ?? 'No association' }}
+                            {{ $selected->farmer?->association?->name ?? 'No association' }}
                         </p>
                     </div>
                 </div>

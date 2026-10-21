@@ -51,6 +51,47 @@ class User extends Authenticatable
     }
 
     /**
+     * The phone number with everything but the last four digits hidden
+     * (added Oct 2026).
+     *
+     * WHY THIS EXISTS
+     *
+     * Proposal section 91.11 already asks for exactly this before an SMS is
+     * sent: "Phone: ********1234". The SMS review dialog honoured it and
+     * then the SMS History page printed every recipient's number in full,
+     * for every text the office had ever sent, twenty rows to a page. That
+     * is revision section 3.1's "personal contact information" in a summary
+     * table, and section 3.4's "avoid unnecessary exposure", on the one
+     * screen where contact details are least needed: the office is reading
+     * a delivery log, not phoning anybody from it.
+     *
+     * The last four digits stay, because the one legitimate reason to look
+     * at a number here is "did it go to the right phone?", and four digits
+     * answer that without publishing the rest.
+     *
+     * WHY ON THE MODEL
+     *
+     * auth/verify-otp.blade.php had already worked this out inline, and a
+     * second inline copy is how two screens end up masking differently. One
+     * method decides, the same way getDisplayNameAttribute does.
+     */
+    public function getMaskedPhoneNumberAttribute(): ?string
+    {
+        $phone = trim((string) $this->phone_number);
+
+        if ($phone === '') {
+            return null;
+        }
+
+        /* Shorter than five digits is not a real number, so there is
+           nothing safe to reveal: mask the whole thing rather than show
+           most of it. */
+        return strlen($phone) > 4
+            ? str_repeat('•', strlen($phone) - 4) . substr($phone, -4)
+            : str_repeat('•', strlen($phone));
+    }
+
+    /**
      * The uploaded profile photo's public URL, or null when the account has
      * none and the initials avatar should show instead. See
      * App\Http\Controllers\Concerns\ManagesProfilePhoto.

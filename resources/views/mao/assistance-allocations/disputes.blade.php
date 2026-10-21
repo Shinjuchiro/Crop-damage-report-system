@@ -50,7 +50,7 @@
                             <x-ui.record-card :href="$viewUrl($distribution->id)"
                                               :eyebrow="'DIST-' . str_pad($distribution->id, 3, '0', STR_PAD_LEFT)"
                                               :title="$distribution->farmer?->full_name ?? 'Unknown'"
-                                              :subtitle="$distribution->allocation?->association?->name ?? 'No association'"
+                                              :subtitle="$distribution->farmer?->association?->name ?? 'No association'"
                                               status="not_received"
                                               :fields="[
                                                   'Assistance'     => $distribution->allocation?->display_name ?? 'Assistance',
@@ -90,8 +90,16 @@
                                     <td class="px-5 py-3 font-bold text-foreground">
                                         {{ $distribution->farmer?->full_name ?? 'Unknown' }}
                                     </td>
+                                    {{-- The FARMER's association, not the allocation's
+                                         (fixed Oct 2026). This read
+                                         $distribution->allocation->association->name,
+                                         a column that has been null on every new
+                                         allocation since migration
+                                         2024_01_22_000001, so the column printed "-"
+                                         for every recent row while the association was
+                                         known all along through the farmer. --}}
                                     <td class="px-5 py-3 text-muted-foreground">
-                                        {{ $distribution->allocation?->association?->name ?? '-' }}
+                                        {{ $distribution->farmer?->association?->name ?? 'No association' }}
                                     </td>
                                     <td class="px-5 py-3 text-muted-foreground">
                                         {{ $distribution->allocation?->display_name ?? 'Assistance' }}
@@ -136,7 +144,7 @@
                         </p>
                         <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $selected->farmer?->full_name ?? 'Unknown farmer' }}</h3>
                         <p class="text-sm text-muted-foreground">
-                            {{ $selected->allocation?->association?->name ?? 'No association' }}
+                            {{ $selected->farmer?->association?->name ?? 'No association' }}
                         </p>
                     </div>
                 </div>

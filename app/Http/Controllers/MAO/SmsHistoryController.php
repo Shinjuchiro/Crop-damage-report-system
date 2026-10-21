@@ -42,11 +42,17 @@ class SmsHistoryController extends Controller
 
         return view('mao.sms-history.index', [
             'history' => $history,
+            /* No 'delivered' count (Oct 2026). Nothing writes that status -
+               sendSms() records 'sent' or 'failed' and there is no provider
+               delivery callback - so the figure was always 0 and the card
+               displaying it told the office that none of its urgent texts
+               had arrived. Revision section 13: do not claim delivery
+               unless the service confirms it. The status itself is kept
+               valid for the day a callback exists. */
             'counts'  => [
-                'sent'      => Notification::where('sms_status', 'sent')->count(),
-                'delivered' => Notification::where('sms_status', 'delivered')->count(),
-                'pending'   => Notification::where('sms_status', 'pending')->count(),
-                'failed'    => Notification::where('sms_status', 'failed')->count(),
+                'sent'    => Notification::where('sms_status', 'sent')->count(),
+                'pending' => Notification::where('sms_status', 'pending')->count(),
+                'failed'  => Notification::where('sms_status', 'failed')->count(),
             ],
             'priorities' => NotificationBroadcast::PRIORITIES,
         ]);

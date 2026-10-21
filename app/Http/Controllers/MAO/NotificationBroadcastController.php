@@ -149,10 +149,24 @@ class NotificationBroadcastController extends Controller
                 $smsNote = ' SMS was not sent because the SMS provider is not configured yet '
                     . '(add SEMAPHORE_API_KEY to .env) - the in-app alert above still went out.';
             } else {
+                /* "Accepted by the SMS provider", not "delivered" (Oct
+                   2026). This said "SMS delivered to 12 of 14 recipients",
+                   and the system has no way to know that: sendSms() records
+                   'sent' when the provider ACCEPTS the request, and a text
+                   accepted by Semaphore can still fail on the way to a
+                   handset that is off, out of coverage or no longer in
+                   service. Revision section 13: "Do not claim delivery
+                   unless confirmed by the relevant service."
+
+                   This matters more here than it looks. The office sends
+                   these for urgent disaster advisories, and a message
+                   telling them twelve farmers were reached is a message
+                   telling them not to follow up by other means. */
                 $smsSent   = $alert->notifications()->where('sms_status', 'sent')->count();
                 $smsFailed = $alert->notifications()->where('sms_status', 'failed')->count();
-                $smsNote   = ' SMS delivered to ' . $smsSent . ' of ' . ($smsSent + $smsFailed)
-                    . ' recipients. See SMS History for details.';
+                $smsNote   = ' SMS accepted by the provider for ' . $smsSent . ' of '
+                    . ($smsSent + $smsFailed) . ' recipients. Acceptance is not proof of '
+                    . 'delivery to the handset. See SMS History for details.';
             }
         }
 

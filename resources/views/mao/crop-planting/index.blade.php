@@ -18,7 +18,27 @@
         <x-ui.stat label="Farmers Reporting" :value="number_format($summary['farmers'])"
                      hint="Farmers with at least one record"
                      icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
-        <x-ui.stat label="Total Area Planted" :value="number_format($summary['area_planted'], 2)" suffix="ha"
+        {{-- "Area Planted", with the hint, not "Total Area Planted" (Oct 2026).
+
+             The figure sums area_hectares across every crop row of every
+             planting record ever filed. A farmer who plants the same half
+             hectare in the dry season and again in the wet season adds a
+             whole hectare to it, which is a true statement about planting
+             and a false one about farmland.
+
+             Read as land, this number tells the office Tanza has more
+             hectares under cultivation than it does, and the longer the
+             system runs the further out it goes. Revision section 14:
+             "Avoid adding repeated historical farm areas in ways that
+             incorrectly represent unique farmland", and final rule 16: do
+             not misrepresent affected areas.
+
+             The sum is not wrong and is not changed: cumulative planted
+             area is a reasonable thing for an agricultural office to track.
+             What was wrong was a label that read as acreage. The hint says
+             which of the two this is. --}}
+        <x-ui.stat label="Area Planted" :value="number_format($summary['area_planted'], 2)" suffix="ha"
+                   hint="Across all records; a field planted twice counts twice"
                    icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
 </x-crop-management.header>

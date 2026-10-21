@@ -160,9 +160,16 @@ class AnnouncementController extends Controller
                 $note = ' SMS was not sent because the SMS provider is not set up yet - '
                     . 'the in-app announcement still reached everyone.';
             } else {
+                /* "Accepted", not "delivered": the provider accepting a
+                   text is not the same as a handset receiving it, and
+                   revision section 13 says not to claim the second when
+                   only the first is known. Same change as
+                   MAO\NotificationBroadcastController, where the reasoning
+                   is written out in full. */
                 $smsSent   = $announcement->notifications()->where('sms_status', 'sent')->count();
                 $smsFailed = $announcement->notifications()->where('sms_status', 'failed')->count();
-                $note      = ' SMS delivered to ' . $smsSent . ' of ' . ($smsSent + $smsFailed) . '.';
+                $note      = ' SMS accepted by the provider for ' . $smsSent . ' of '
+                    . ($smsSent + $smsFailed) . ' members.';
             }
         }
 

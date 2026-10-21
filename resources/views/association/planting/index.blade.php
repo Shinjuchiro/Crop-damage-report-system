@@ -65,7 +65,12 @@
         <x-ui.stat label="Members Reporting" :value="number_format($summary['members'])"
                    hint="With at least one record"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
-        <x-ui.stat label="Total Area Planted" :value="number_format($summary['area'], 2)" suffix="ha"
+        {{-- Same relabel as mao/crop-planting/index, where the reasoning is
+             written out: this sums every planting record, so a field planted
+             twice in a year counts twice, and "Total Area Planted" read as
+             the association's acreage. --}}
+        <x-ui.stat label="Area Planted" :value="number_format($summary['area'], 2)" suffix="ha"
+                   hint="Across all records; a field planted twice counts twice"
                    icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
 </x-crop-management.header>

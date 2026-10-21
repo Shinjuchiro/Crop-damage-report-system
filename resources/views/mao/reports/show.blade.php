@@ -72,7 +72,11 @@
         <div class="mb-5 grid gap-4 sm:grid-cols-3">
             <x-stat-card label="Planting Activities" :value="$data['planting']['activities']" />
             <x-stat-card label="Crops Planted" :value="$data['planting']['crops_planted']" />
-            <x-stat-card label="Total Area Planted" :value="number_format($data['planting']['total_area'], 2)" suffix="hectares" />
+            {{-- "Area Planted This Month": the figure sums every planting record in the
+                 period, so a field planted twice inside it counts twice. Revision
+                 section 14 and final rule 16. See mao/crop-planting/index for the
+                 full note. --}}
+            <x-stat-card label="Area Planted This Month" :value="number_format($data['planting']['total_area'], 2)" suffix="hectares" />
         </div>
         <x-ui.table>
             <x-slot:head><tr><th>Crop</th><th class="text-right">Records</th><th class="text-right">Area (ha)</th></tr></x-slot:head>

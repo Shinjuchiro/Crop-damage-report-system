@@ -161,10 +161,39 @@
                                         <path d="M6 9l6 6 6-6"/>
                                     </svg>
 
+                                    {{-- THE MEMBER'S REFERENCE, NOT THEIR PHONE NUMBER
+                                         (Oct 2026)
+
+                                         This line printed
+                                         $member->user->phone_number, so every
+                                         member's mobile number was on the default
+                                         Members list, before anyone expanded a row
+                                         or clicked View. Revision section 3.1 names
+                                         "personal contact information" among the
+                                         things not to put in a summary table, and an
+                                         association monitoring planting and damage
+                                         counts is not phoning anybody from this
+                                         screen.
+
+                                         It is the same fix mao/farmers/index already
+                                         made when it took the username out from under
+                                         the name; this list was missed. The contact
+                                         number is still one click away in the
+                                         expanded summary and in the full profile,
+                                         which is where section 3.2 puts it.
+
+                                         Note the phone-card layout above never showed
+                                         the number: it shows the planting and damage
+                                         counts. So the two layouts disagreed about
+                                         the same member, and this is also what brings
+                                         them back into line. FARM- matches the
+                                         identifier format on the MAO Farmers list, and
+                                         gives this table the ID column that section
+                                         3.1 asks for without adding a column. --}}
                                     <span class="min-w-0">
                                         <span class="font-medium">{{ $member->full_name }}</span>
                                         <span class="block text-xs text-muted-foreground">
-                                            {{ $member->user?->phone_number ?: 'No contact number' }}
+                                            FARM-{{ str_pad($member->id, 3, '0', STR_PAD_LEFT) }}
                                         </span>
                                     </span>
                                 </button>

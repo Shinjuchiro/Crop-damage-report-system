@@ -95,7 +95,7 @@
         <tr><th>Metric</th><th class="num">Value</th></tr>
         <tr><td>Planting Activities</td><td class="num">{{ $data['planting']['activities'] }}</td></tr>
         <tr><td>Crops Planted</td><td class="num">{{ $data['planting']['crops_planted'] }}</td></tr>
-        <tr><td>Total Area Planted (ha)</td><td class="num">{{ number_format($data['planting']['total_area'], 2) }}</td></tr>
+        <tr><td>Area Planted This Month (ha)</td><td class="num">{{ number_format($data['planting']['total_area'], 2) }}</td></tr>
     </table>
     <table>
         <tr><th>Crop</th><th class="num">Records</th><th class="num">Area (ha)</th></tr>
