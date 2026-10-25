@@ -81,7 +81,8 @@
 
             {{-- The details and the farmer's answer live in a pop-up: the card
                  only says there is something to look at. --}}
-            <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            {{-- x-data is required: $dispatch only works inside an Alpine scope. --}}
+            <div x-data class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                 <p class="text-sm text-muted-foreground">
                     Did you receive this? Open the details to answer.
                     <span class="block text-xs">Buksan po ang detalye para sagutin.</span>
