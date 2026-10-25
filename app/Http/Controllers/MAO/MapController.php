@@ -4,11 +4,10 @@ namespace App\Http\Controllers\MAO;
 
 use App\Http\Controllers\Controller;
 use App\Models\Association;
-use App\Models\Barangay;
-use App\Models\Crop;
 use App\Models\DamageReport;
-use App\Models\Disaster;
 use App\Models\Validation;
+use App\Support\MapFilters;
+use App\Support\MapScale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -50,13 +49,7 @@ class MapController extends Controller
      * different scale from severity, because a busy association is not the same
      * thing as a badly damaged one.
      */
-    public const COUNT_SCALE = [
-        ['min' => 0,  'label' => 'No reports', 'color' => '#cbd5e1'],
-        ['min' => 1,  'label' => '1 - 2',      'color' => '#fecdd3'],
-        ['min' => 3,  'label' => '3 - 5',      'color' => '#fb7185'],
-        ['min' => 6,  'label' => '6 - 10',     'color' => '#e11d48'],
-        ['min' => 11, 'label' => '11 or more', 'color' => '#881337'],
-    ];
+    public const COUNT_SCALE = MapScale::COUNT_SCALE;
 
     /**
      * Worst-first ranking for the severity shading, lowest to highest.
@@ -93,9 +86,14 @@ class MapController extends Controller
 
     public function index(Request $request)
     {
-        $shading = $request->query('shading') === 'severity' ? 'severity' : 'count';
+        $shading = MapScale::shading($request->query('shading'));
 
-        $reportIds = $this->filteredReports($request)->pluck('id');
+        // Date range, association, disaster and severity: the MAO's four
+        // map filters (App\Support\MapFilters). Everything below, the
+        // bubbles, the pins, the heatmap and the summary cards, is built
+        // from this one list of report ids, so they cannot disagree.
+        $filters   = MapFilters::from($request, 'mao');
+        $reportIds = $this->filteredReports($filters)->pluck('id');
 
         /*
         |------------------------------------------------------------------
@@ -282,15 +280,6 @@ class MapController extends Controller
             'unplaced'     => $associations->filter(fn ($row) => $row['coverage']->isEmpty())->count(),
         ];
 
-        $years = DamageReport::query()
-            ->select(DB::raw('DISTINCT YEAR(created_at) as year'))
-            ->orderByDesc('year')
-            ->pluck('year');
-
-        if ($years->isEmpty()) {
-            $years = collect([now()->year]);
-        }
-
         return view('mao.map.index', [
             'associationStats' => $withCoverage,
             'points'           => $points,
@@ -299,49 +288,20 @@ class MapController extends Controller
             'severityLegend'   => $severityLegend,
             'coverage'         => $coverage,
             'center'           => self::CENTER,
-            'years'            => $years,
-            'barangays'        => Barangay::orderBy('name')->get(),
+            'filters'          => $filters,
             'associations'     => Association::orderBy('name')->get(),
-            'crops'            => Crop::inDisplayOrder()->get(),
-            'disasters'        => Disaster::orderByDesc('date_start')->get(),
-            'statuses'         => DamageReportMonitorController::STATUSES,
         ]);
     }
 
-    private function filteredReports(Request $request)
+    private function filteredReports(array $filters)
     {
-        return DamageReport::query()
-            ->when($request->filled('status'),
-                fn ($query) => $query->where('status', $request->status))
-            ->when($request->filled('year'),
-                fn ($query) => $query->whereYear('created_at', $request->year))
-            ->when($request->filled('month'),
-                fn ($query) => $query->whereMonth('created_at', $request->month))
-            ->when($request->filled('disaster_id'), fn ($query) => $query
-                ->whereHas('disasters', fn ($d) => $d->where('disasters.id', $request->disaster_id)))
-            ->when($request->filled('crop_id'), fn ($query) => $query
-                ->whereHas('crops', fn ($c) => $c->where('crop_id', $request->crop_id)))
-            ->when($request->filled('severity'), fn ($query) => $query
-                ->whereHas('validation', fn ($v) => $v->where('severity', $request->severity)))
-            ->whereHas('farmer', function ($farmer) use ($request) {
-                $farmer
-                    ->when($request->filled('barangay_id'),
-                        fn ($query) => $query->where('barangay_id', $request->barangay_id))
-                    ->when($request->filled('association_id'),
-                        fn ($query) => $query->where('association_id', $request->association_id));
-            });
+        // active(): archived and deleted reports are off every list, so they
+        // are off the map too (same rule as the Association and Technician maps).
+        return MapFilters::apply(DamageReport::active(), $filters);
     }
 
     private function countColor(int $reports): string
     {
-        $color = self::COUNT_SCALE[0]['color'];
-
-        foreach (self::COUNT_SCALE as $band) {
-            if ($reports >= $band['min']) {
-                $color = $band['color'];
-            }
-        }
-
-        return $color;
+        return MapScale::countColor($reports);
     }
 }

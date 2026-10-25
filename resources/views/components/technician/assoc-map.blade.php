@@ -10,11 +10,18 @@
     assignment list filtered to that association. Locked to Tanza.
 --}}
 
-@props(['bubbles', 'height' => 'h-72', 'id' => 'techAssocMap'])
+{{-- Optional, used by the full Map page only (the dashboard preview passes none):
+        shading   'count' or 'severity' - which colour the circles take
+        pins      technician-verified pins to draw on top (switched by the Verified pins checkbox)
+        layers    true on the Map page: registers window.toggleMapLayer for the pins and heatmap checkboxes --}}
+@props(['bubbles', 'height' => 'h-72', 'id' => 'techAssocMap', 'shading' => 'count', 'pins' => [], 'layers' => false])
 
 <div id="{{ $id }}" class="{{ $height }} w-full"
      data-geojson="{{ asset('geo/tanza-barangays.json') }}"
-     data-bubbles="{{ $bubbles->toJson() }}"></div>
+     data-bubbles="{{ $bubbles->toJson() }}"
+     data-shading="{{ $shading }}"
+     data-pins="{{ json_encode($pins) }}"
+     data-layers="{{ $layers ? '1' : '0' }}"></div>
 
 @once
     @push('head')
@@ -37,12 +44,21 @@
 
     @push('scripts')
         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
     <script src="{{ asset('js/tanza-mask.js') }}"></script>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 document.querySelectorAll('[data-bubbles]').forEach(function (el) {
                     if (typeof L === 'undefined') return;
                     const bubbles = JSON.parse(el.dataset.bubbles);
+                    const shading = el.dataset.shading || 'count';
+                    const pinData = JSON.parse(el.dataset.pins || '[]');
+                    // Light fills (the low end of the count ramp) need dark text.
+                    const ink = (hex) => {
+                        const n = parseInt(hex.slice(1), 16);
+                        const lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+                        return lum > 160 ? '#1f2937' : '#ffffff';
+                    };
                     const map = L.map(el, { scrollWheelZoom: false, maxBoundsViscosity: 1.0, zoomSnap: 0.25 })
                         .setView([14.3833, 120.85], 12);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -51,9 +67,36 @@
             maskOutsideTanza(map, '{{ asset('geo/tanza-outline.json') }}');
 
 
-                    const colour = (n) => n >= 10 ? '#b91c1c' : n >= 5 ? '#ea580c' : n >= 2 ? '#ca8a04' : '#15803d';
+                    // Dashboard preview (no colours supplied) keeps its own ramp.
+                    const legacy = (n) => n >= 10 ? '#b91c1c' : n >= 5 ? '#ea580c' : n >= 2 ? '#ca8a04' : '#15803d';
+                    const colour = (b) => b.count_color
+                        ? (shading === 'severity' ? b.severity_color : b.count_color)
+                        : legacy(b.total);
                     const row = (c, label, n) => '<div class="tip-row"><span class="tip-dot" style="background:' + c + '"></span><span>' +
                         label + '</span><span style="margin-left:auto;color:#f1f5f9">' + n + '</span></div>';
+
+                    /* Verified pins and the heatmap, built from the same filtered
+                       reports as the circles. Off until the checkboxes turn them on. */
+                    const pinLayer = L.layerGroup();
+                    pinData.forEach(function (p) {
+                        L.circleMarker([p.lat, p.lng], { radius: 7, color: '#ffffff', weight: 2, fillColor: p.color, fillOpacity: 1 })
+                            .bindPopup('<div style="min-width:190px"><p style="font-weight:700;margin:0 0 2px">' + p.farmer + '</p>' +
+                                '<p style="margin:0 0 8px;color:#64748b;font-size:12px">' + p.report + ' &middot; ' + p.barangay + '</p>' +
+                                '<p style="margin:0 0 8px;font-size:12px"><b>Severity:</b> ' + p.severity +
+                                    (p.assessed !== null ? ' (' + p.assessed + '%)' : '') + '</p>' +
+                                '<a href="' + p.url + '" style="color:#166534;font-weight:600;font-size:12px">View report</a></div>')
+                            .addTo(pinLayer);
+                    });
+                    const heatLayer = (typeof L.heatLayer === 'function' && pinData.length > 0)
+                        ? L.heatLayer(pinData.map(p => [p.lat, p.lng, 1]), { radius: 28, blur: 20, maxZoom: 16 })
+                        : null;
+                    if (el.dataset.layers === '1') {
+                        window.toggleMapLayer = function (which, on) {
+                            const layer = which === 'heat' ? heatLayer : pinLayer;
+                            if (! layer) return;
+                            on ? layer.addTo(map) : map.removeLayer(layer);
+                        };
+                    }
 
                     fetch(el.dataset.geojson).then(r => r.json()).then(function (geojson) {
                         const outline = L.geoJSON(geojson, {
@@ -79,14 +122,15 @@
                             L.marker([lat, lng], {
                                 icon: L.divIcon({
                                     className: '',
-                                    html: '<div class="assoc-count" style="width:' + size + 'px;height:' + size + 'px;background:' + colour(b.total) + '">' + b.total + '</div>',
+                                    html: '<div class="assoc-count" style="width:' + size + 'px;height:' + size + 'px;background:' + colour(b) + ';color:' + ink(colour(b)) + '">' + b.total + '</div>',
                                     iconSize: [size, size],
                                 }),
                             }).bindPopup(
                                 '<span class="tip-kicker">Farmers\' Association</span>' +
                                 '<div class="tip-name">' + b.name + '</div>' +
-                                '<div class="tip-row"><span class="tip-dot" style="background:' + colour(b.total) + '"></span><span>' +
+                                '<div class="tip-row"><span class="tip-dot" style="background:' + colour(b) + '"></span><span>' +
                                     b.total + (b.total === 1 ? ' assignment' : ' assignments') + '</span></div>' +
+                                (b.severity_label ? '<div class="tip-row"><span class="tip-dot" style="background:' + b.severity_color + '"></span><span>Worst severity: ' + b.severity_label + '</span></div>' : '') +
                                 '<div class="tip-sep"></div>' +
                                 row('#facc15', 'Awaiting Inspection', b.awaiting) +
                                 row('#3b82f6', 'Inspection Under Way', b.underway) +

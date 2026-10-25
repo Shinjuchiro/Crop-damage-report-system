@@ -8,7 +8,7 @@
 {{-- The card this page used to draw around itself is now the page
      frame in layouts/app.blade.php, on every screen rather than only
      this one. All that is left here is the spacing between blocks. --}}
-<div x-data="{ filtersOpen: false }" class="space-y-5">
+<div class="space-y-5">
 
     {{-- Coverage --}}
     <div class="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -39,106 +39,9 @@
         </div>
     @endif
 
-    {{-- Filters --}}
-    <div class="rounded-xl border border-border bg-card shadow-sm">
-        <button type="button" @click="filtersOpen = ! filtersOpen"
-                class="flex w-full items-center justify-between px-6 py-4 text-left">
-            <span class="text-sm font-semibold text-foreground">Filters</span>
-            <span class="flex items-center gap-2 text-xs text-muted-foreground">
-                {{ request()->hasAny(['month', 'year', 'disaster_id', 'crop_id', 'barangay_id', 'association_id', 'status', 'severity'])
-                    ? 'Filters applied' : 'Showing everything' }}
-                <svg class="h-4 w-4 transition-transform" :class="filtersOpen && 'rotate-180'"
-                     fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/>
-                </svg>
-            </span>
-        </button>
-
-        <form method="GET" x-show="filtersOpen" x-cloak x-transition
-              class="border-t border-border px-6 py-5">
-            <input type="hidden" name="shading" value="{{ $shading }}">
-
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <select name="month" class="rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                    <option value="">Any month</option>
-                    @foreach (range(1, 12) as $month)
-                        <option value="{{ $month }}" @selected(request('month') == $month)>
-                            {{ \Carbon\Carbon::create()->month($month)->format('F') }}
-                        </option>
-                    @endforeach
-                </select>
-
-                <select name="year" class="rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                    <option value="">Any year</option>
-                    @foreach ($years as $year)
-                        <option value="{{ $year }}" @selected(request('year') == $year)>{{ $year }}</option>
-                    @endforeach
-                </select>
-
-                <select name="disaster_id" class="rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                    <option value="">Any disaster</option>
-                    @foreach ($disasters as $disaster)
-                        <option value="{{ $disaster->id }}" @selected(request('disaster_id') == $disaster->id)>
-                            {{ $disaster->name }}
-                        </option>
-                    @endforeach
-                </select>
-
-                <select name="crop_id" class="rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                    <option value="">Any crop</option>
-                    @foreach ($crops as $crop)
-                        <option value="{{ $crop->id }}" @selected(request('crop_id') == $crop->id)>{{ $crop->name }}</option>
-                    @endforeach
-                </select>
-
-                <select name="association_id" class="rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                    <option value="">Any association</option>
-                    @foreach ($associations as $association)
-                        <option value="{{ $association->id }}" @selected(request('association_id') == $association->id)>
-                            {{ $association->name }}
-                        </option>
-                    @endforeach
-                </select>
-
-                <select name="barangay_id" class="rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                    <option value="">Any barangay</option>
-                    @foreach ($barangays as $barangay)
-                        <option value="{{ $barangay->id }}" @selected(request('barangay_id') == $barangay->id)>
-                            {{ $barangay->name }}
-                        </option>
-                    @endforeach
-                </select>
-
-                <select name="status" class="rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                    <option value="">Any report status</option>
-                    @foreach ($statuses as $status)
-                        <option value="{{ $status }}" @selected(request('status') === $status)>
-                            {{ ucwords(str_replace('_', ' ', $status)) }}
-                        </option>
-                    @endforeach
-                </select>
-
-                <select name="severity" class="rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                    <option value="">Any severity</option>
-                    @foreach ($severityLegend as $level)
-                        <option value="{{ $level['key'] }}" @selected(request('severity') === $level['key'])>
-                            {{ $level['label'] }} ({{ $level['range'] }})
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="mt-4 flex gap-3">
-                <button class="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:brightness-110">
-                    Apply filters
-                </button>
-                <a href="{{ route('mao.map.index', ['shading' => $shading]) }}"
-                   class="rounded-lg border border-input px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
-                    Reset
-                </a>
-            </div>
-        </form>
-    </div>
+    {{-- Filters: Date Range, Farmers' Association, Disaster, Severity --}}
+    <x-map.filters role="mao" :action="route('mao.map.index')" :filters="$filters"
+                   :associations="$associations" :keep="['shading' => $shading]" />
 
     {{-- Map
 
@@ -158,33 +61,7 @@
                 </p>
             </div>
 
-            <div class="flex flex-wrap items-center gap-3">
-                <div class="inline-flex rounded-lg border border-input p-1">
-                    <a href="{{ route('mao.map.index', array_merge(request()->except('shading'), ['shading' => 'count'])) }}"
-                       class="rounded-md px-4 py-1.5 text-xs font-medium {{ $shading === 'count' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted/60' }}">
-                        By report count
-                    </a>
-                    <a href="{{ route('mao.map.index', array_merge(request()->except('shading'), ['shading' => 'severity'])) }}"
-                       class="rounded-md px-4 py-1.5 text-xs font-medium {{ $shading === 'severity' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted/60' }}">
-                        By worst severity
-                    </a>
-                </div>
-
-                <div class="inline-flex items-center gap-4 rounded-lg border border-input px-4 py-2 text-xs text-muted-foreground">
-                    <label class="flex cursor-pointer items-center gap-2">
-                        <input type="checkbox" x-model="pins"
-                               @change="window.toggleMapLayer && window.toggleMapLayer('pins', pins)"
-                               class="h-3.5 w-3.5 rounded border-input text-primary focus:ring-ring">
-                        Verified pins
-                    </label>
-                    <label class="flex cursor-pointer items-center gap-2">
-                        <input type="checkbox" x-model="heat"
-                               @change="window.toggleMapLayer && window.toggleMapLayer('heat', heat)"
-                               class="h-3.5 w-3.5 rounded border-input text-primary focus:ring-ring">
-                        Heatmap
-                    </label>
-                </div>
-            </div>
+            <x-map.display-options :action="route('mao.map.index')" :shading="$shading" />
         </div>
 
         <div id="damageMap" class="h-[34rem] w-full"

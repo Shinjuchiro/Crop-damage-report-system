@@ -58,15 +58,10 @@
             'badge'       => $reportsNeedingAttention,
             'badge_label' => 'with a status update',
         ],
-        /* Membership Application no longer has its own entry: the record is
-           inside My Profile. */
-        [
-            'label'   => 'My Profile',
-            'filipino'=> 'Aking Profile',
-            'route'   => 'farmer.profile',
-            'pattern' => ['farmer.profile*', 'farmer.application.*'],
-            'icon'    => 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6',
-        ],
+        /* My Profile has no entry here: it is in the account menu at the top
+           right (with Account Settings and Log Out), so a second link in the
+           sidebar only repeated it. The Membership Application record is
+           inside the profile page. */
         [
             'label'       => 'Assistance',
             'filipino'    => 'Tulong',

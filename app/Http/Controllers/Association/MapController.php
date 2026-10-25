@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Association;
 
 use App\Http\Controllers\Association\Concerns\ResolvesAssociation;
 use App\Http\Controllers\Controller;
-use App\Models\Barangay;
 use App\Models\DamageReport;
 use App\Models\Farmer;
 use App\Models\Validation;
+use App\Support\MapFilters;
+use App\Support\MapScale;
 use Illuminate\Http\Request;
 
 /**
@@ -29,9 +30,11 @@ use Illuminate\Http\Request;
  * that. Barangay/association-level information is unaffected by this: it
  * never depended on farmer GPS in the first place.
  *
- * An association can span more than one barangay (its members are not all
- * from a single one), so - unlike the Technician's map - this adds a
- * barangay filter alongside status.
+ * An association can span more than one barangay, so the circles are one
+ * per governed barangay (coloured by report count or worst severity), with
+ * the verified pins and a heatmap as optional layers. Filters are Date
+ * Range, Disaster and Severity; every layer and the cards are built from
+ * the same filtered list of reports.
  *
  * There is no single-report show page in the Association module (proposal
  * section 61 only asks for a farmer-detail view), so a pin's "view report"
@@ -66,24 +69,51 @@ class MapController extends Controller
         /* active() skips reports the office has archived or deleted. The
            lists dropped them in Oct 2026 (section 16) and the map has to
            agree: a pin for a report that is no longer on the officer's own
-           list is a pin they cannot click through to or act on. */
-        $reports = DamageReport::active()
-            ->whereIn('farmer_id', $memberIds)
-            ->whereHas('validation', fn ($v) => $v->whereNotNull('latitude'))
-            ->when($governedIds->isNotEmpty(), fn ($q) => $q->where(function ($query) use ($governedIds) {
-                $query->whereIn('reported_barangay_id', $governedIds)
-                      ->orWhere(fn ($sub) => $sub->whereNull('reported_barangay_id')
-                          ->whereHas('farmer', fn ($f) => $f->whereIn('barangay_id', $governedIds)));
-            }))
-            ->with(['farmer.barangay', 'reportedBarangay', 'crops.crop', 'validation'])
-            ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
-            ->when($request->query('barangay_id'), function ($q, $barangayId) {
-                $q->where(function ($query) use ($barangayId) {
-                    $query->where('reported_barangay_id', $barangayId)
-                          ->orWhereHas('farmer', fn ($f) => $f->where('barangay_id', $barangayId));
-                });
-            })
-            ->get();
+           list is a pin they cannot click through to or act on.
+
+           Filters (Date Range, Disaster, Severity) come from the shared
+           App\Support\MapFilters. There is deliberately no association
+           filter: the query is already limited to this officer's own members
+           above, and MapFilters ignores association_id for this role. */
+        $filters = MapFilters::from($request, 'association');
+        $shading = MapScale::shading($request->query('shading'));
+
+        $reports = MapFilters::apply(
+            DamageReport::active()
+                ->whereIn('farmer_id', $memberIds)
+                ->when($governedIds->isNotEmpty(), fn ($q) => $q->where(function ($query) use ($governedIds) {
+                    $query->whereIn('reported_barangay_id', $governedIds)
+                          ->orWhere(fn ($sub) => $sub->whereNull('reported_barangay_id')
+                              ->whereHas('farmer', fn ($f) => $f->whereIn('barangay_id', $governedIds)));
+                })),
+            $filters
+        )->with(['farmer.barangay', 'reportedBarangay', 'validation'])->get();
+
+        /* One bubble per governed barangay that has reports. A report counts
+           for the barangay it was filed in, falling back to the farmer's own
+           when the report does not name one (same rule as the query above). */
+        $bubbles = $governed->map(function ($barangay) use ($reports) {
+            $rows = $reports->filter(fn ($r) => (int) ($r->reported_barangay_id ?? $r->farmer?->barangay_id) === (int) $barangay->id);
+            if ($rows->isEmpty()) {
+                return null;
+            }
+
+            $count = $rows->count();
+            $worst = MapScale::worstSeverity($rows->map(fn ($r) => $r->validation?->severity));
+
+            return [
+                'id'       => $barangay->id,
+                'name'     => $barangay->name,
+                'psgc'     => $barangay->psgc_code,
+                'total'    => $count,
+                'reports'  => $count,
+                'farmers'  => $rows->pluck('farmer_id')->unique()->count(),
+                'awaiting' => $rows->whereIn('status', ['pending', 'assigned'])->count(),
+                'underway' => $rows->where('status', 'under_verification')->count(),
+                'verified' => $rows->whereIn('status', ['verified', 'approved'])->count(),
+                'url'      => route('association.reports.index'),
+            ] + MapScale::bubbleColours($count, $worst);
+        })->filter()->values();
 
         $verifiedPins = $reports
             ->filter(fn ($report) => $report->validation?->latitude !== null)
@@ -102,21 +132,20 @@ class MapController extends Controller
             ])
             ->values();
 
-        // Only the barangays this association's own members actually live or
-        // report in, not every barangay in Tanza - the filter should only
-        // ever offer choices that can change what's on the map.
-        $barangayIds = $governedIds;
-
         return view('association.map.index', [
             'association'  => $association,
             'verifiedPins' => $verifiedPins,
+            'bubbles'      => $bubbles,
             'center'       => self::CENTER,
-            'statuses'     => DamageReport::STATUSES,
-            'barangays'    => Barangay::whereIn('id', $barangayIds)->orderBy('name')->get(),
-            'filters'      => $request->only(['status', 'barangay_id']),
+            'filters'      => $filters,
+            'shading'      => $shading,
+            'legends'      => MapScale::legends($bubbles),
             'governed'     => $governed->map(fn ($b) => ['id' => $b->id, 'name' => $b->name, 'psgc' => $b->psgc_code])->values(),
             'coverage'     => [
-                'total' => $verifiedPins->count(),
+                'reports'   => $reports->count(),
+                'farmers'   => $reports->pluck('farmer_id')->unique()->count(),
+                'pinned'    => $verifiedPins->count(),
+                'barangays' => $bubbles->count(),
             ],
         ]);
     }
