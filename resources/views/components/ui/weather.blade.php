@@ -131,6 +131,9 @@
             <span class="text-lg font-semibold text-foreground">&deg;C</span>
         </p>
         <p class="truncate text-sm text-muted-foreground">Tanza, Cavite</p>
+        <p class="truncate text-[11px] text-muted-foreground/80">
+            Source: OpenWeatherMap<span x-show="reading?.updated"> &middot; updated <span x-text="reading?.updated"></span></span>
+        </p>
     </div>
 
     <div class="shrink-0 text-right">

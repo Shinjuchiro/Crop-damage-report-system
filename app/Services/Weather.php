@@ -41,7 +41,7 @@ class Weather
     private const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast';
 
     /**
-     * @return array{temperature:int, high:int, low:int, description:string, icon:string}|null
+     * @return array{temperature:int, high:int, low:int, description:string, icon:string, updated:string}|null
      */
     public function today(): ?array
     {
@@ -78,6 +78,25 @@ class Weather
         return filled(config('services.openweather.key'));
     }
 
+    /**
+     * The HTTP client for the weather calls.
+     *
+     * PHP on Windows ships with no list of trusted certificate authorities
+     * unless php.ini points at one, and that is the cause of "cURL error 60".
+     * So this uses the project's own copy (storage/app/cacert.pem, the
+     * Mozilla CA bundle) when it is there, and works with no php.ini change
+     * and on any host. If the file is missing it falls back to PHP's own
+     * setting. Certificate checking is never turned off.
+     */
+    private function http(): \Illuminate\Http\Client\PendingRequest
+    {
+        $bundle = storage_path('app/cacert.pem');
+
+        return Http::timeout(4)->withOptions([
+            'verify' => is_file($bundle) ? $bundle : true,
+        ]);
+    }
+
     private function fetch(): ?array
     {
         try {
@@ -88,7 +107,7 @@ class Weather
                 'appid' => config('services.openweather.key'),
             ];
 
-            $current = Http::timeout(4)->retry(1, 200)->get(self::CURRENT_URL, $params);
+            $current = $this->http()->retry(1, 200)->get(self::CURRENT_URL, $params);
 
             if (! $current->successful()) {
                 // 401 almost always means a key that has not activated yet.
@@ -108,9 +127,13 @@ class Weather
                 'low'         => $low,
                 'description' => $this->describe($code),
                 'icon'        => $this->icon($code),
+                // When this reading was fetched, in Manila time, so the card
+                // can say how fresh it is.
+                'updated'     => now('Asia/Manila')->format('g:i A'),
             ];
         } catch (\Throwable $e) {
-            Log::info('Weather lookup failed: ' . $e->getMessage());
+            // The exception text contains the full URL, API key included.
+            Log::info('Weather lookup failed: ' . preg_replace('/appid=[^&\s]+/', 'appid=***', $e->getMessage()));
 
             return null;
         }
@@ -131,7 +154,7 @@ class Weather
         ];
 
         try {
-            $forecast = Http::timeout(4)->get(self::FORECAST_URL, $params);
+            $forecast = $this->http()->get(self::FORECAST_URL, $params);
 
             if (! $forecast->successful()) {
                 return $fallback;
