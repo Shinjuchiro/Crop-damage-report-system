@@ -66,6 +66,7 @@
 
                     <p class="text-xs text-muted-foreground">
                         AA-{{ str_pad((string) $selection->assistance_allocation_id, 3, '0', STR_PAD_LEFT) }}
+                        @if ($selection->payroll_ref) &middot; Payroll No. {{ $selection->payroll_ref }} @endif
                         &middot; selected {{ $selection->created_at?->format('F d, Y') ?? '' }}
                         @if ($selection->damageReport)
                             &middot; for report {{ $selection->damageReport->reference }}
@@ -80,6 +81,62 @@
                 <div class="flex shrink-0 flex-wrap gap-2">
                     <x-ui.badge variant="info" dot>Selected for assistance</x-ui.badge>
                 </div>
+            </div>
+
+            {{-- The farmer's own answer. The office hands the assistance over
+                 itself, so this is where "did you get it" is asked. --}}
+            <div x-data="{ saying: null }" class="mt-4 border-t border-border pt-4">
+                <p class="text-sm font-semibold">Did you receive this?</p>
+                <p class="mt-0.5 text-sm text-muted-foreground">Natanggap po ba ninyo ito?</p>
+
+                <div class="mt-3 flex flex-col gap-3 sm:flex-row">
+                    <form method="POST"
+                          action="{{ route('farmer.assistance.confirm-selection', $selection) }}"
+                          class="flex-1"
+                          data-confirm="Please confirm that you have received this assistance. It is recorded with your name and the date, and the Municipal Agriculture Office can see it."
+                          data-confirm-title="Confirm you received this?"
+                          data-confirm-action="Yes, I received it">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="receipt_status" value="confirmed_received">
+
+                        <x-ui.button size="lg" type="submit" class="w-full">
+                            <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                 stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>
+                            I Have Received My Assistance
+                        </x-ui.button>
+                    </form>
+
+                    <x-ui.button size="lg" variant="outline" class="flex-1"
+                                 x-show="saying !== 'no'" @click="saying = 'no'">
+                        No, I did not receive it
+                    </x-ui.button>
+                </div>
+
+                <form method="POST" x-show="saying === 'no'" x-cloak
+                      action="{{ route('farmer.assistance.confirm-selection', $selection) }}"
+                      class="mt-3"
+                      data-confirm="The Municipal Agriculture Office will be able to see this. Please make sure what you have written is correct."
+                      data-confirm-title="Report that you did not receive this?"
+                      data-confirm-action="Confirm"
+                      data-confirm-tone="danger">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="receipt_status" value="not_received">
+
+                    <label for="sel-note-{{ $selection->id }}" class="block text-sm font-medium">
+                        What happened? <span class="text-destructive">*</span>
+                        <span class="block text-xs font-normal text-muted-foreground">Pakisabi po kung ano ang nangyari</span>
+                    </label>
+                    <textarea id="sel-note-{{ $selection->id }}" name="receipt_note" rows="3" required maxlength="1000"
+                              placeholder="e.g. Wala pa pong ibinibigay sa akin."
+                              class="mt-1.5 w-full rounded-md border border-input bg-card px-3 py-2.5 text-base shadow-sm"></textarea>
+
+                    <div class="mt-3 flex flex-col-reverse gap-2 sm:flex-row">
+                        <x-ui.button size="lg" variant="ghost" type="button" @click="saying = null">Cancel</x-ui.button>
+                        <x-ui.button size="lg" variant="destructive" type="submit">Submit this answer</x-ui.button>
+                    </div>
+                </form>
             </div>
         </x-ui.card>
     @endforeach
@@ -114,7 +171,7 @@
                          the date, which is what a farmer checking this page
                          is actually looking for. --}}
                     <p class="text-sm text-muted-foreground">
-                        @if ($distribution->distributed_at)
+                        @if ($handedOver && $distribution->distributed_at)
                             Handed over {{ $distribution->distributed_at->format('F d, Y') }}
                         @else
                             Not handed over yet
@@ -122,8 +179,11 @@
                     </p>
 
                     <p class="text-xs text-muted-foreground">
-                        {{ $distribution->distributed_at?->format('F d, Y') ?? 'Date not recorded' }}
+                        {{ $handedOver ? ($distribution->distributed_at?->format('F d, Y') ?? 'Date not recorded') : 'Answered ' . ($distribution->receipt_confirmed_at?->format('F d, Y') ?? '') }}
                         &middot; from the Municipal Agriculture Office
+                        @if (! empty($payrollRefs[$distribution->assistance_allocation_id]))
+                            &middot; Payroll No. {{ $payrollRefs[$distribution->assistance_allocation_id] }}
+                        @endif
                         @if ($distribution->damageReport)
                             &middot; for report {{ $distribution->damageReport->reference }}
                         @endif

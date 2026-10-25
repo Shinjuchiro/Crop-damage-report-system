@@ -374,6 +374,9 @@
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-bold text-foreground">
                                         AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}
+                                        @if ($allocation->payroll_no)
+                                            <span class="font-normal text-muted-foreground">&middot; {{ $allocation->payroll_no }}</span>
+                                        @endif
                                     </p>
                                     <p class="truncate text-xs text-muted-foreground">
                                         {{ $allocation->concerned_associations->pluck('name')->join(', ') ?: 'No association' }}

@@ -48,6 +48,7 @@
                 <dt class="shrink-0 text-muted-foreground">Handed Over</dt>
                 <dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distributions->pluck('farmer_id')->unique()->count() }}</dd>
             </div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Payroll No.</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->payroll_no ?: 'Not assigned' }}</dd></div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Allocated On</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Allocated By</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $allocation->allocatedBy?->full_name ?: $allocation->allocatedBy?->username ?? '-' }}</dd></div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Distribution Date</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distribution_date?->format('M d, Y') ?? 'To be scheduled' }}</dd></div>

@@ -243,7 +243,7 @@
 
             const associations = JSON.parse(el.dataset.associations);
 
-            const map = L.map(el, { scrollWheelZoom: false, maxBoundsViscosity: 1.0, zoomSnap: 0.25 }).setView(
+            const map = L.map(el, { scrollWheelZoom: true, maxBoundsViscosity: 1.0, zoomSnap: 0.25 }).setView(
                 [parseFloat(el.dataset.centerLat), parseFloat(el.dataset.centerLng)],
                 parseInt(el.dataset.zoom)
             );

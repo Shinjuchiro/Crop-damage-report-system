@@ -17,7 +17,7 @@
                   Fitting the whole municipality into a wide, short box left it small, so it opens
                   closer, centred on Tanza, and can be dragged to the edges.
         layers    true on the Map page: registers window.toggleMapLayer for the pins and heatmap checkboxes --}}
-@props(['bubbles', 'height' => 'h-72', 'id' => 'techAssocMap', 'shading' => 'count', 'pins' => [], 'layers' => false, 'zoomIn' => 0.5])
+@props(['bubbles', 'height' => 'h-72', 'id' => 'techAssocMap', 'shading' => 'count', 'pins' => [], 'layers' => false, 'zoomIn' => 0.5, 'kicker' => "Farmers' Association", 'unit' => 'assignment'])
 
 <div id="{{ $id }}" class="{{ $height }} w-full"
      data-geojson="{{ asset('geo/tanza-barangays.json') }}"
@@ -25,7 +25,9 @@
      data-shading="{{ $shading }}"
      data-pins="{{ json_encode($pins) }}"
      data-layers="{{ $layers ? '1' : '0' }}"
-     data-zoom-in="{{ $zoomIn }}"></div>
+     data-zoom-in="{{ $zoomIn }}"
+     data-kicker="{{ $kicker }}"
+     data-unit="{{ $unit }}"></div>
 
 @once
     @push('head')
@@ -63,7 +65,7 @@
                         const lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
                         return lum > 160 ? '#1f2937' : '#ffffff';
                     };
-                    const map = L.map(el, { scrollWheelZoom: false, maxBoundsViscosity: 1.0, zoomSnap: 0.25 })
+                    const map = L.map(el, { scrollWheelZoom: true, maxBoundsViscosity: 1.0, zoomSnap: 0.25 })
                         .setView([14.3833, 120.85], 12);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
@@ -132,10 +134,10 @@
                                     iconSize: [size, size],
                                 }),
                             }).bindPopup(
-                                '<span class="tip-kicker">Farmers\' Association</span>' +
+                                '<span class="tip-kicker">' + (el.dataset.kicker || 'Farmers\' Association') + '</span>' +
                                 '<div class="tip-name">' + b.name + '</div>' +
                                 '<div class="tip-row"><span class="tip-dot" style="background:' + colour(b) + '"></span><span>' +
-                                    b.total + (b.total === 1 ? ' assignment' : ' assignments') + '</span></div>' +
+                                    b.total + (b.total === 1 ? ' ' + (el.dataset.unit || 'assignment') : ' ' + (el.dataset.unit || 'assignment') + 's') + '</span></div>' +
                                 (b.severity_label ? '<div class="tip-row"><span class="tip-dot" style="background:' + b.severity_color + '"></span><span>Worst severity: ' + b.severity_label + '</span></div>' : '') +
                                 '<div class="tip-sep"></div>' +
                                 row('#facc15', 'Awaiting Inspection', b.awaiting) +

@@ -262,6 +262,13 @@ Route::middleware(['auth', 'active', 'role:farmer'])
         Route::put('/assistance/{distribution}/confirm', [FarmerAssistanceController::class, 'confirmReceipt'])
             ->name('assistance.confirm');
 
+        // The same answer, given straight from the "selected for assistance"
+        // card (Oct 2026: the MAO gives the assistance itself and nobody
+        // records a hand-over first, so the farmer's confirmation is what
+        // creates the hand-over record).
+        Route::put('/assistance/selection/{selection}/confirm', [FarmerAssistanceController::class, 'confirmSelection'])
+            ->name('assistance.confirm-selection');
+
         /* ---------- Notifications ---------- */
         Route::get('/notifications', [FarmerNotificationController::class, 'index'])
             ->name('notifications.index');

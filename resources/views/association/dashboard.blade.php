@@ -44,9 +44,9 @@
     @endif
 
     {{-- ================= MEMBERSHIP ================= --}}
-    {{-- Two across on a phone, not one, now that the stat card is compact
-         below sm: all four figures fit on one screen. --}}
-    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+    {{-- Six cards in one grid: two across on a phone, three across from sm up,
+         so the rows are always even (3 + 3) and no card is stretched wider. --}}
+    <div class="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <x-ui.stat label="Total Members" :value="number_format($summary['total_members'])"
                    hint="Kabuuang kasapi"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9"
@@ -66,10 +66,7 @@
                    tone="warning" hint="Have filed a damage report"
                    icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z"
                    :href="route('association.members.index', ['affected' => 'yes'])" />
-    </div>
 
-    {{-- ================= REPORTS AND ASSISTANCE ================= --}}
-    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4">
         <x-ui.stat label="Damage Reports" :value="number_format($summary['total_reports'])"
                    icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01"
                    :href="route('association.reports.index')" />
@@ -79,45 +76,22 @@
                    tone="primary" hint="Eligible for assistance"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"
                    :href="route('association.reports.index', ['status' => 'verified'])" />
-
     </div>
 
-    {{-- MEMBERS, NOT QUANTITIES (Oct 2026, client decision)
-
-         These three cards were Allocated, Distributed and Remaining, all
-         sums of goods. There are no quantities: how much a named farmer
-         received is a financial detail about an identifiable person and is
-         out of this system.
-
-         The same shape, counted in people. Selected is how many members the
-         office has designated, Received is how many of them it has handed
-         to, and Still waiting is the gap - which is the number an officer
-         acts on, because those are the members they still have to call in.
-         All three count this association's own members only. --}}
-    <x-ui.card title="Assistance" description="Ang tulong para sa inyong mga kasapi">
-        <div class="grid gap-4 sm:grid-cols-3">
-            <div class="rounded-xl border border-border bg-muted p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Members selected</p>
-                <p class="mt-1 text-2xl font-bold">{{ number_format($summary['designated_members']) }}</p>
+    {{-- MAP OVERVIEW (Oct 2026): replaces the three-box Assistance card
+         (Members selected / Already received / Still waiting). The same
+         overview as the MAO and Technician dashboards, limited to the
+         barangays this association governs. The "Members still to collect"
+         list below still carries the assistance side. --}}
+    <x-ui.card title="Maps and Visualization" description="Your members' reports by barangay">
+        {{-- The very same map as Maps and Visualization (one shared component). --}}
+        <x-association.coverage-map :bubbles="$map['bubbles']" :pins="$map['pins']" :governed="$map['governed']"
+                                    id="assocDashMap" height="h-80 sm:h-96" :scroll="true" />
+        <x-slot:footer>
+            <div class="flex justify-end">
+                <a href="{{ route('association.map.index') }}" class="text-sm font-medium text-primary hover:underline">View all</a>
             </div>
-            <div class="rounded-xl border border-primary/40 bg-accent p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-accent-foreground/70">Already received</p>
-                <p class="mt-1 text-2xl font-bold text-accent-foreground">
-                    {{ number_format($summary['members_handed_to']) }}
-                </p>
-            </div>
-            <div class="rounded-xl border border-border bg-muted p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Still waiting</p>
-                <p class="mt-1 text-2xl font-bold">
-                    {{ number_format(max($summary['designated_members'] - $summary['members_handed_to'], 0)) }}
-                </p>
-            </div>
-        </div>
-
-        <p class="mt-3 text-xs text-muted-foreground">
-            The Municipal Agriculture Office hands assistance to your members and records it. Please tell the
-            members still waiting when and where to collect theirs.
-        </p>
+        </x-slot:footer>
     </x-ui.card>
 
     {{-- ================= TWO WORKING LISTS ================= --}}

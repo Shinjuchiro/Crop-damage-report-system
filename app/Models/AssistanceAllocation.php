@@ -37,6 +37,8 @@ class AssistanceAllocation extends Model
         // Create Assistance Distribution (Oct 2026): a named batch with a
         // free-text description and an optional date and venue.
         'batch_name', 'details', 'distribution_date', 'venue',
+        // PAY-<year>-<seq>, assigned by the system when the batch is finalised.
+        'payroll_no',
     ];
 
     protected function casts(): array
@@ -123,6 +125,29 @@ class AssistanceAllocation extends Model
      * every call site, so that remains true: one method decides, and about
      * twenty screens read it.
      */
+    /**
+     * The next payroll number for the year: PAY-2026-0001, 0002, ...
+     *
+     * Call inside the transaction that creates the batch. The row lock keeps
+     * two batches finalised at the same moment from reading the same last
+     * number, and the unique index on payroll_no is the backstop if that
+     * ever fails anyway.
+     */
+    public static function nextPayrollNo(?int $year = null): string
+    {
+        $year   = $year ?? (int) now()->year;
+        $prefix = 'PAY-' . $year . '-';
+
+        $last = static::where('payroll_no', 'like', $prefix . '%')
+            ->lockForUpdate()
+            ->orderByDesc('payroll_no')
+            ->value('payroll_no');
+
+        $next = $last ? ((int) substr($last, strlen($prefix))) + 1 : 1;
+
+        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+    }
+
     public function getDisplayNameAttribute(): string
     {
         // A batch made on the new form has a name. Older rows have none and

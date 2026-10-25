@@ -68,7 +68,15 @@ class AssistanceController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        // The farmer's payroll number on each batch they are on, for the
+        // cards (PAY-2026-0003-007), keyed by batch.
+        $payrollRefs = AssistanceAllocationBeneficiary::with('allocation')
+            ->where('farmer_id', $farmer->id)
+            ->get()
+            ->mapWithKeys(fn ($b) => [$b->assistance_allocation_id => $b->payroll_ref]);
+
         return view('farmer.assistance.index', [
+            'payrollRefs'   => $payrollRefs,
             'farmer'        => $farmer,
             'distributions' => $distributions,
             'selected'      => $selected,
@@ -167,6 +175,112 @@ class AssistanceController extends Controller
         }
 
         return back()->with('status', $data['receipt_status'] === 'confirmed_received'
+            ? 'Thank you. Your receipt has been recorded. Salamat po.'
+            : 'Recorded. The Municipal Agriculture Office can now follow this up.');
+    }
+
+    /**
+     * The farmer's answer on a batch they were selected for, before any
+     * hand-over has been recorded.
+     *
+     * The office hands the assistance over itself and no longer records a
+     * hand-over first (Oct 2026), so the farmer's own confirmation is what
+     * creates the record. "Yes" writes a hand-over dated today and
+     * already confirmed. "No" writes a row that is NOT counted as handed
+     * over but is marked not received, which is exactly what puts it on the
+     * office's list of disputes and raises the notices.
+     *
+     * Answered once per batch: a row for this farmer and batch is the
+     * answer, and a second request is refused.
+     */
+    public function confirmSelection(Request $request, AssistanceAllocationBeneficiary $selection)
+    {
+        $farmer = $this->farmer();
+
+        // Nobody answers for somebody else.
+        abort_unless($selection->farmer_id === $farmer->id, 403);
+
+        $allocation = $selection->allocation;
+        abort_unless($allocation && $allocation->status !== 'cancelled', 404);
+
+        $data = $request->validate([
+            'receipt_status' => ['required', Rule::in(['confirmed_received', 'not_received'])],
+            'receipt_note'   => [
+                Rule::requiredIf(fn () => $request->input('receipt_status') === 'not_received'),
+                'nullable', 'string', 'max:1000',
+            ],
+        ], [
+            'receipt_status.required' => 'Please choose whether you received this.',
+            'receipt_note.required'   => 'Please tell the office briefly what happened, so they can follow it up.',
+        ]);
+
+        $received = $data['receipt_status'] === 'confirmed_received';
+
+        $distribution = DB::transaction(function () use ($allocation, $selection, $farmer, $data, $received) {
+            $already = AssistanceDistribution::where('assistance_allocation_id', $allocation->id)
+                ->where('farmer_id', $farmer->id)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($already) {
+                return null;
+            }
+
+            $distribution = AssistanceDistribution::create([
+                'assistance_allocation_id' => $allocation->id,
+                'farmer_id'                => $farmer->id,
+                'damage_report_id'         => $selection->damage_report_id,
+                // The office gave it, so the office's user is on the record.
+                'distributed_by'           => $allocation->allocated_by ?? Auth::id(),
+                // NOT NULL on the table. For a "no" this is the date the
+                // farmer answered; distribution_status below is what says
+                // whether anything was actually handed over.
+                'distributed_at'           => now(),
+                'remarks'                  => $received ? 'Confirmed by the farmer.' : null,
+                'distribution_status'      => $received ? 'distributed' : 'pending_distribution',
+                'receipt_status'           => $data['receipt_status'],
+                'receipt_note'             => $data['receipt_note'] ?? null,
+                'receipt_confirmed_at'     => now(),
+            ]);
+
+            if ($received) {
+                $designated = $allocation->beneficiaries()->count();
+                $handedTo   = $allocation->distributions()
+                    ->whereIn('distribution_status', ['distributed', 'completed'])
+                    ->distinct('farmer_id')
+                    ->count('farmer_id');
+
+                $allocation->update([
+                    'status' => ($designated > 0 && $handedTo >= $designated) ? 'completed' : 'distributed',
+                    'distributed_to_association_at' => $allocation->distributed_to_association_at ?? now(),
+                    'distributed_by'                => $allocation->distributed_by ?? $allocation->allocated_by ?? Auth::id(),
+                ]);
+            }
+
+            AuditLog::create([
+                'user_id'      => Auth::id(),
+                'action'       => $farmer->full_name . ' marked assistance from batch AA-'
+                                  . str_pad((string) $allocation->id, 3, '0', STR_PAD_LEFT) . ' as '
+                                  . str_replace('_', ' ', $data['receipt_status']),
+                'target_table' => 'assistance_distributions',
+                'target_id'    => $distribution->id,
+                'created_at'   => now(),
+            ]);
+
+            return $distribution;
+        });
+
+        if (! $distribution) {
+            return back()->withErrors(['receipt' => 'You have already answered this one.']);
+        }
+
+        $this->notifyAssociationOfReceiptAnswer($distribution, $farmer, $data['receipt_status'], $data['receipt_note'] ?? null);
+
+        if (! $received) {
+            $this->notifyMaoOfNonReceipt($distribution, $farmer, $data['receipt_note'] ?? null);
+        }
+
+        return back()->with('status', $received
             ? 'Thank you. Your receipt has been recorded. Salamat po.'
             : 'Recorded. The Municipal Agriculture Office can now follow this up.');
     }

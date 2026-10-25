@@ -818,6 +818,9 @@ class AssistanceAllocationController extends Controller
                would be promising the farmer a collection date the office
                cannot keep. */
             $allocation = AssistanceAllocation::create(Arr::only($data, ['remarks', 'batch_name', 'details', 'distribution_date', 'venue']) + [
+                // The batch's payroll number (PAY-2026-0003), made here and
+                // never typed. Each farmer's own line on it is given below.
+                'payroll_no'   => AssistanceAllocation::nextPayrollNo(),
                 'allocated_by' => Auth::id(),
                 'allocated_at' => now(),
                 'status'       => 'allocated',
@@ -839,11 +842,18 @@ class AssistanceAllocationController extends Controller
                 AssistanceAllocationDraft::where('user_id', Auth::id())->where('id', $data['draft_id'])->delete();
             }
 
-            foreach ($eligible->whereIn('farmer_id', $data['beneficiary_ids']) as $report) {
+            /* Lines on the payroll run in order of surname, so the printed
+               list and the numbers agree. */
+            $selected = $eligible->whereIn('farmer_id', $data['beneficiary_ids'])
+                ->sortBy(fn ($report) => mb_strtolower(($report->farmer?->last_name ?? '') . ' ' . ($report->farmer?->first_name ?? '')))
+                ->values();
+
+            foreach ($selected as $report) {
                 AssistanceAllocationBeneficiary::create([
                     'assistance_allocation_id' => $allocation->id,
                     'farmer_id'                => $report->farmer_id,
                     'damage_report_id'         => $report->id,
+                    'payroll_line'             => $designated + 1,
                     'created_at'               => now(),
                 ]);
 
@@ -889,7 +899,7 @@ class AssistanceAllocationController extends Controller
             return $allocation;
         });
 
-        $this->notifyDesignated($allocation->fresh(['beneficiaries.farmer.association']));
+        $this->notifyDesignated($allocation->fresh(['beneficiaries.farmer.association', 'beneficiaries.allocation']));
 
         return redirect()->route('mao.assistance-allocations.show', $allocation)
             ->with('status', 'Distribution batch finalized. The farmers and their associations have been notified.');
@@ -941,6 +951,7 @@ class AssistanceAllocationController extends Controller
                 'You Have Been Selected for Assistance',
                 'The Municipal Agriculture Office has selected you to receive assistance'
                     . ($allocation->batch_name ? ' (' . $allocation->batch_name . ')' : '') . '. '
+                    . ($beneficiary->payroll_ref ? 'Your payroll number is ' . $beneficiary->payroll_ref . '. ' : '')
                     . $this->farmerScheduleText($allocation),
                 'normal',
                 'specific_farmer',

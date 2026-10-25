@@ -70,6 +70,7 @@
                     {{ $allocation->details ?: ($allocation->assistance?->description ?: 'Not specified') }}
                 </dd>
             </div>
+            <div><dt class="text-muted-foreground">Payroll No.</dt><dd class="font-medium text-foreground">{{ $allocation->payroll_no ?: 'Not assigned' }}</dd></div>
             <div><dt class="text-muted-foreground">Allocated On</dt><dd class="font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
             <div>
                 <dt class="text-muted-foreground">Allocated By</dt>
@@ -110,6 +111,7 @@
                 <table class="w-full text-left text-sm">
                     <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
+                            <th class="px-6 py-3 font-medium">Payroll No.</th>
                             <th class="px-6 py-3 font-medium">Farmer</th>
                             <th class="px-6 py-3 font-medium">Association</th>
                             <th class="px-6 py-3 font-medium">Barangay</th>
@@ -120,6 +122,11 @@
                     <tbody class="divide-y divide-border">
                         @foreach ($allocation->beneficiaries as $beneficiary)
                             <tr class="hover:bg-muted/60">
+                                <td class="whitespace-nowrap px-6 py-3 text-foreground">
+                                    {{ ($allocation->payroll_no && $beneficiary->payroll_line)
+                                        ? $allocation->payroll_no . '-' . str_pad((string) $beneficiary->payroll_line, 3, '0', STR_PAD_LEFT)
+                                        : '-' }}
+                                </td>
                                 <td class="px-6 py-3 font-bold text-foreground">{{ $beneficiary->farmer?->full_name ?? 'Unknown' }}</td>
                                 <td class="px-6 py-3 text-muted-foreground">{{ $beneficiary->farmer?->association?->name ?? 'No association' }}</td>
                                 <td class="px-6 py-3 text-muted-foreground">{{ $beneficiary->farmer?->barangay?->name ?? '-' }}</td>
@@ -188,6 +195,7 @@
                     <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
                             <th class="px-6 py-3 font-medium">Distribution ID</th>
+                            <th class="px-6 py-3 font-medium">Payroll No.</th>
                             <th class="px-6 py-3 font-medium">Farmer</th>
                             <th class="px-6 py-3 font-medium">Damage Report</th>
                             <th class="px-6 py-3 font-medium">Distributed</th>
@@ -200,6 +208,10 @@
                             <tr class="hover:bg-muted/60">
                                 <td class="px-6 py-3 text-foreground">
                                     DIST-{{ str_pad($distribution->id, 3, '0', STR_PAD_LEFT) }}
+                                </td>
+                                @php $line = $allocation->beneficiaries->firstWhere('farmer_id', $distribution->farmer_id)?->payroll_line; @endphp
+                                <td class="whitespace-nowrap px-6 py-3 text-foreground">
+                                    {{ ($allocation->payroll_no && $line) ? $allocation->payroll_no . '-' . str_pad((string) $line, 3, '0', STR_PAD_LEFT) : '-' }}
                                 </td>
                                 <td class="px-6 py-3 font-bold text-foreground">
                                     {{ $distribution->farmer?->full_name ?? 'Unknown' }}

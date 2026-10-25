@@ -369,6 +369,7 @@ class MonthlyReportBuilder
             ->get()
             ->map(fn ($allocation) => [
                 'AA-' . str_pad((string) $allocation->id, 3, '0', STR_PAD_LEFT),
+                $allocation->payroll_no ?: '-',
                 $allocation->concerned_associations->pluck('name')->join(', ') ?: '-',
                 $allocation->beneficiaries_count,
                 $allocation->allocated_at?->format('d M Y') ?? '-',
@@ -378,7 +379,7 @@ class MonthlyReportBuilder
 
         return [
             'title'    => 'Assistance Allocations',
-            'headings' => ['Allocation ID', 'Associations Concerned', 'Farmers Selected',
+            'headings' => ['Allocation ID', 'Payroll No.', 'Associations Concerned', 'Farmers Selected',
                            'Date Allocated', 'Allocated By', 'Status'],
             'rows'     => $rows,
         ];
@@ -389,7 +390,7 @@ class MonthlyReportBuilder
     {
         $rows = AssistanceDistribution::with([
                 'farmer.barangay', 'farmer.association',
-                'allocation',
+                'allocation.beneficiaries',
                 'distributedBy', 'damageReport',
             ])
             ->whereBetween('distributed_at', [$start, $end])
@@ -399,6 +400,14 @@ class MonthlyReportBuilder
             ->get()
             ->map(fn ($distribution) => [
                 'DIST-' . str_pad((string) $distribution->id, 3, '0', STR_PAD_LEFT),
+                // PAY-2026-0003-007: the batch's number and the farmer's line on it.
+                (function () use ($distribution) {
+                    $batch = $distribution->allocation?->payroll_no;
+                    $line  = $distribution->allocation?->beneficiaries
+                        ->firstWhere('farmer_id', $distribution->farmer_id)?->payroll_line;
+
+                    return ($batch && $line) ? $batch . '-' . str_pad((string) $line, 3, '0', STR_PAD_LEFT) : '-';
+                })(),
                 $distribution->farmer?->full_name ?? 'Unknown',
                 $distribution->farmer?->barangay?->name ?? '-',
                 // The farmer's own association. It used to prefer the
@@ -418,7 +427,7 @@ class MonthlyReportBuilder
 
         return [
             'title'    => 'Assistance Distribution',
-            'headings' => ['Distribution ID', 'Farmer', 'Barangay', 'Association',
+            'headings' => ['Distribution ID', 'Payroll No.', 'Farmer', 'Barangay', 'Association',
                            'Allocation', 'Damage Report', 'Date Distributed',
                            'Distributed By', 'Distribution Status', 'Farmer Receipt'],
             'rows'     => $rows,

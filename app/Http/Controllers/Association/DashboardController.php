@@ -177,6 +177,7 @@ class DashboardController extends Controller
                 'awaiting_confirmation' => $awaitingConfirmation,
             ],
 
+            'map'               => \App\Support\AssociationMapData::build($association),
             'recentReports'     => $recentReports,
             'needsDistribution' => $needsDistribution,
         ]);

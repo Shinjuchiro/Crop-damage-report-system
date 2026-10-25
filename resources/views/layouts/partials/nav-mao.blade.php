@@ -190,13 +190,16 @@
         --}}
         <div x-data="{ open: {{ request()->routeIs(...(array) $item['pattern']) ? 'true' : 'false' }} }">
             <button type="button" @click="open = ! open"
-                    class="{{ request()->routeIs(...(array) $item['pattern']) ? $current : $idle }} w-full min-w-0 justify-between">
-                <span class="flex min-w-0 items-center gap-3">
+                    class="{{ request()->routeIs(...(array) $item['pattern']) ? $current : $idle }} w-full min-w-0 justify-between text-left">
+                {{-- text-left: a <button> centres its text by default, so the
+                     second line of a long label ("Tracking") sat in the
+                     middle instead of under the first. --}}
+                <span class="flex min-w-0 items-center gap-3 text-left">
                     <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7"
                          stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         <path d="{{ $item['icon'] }}"/>
                     </svg>
-                    <span class="min-w-0 leading-tight">{{ $item['label'] }}</span>
+                    <span class="min-w-0 text-left leading-tight">{{ $item['label'] }}</span>
                 </span>
                 <svg class="h-4 w-4 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''"
                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
