@@ -55,6 +55,12 @@ class CropManagement
                     'patterns' => ['association.reports.*'],
                     'icon'     => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01',
                 ],
+                'validation' => [
+                    'label'    => 'Validation Monitoring',
+                    'route'    => 'association.validations.index',
+                    'patterns' => ['association.validations.*'],
+                    'icon'     => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+                ],
             ];
         }
 

@@ -207,6 +207,8 @@
         @endif
     </x-ui.card>
 
+    @include('farmer.partials.membership')
+
     <x-ui.alert variant="info" title="Need a correction?">
         Registration details are reviewed and approved by the Municipal Agriculture Office, so they are
         not edited here. Contact the office and they will update your record.

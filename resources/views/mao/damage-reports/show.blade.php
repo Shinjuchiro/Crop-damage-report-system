@@ -29,7 +29,7 @@
 
         @if ($damageReport->is_archived)
             <form method="POST" action="{{ route('mao.damage-reports.restore', $damageReport) }}"
-                  data-confirm="Restore {{ $damageReport->reference }} to the active monitoring list?"
+                  data-confirm="Restore {{ $damageReport->full_reference }} to the active monitoring list?"
                   data-confirm-title="Restore damage report"
                   data-confirm-action="Confirm Restore">
                 @csrf @method('PUT')
@@ -39,7 +39,7 @@
             </form>
         @else
             <form method="POST" action="{{ route('mao.damage-reports.archive', $damageReport) }}"
-                  data-confirm="{{ $damageReport->reference }} will be removed from active monitoring. Its status, inspection and assistance history are unaffected, and it can be restored at any time from the Archive page."
+                  data-confirm="{{ $damageReport->full_reference }} will be removed from active monitoring. Its status, inspection and assistance history are unaffected, and it can be restored at any time from the Archive page."
                   data-confirm-title="Archive this damage report?"
                   data-confirm-action="Confirm Archive">
                 @csrf @method('PUT')

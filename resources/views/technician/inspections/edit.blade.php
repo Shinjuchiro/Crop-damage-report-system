@@ -3,7 +3,7 @@
 @section('title', 'Field Inspection & Validation')
 @section('heading', 'On-site Validation')
 @section('heading-fil', 'Pagsusuri sa Sakahan')
-@section('subheading', 'Report ' . $report->reference . ' for ' . ($report->farmer?->full_name ?? 'a farmer'))
+@section('subheading', 'Report ' . $report->full_reference . ' for ' . ($report->farmer?->full_name ?? 'a farmer'))
 
 @section('header-actions')
     <x-ui.button variant="outline" :href="route('technician.reports.show', $report)">
@@ -575,7 +575,7 @@
                                that can still change are read out of Alpine, so
                                this panel is never stale. */
                             $fixed = [
-                                'Report ID'      => $report->reference,
+                                'Report ID'      => $report->full_reference,
                                 'Farmer'         => $report->farmer?->full_name ?? 'Unknown',
                                 'Location'       => $report->reportedBarangay?->name
                                                     ?? $report->farmer?->barangay?->name ?? 'Not set',
@@ -729,6 +729,7 @@
 
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="{{ asset('js/tanza-mask.js') }}"></script>
 <script>
     /*
      * All of the inspection form's state in one place.
@@ -775,6 +776,8 @@
 
             locating: false,
             locationError: '',
+            lastGood: null,
+            outsideMessage: 'The verified location must be inside Tanza, Cavite. Please pin a spot within the municipality.',
             map: null,
             marker: null,
 
@@ -865,6 +868,10 @@
 
                 if (step === 3 && (! this.latitude || ! this.longitude)) {
                     return 'Please set the verified farm location.';
+                }
+
+                if (step === 3 && ! insideTanza(parseFloat(this.latitude), parseFloat(this.longitude))) {
+                    return this.outsideMessage;
                 }
 
                 return '';
@@ -1080,18 +1087,43 @@
 
                 this.marker = L.marker([startLat, startLng], { draggable: true }).addTo(this.map);
 
+                /* The pin can only be placed inside Tanza. The map shows
+                   nothing else (everything outside the municipality is
+                   covered and the view cannot be dragged away), and a tap or
+                   drag that still lands outside the border is refused. The
+                   server checks the saved coordinates again. */
+                this.lastGood = [startLat, startLng];
+
+                maskOutsideTanza(this.map, @js(asset('geo/tanza-outline.json')))
+                    .then(b => { if (b) this.map.setMaxBounds(b.pad(0.05)); });
+
                 this.marker.on('dragend', () => {
                     const p = this.marker.getLatLng();
+
+                    if (! insideTanza(p.lat, p.lng)) {
+                        this.marker.setLatLng(this.lastGood);
+                        this.locationError = this.outsideMessage;
+                        return;
+                    }
+
+                    this.locationError = '';
                     this.setCoords(p.lat, p.lng, 'manual');
                 });
 
                 this.map.on('click', (e) => {
+                    if (! insideTanza(e.latlng.lat, e.latlng.lng)) {
+                        this.locationError = this.outsideMessage;
+                        return;
+                    }
+
+                    this.locationError = '';
                     this.marker.setLatLng(e.latlng);
                     this.setCoords(e.latlng.lat, e.latlng.lng, 'manual');
                 });
             },
 
             setCoords(lat, lng, source) {
+                this.lastGood = [lat, lng];
                 this.latitude = lat.toFixed(7);
                 this.longitude = lng.toFixed(7);
                 this.source = source;
@@ -1115,8 +1147,14 @@
 
                 navigator.geolocation.getCurrentPosition(
                     position => {
-                        this.setCoords(position.coords.latitude, position.coords.longitude, 'gps');
                         this.locating = false;
+
+                        if (! insideTanza(position.coords.latitude, position.coords.longitude)) {
+                            this.locationError = 'Your current location is outside Tanza. ' + this.outsideMessage;
+                            return;
+                        }
+
+                        this.setCoords(position.coords.latitude, position.coords.longitude, 'gps');
                     },
                     error => {
                         this.locating = false;
@@ -1138,7 +1176,7 @@
 
             reviewJson() {
                 return JSON.stringify([
-                    { label: 'Report',              value: @js($report->reference) },
+                    { label: 'Report',              value: @js($report->full_reference) },
                     { label: 'Farmer',              value: @js($report->farmer?->full_name ?? 'Unknown') },
                     { label: 'Damage severity',     value: this.severityLabel() },
                     { label: "Farmer's estimate",   value: this.farmerEstimate + '%' },

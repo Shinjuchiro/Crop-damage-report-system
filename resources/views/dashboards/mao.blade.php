@@ -220,10 +220,22 @@
 
 @push('head')
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <style>
+        /* Same dark popup as the full Map page (mao/map/index). */
+        .assoc-tip { background:#0f172a; border:0; border-radius:12px; color:#fff; padding:12px 15px;
+            box-shadow:0 10px 24px -12px rgb(15 23 42 / .6); white-space:normal; width:250px; max-width:250px; }
+        .assoc-tip::before { border-top-color:#0f172a; }
+        .assoc-tip .tip-kicker { color:#a5b4fc; font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
+        .assoc-tip .tip-name { font-size:13.5px; font-weight:700; line-height:1.35; margin:3px 0 9px; white-space:normal; overflow-wrap:anywhere; }
+        .assoc-tip .tip-row { display:flex; align-items:flex-start; gap:7px; font-size:12px; line-height:1.5; color:#cbd5e1; white-space:normal; }
+        .assoc-tip .tip-dot { width:9px; height:9px; border-radius:9999px; display:inline-block; flex:none; margin-top:5px; }
+        .assoc-tip .tip-sep { border-top:1px solid #1e293b; margin:8px 0 7px; }
+    </style>
 @endpush
 
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="{{ asset('js/tanza-mask.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const el = document.getElementById('dashboardMap');
@@ -231,7 +243,7 @@
 
             const associations = JSON.parse(el.dataset.associations);
 
-            const map = L.map(el, { scrollWheelZoom: false }).setView(
+            const map = L.map(el, { scrollWheelZoom: false, maxBoundsViscosity: 1.0 }).setView(
                 [parseFloat(el.dataset.centerLat), parseFloat(el.dataset.centerLng)],
                 parseInt(el.dataset.zoom)
             );
@@ -240,6 +252,8 @@
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap contributors',
             }).addTo(map);
+            maskOutsideTanza(map, '{{ asset('geo/tanza-outline.json') }}');
+
 
             // Circle area grows with the report count, matching the full Map page.
             function radiusFor(reports) {
@@ -255,6 +269,8 @@
 
                     boundaries.bringToBack();
                     map.fitBounds(boundaries.getBounds(), { padding: [16, 16] });
+                    // Tanza only: the map cannot be dragged away from the municipality.
+                    map.setMaxBounds(boundaries.getBounds().pad(0.15));
 
                     const centres = {};
                     geojson.features.forEach(function (feature) {
@@ -286,9 +302,18 @@
                             fillColor: row.color,
                             fillOpacity: 0.9,
                         }).bindTooltip(
-                            '<b>' + row.name + '</b><br>' +
-                            row.reports + (row.reports === 1 ? ' report' : ' reports'),
-                            { direction: 'top', offset: [0, -8] }
+                            '<span class="tip-kicker">Farmers\' Association</span>' +
+                            '<div class="tip-name">' + row.name + '</div>' +
+                            '<div class="tip-row"><span class="tip-dot" style="background:' + row.color + '"></span><span>' +
+                                (row.reports === 0 ? 'No damage reports'
+                                    : row.reports + (row.reports === 1 ? ' damage report' : ' damage reports')) + '</span></div>' +
+                            (row.reports > 0 ?
+                                '<div class="tip-sep"></div>' +
+                                '<div class="tip-row"><span class="tip-dot" style="background:#facc15"></span><span>Awaiting Inspection</span><span style="margin-left:auto;color:#f1f5f9">' + row.awaiting + '</span></div>' +
+                                '<div class="tip-row"><span class="tip-dot" style="background:#3b82f6"></span><span>Assigned for Inspection</span><span style="margin-left:auto;color:#f1f5f9">' + row.assigned + '</span></div>' +
+                                '<div class="tip-row"><span class="tip-dot" style="background:#22c55e"></span><span>Verified</span><span style="margin-left:auto;color:#f1f5f9">' + row.verified_count + '</span></div>'
+                                : ''),
+                            { direction: 'top', offset: [0, -8], className: 'assoc-tip' }
                         ).addTo(map);
                     });
                 })

@@ -36,6 +36,8 @@ class ProfileController extends Controller
                 'association',
                 'barangay',
                 'mainCrops.crop',    // section 17: a farmer can have many main crops
+                'forwardedBy',
+                'decidedBy',
             ])
             ->where('user_id', Auth::id())
             ->firstOrFail();
@@ -45,7 +47,10 @@ class ProfileController extends Controller
         $farmer->refreshActivityStatus();
 
         return view('farmer.profile', [
-            'farmer' => $farmer,
+            'farmer'  => $farmer,
+            // The membership record now lives on this page.
+            'status'  => \App\Support\MembershipApplication::forFarmer($farmer),
+            'history' => \App\Support\MembershipApplication::history($farmer),
         ]);
     }
 }

@@ -34,6 +34,9 @@ class AssistanceAllocation extends Model
         'assistance_id', 'association_id', 'disaster_id', 'crop_id',
         'allocated_by', 'allocated_at', 'distributed_to_association_at', 'distributed_by',
         'remarks', 'supporting_evidence_path', 'status',
+        // Create Assistance Distribution (Oct 2026): a named batch with a
+        // free-text description and an optional date and venue.
+        'batch_name', 'details', 'distribution_date', 'venue',
     ];
 
     protected function casts(): array
@@ -41,6 +44,7 @@ class AssistanceAllocation extends Model
         return [
             'allocated_at' => 'datetime',
             'distributed_to_association_at' => 'datetime',
+            'distribution_date' => 'date',
         ];
     }
 
@@ -121,7 +125,28 @@ class AssistanceAllocation extends Model
      */
     public function getDisplayNameAttribute(): string
     {
-        return 'Assistance';
+        // A batch made on the new form has a name. Older rows have none and
+        // keep reading "Assistance".
+        return $this->batch_name ?: 'Assistance';
+    }
+
+    /**
+     * The crops the designated farmers' damage reports are about.
+     *
+     * A batch is not tied to one crop any more (it names farmers, not a
+     * crop), so "Crop" on its pages is worked out from what the designated
+     * reports actually say. Needs beneficiaries.damageReport.crops.crop
+     * loaded.
+     */
+    public function getConcernedCropsAttribute()
+    {
+        return $this->beneficiaries
+            ->flatMap(fn ($beneficiary) => $beneficiary->damageReport?->crops ?? collect())
+            ->map(fn ($reportCrop) => $reportCrop->crop)
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
     }
 
     /**

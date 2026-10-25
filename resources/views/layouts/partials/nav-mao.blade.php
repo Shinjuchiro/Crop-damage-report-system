@@ -8,6 +8,12 @@
     // submission is not something the office "sends" anyone.
     $pendingDamageReports = \App\Models\DamageReport::where('status', 'pending')->count();
 
+    /* Crop Management Report badge: planted + damage + validation records
+       this person has not opened yet. Each tab shows its own share (see
+       components/crop-management/header) and the number goes down as they
+       open records. */
+    $cropCounts = \App\Support\Seen::counts(auth()->user());
+
     /* Registrations this office can actually decide: forwarded by a
        farmers' association and not yet approved or rejected. The same list
        the Membership Applications page opens on
@@ -57,6 +63,21 @@
             'pattern' => 'mao.dashboard',
             'icon'    => 'M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9',
         ],
+        [
+            'label'   => 'User Management',
+            'route'   => 'mao.users.index',
+            'pattern' => 'mao.users.*',
+            'icon'    => 'M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6',
+        ],
+        [
+            'label'       => 'Membership Applications',
+            'route'       => 'mao.membership-applications.index',
+            'pattern'     => 'mao.membership-applications.*',
+            'icon'        => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM8.5 14l2 2 4-4',
+            'badge'       => $pendingRegistrations,
+            'badge_noun'  => 'application',
+            'badge_label' => 'awaiting review',
+        ],
         /* Opens the associations themselves, and a member list lives inside
            each one. The farmer directory (mao.farmers.*) is the same branch
            one level down, so it keeps this item lit. */
@@ -79,9 +100,9 @@
             /* Both queues the office owns, added together: a report nobody
                has assigned, and an inspection waiting on a decision. The
                breakdown is on the hub page itself. */
-            'badge'       => $pendingDamageReports + $verifiedAwaitingDecision,
-            'badge_noun'  => 'item',
-            'badge_label' => 'need attention',
+            'badge'       => array_sum($cropCounts),
+            'badge_noun'  => 'record',
+            'badge_label' => 'new to you',
         ],
         [
             'label'    => 'Assistance Allocation & Tracking',
@@ -95,12 +116,12 @@
                     'label'   => 'Assistance Allocation',
                     'route'   => 'mao.assistance-allocations.index',
                     'pattern' => 'mao.assistance-allocations.index',
-                ],
-                [
+                    [
                     'label'   => 'Allocation History',
                     'route'   => 'mao.assistance-allocations.history',
                     'pattern' => 'mao.assistance-allocations.history',
                 ],
+            ],
                 [
                     'label'   => 'Distribution Tracking',
                     'route'   => 'mao.assistance-allocations.distribution-tracking',
@@ -113,21 +134,6 @@
             'route'   => 'mao.map.index',
             'pattern' => 'mao.map.*',
             'icon'    => 'M9 20l-5.4 1.8A1 1 0 013 20.9V6.4a1 1 0 01.7-1L9 3.7m0 16.3l6-2.1m-6 2.1V3.7m6 14.2l5.4 1.8a1 1 0 001.3-1V4.2a1 1 0 00-.7-1L15 1.7m0 16.2V1.7m0 0L9 3.7',
-        ],
-        [
-            'label'       => 'Membership Applications',
-            'route'       => 'mao.membership-applications.index',
-            'pattern'     => 'mao.membership-applications.*',
-            'icon'        => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM8.5 14l2 2 4-4',
-            'badge'       => $pendingRegistrations,
-            'badge_noun'  => 'application',
-            'badge_label' => 'awaiting review',
-        ],
-        [
-            'label'   => 'User Management',
-            'route'   => 'mao.users.index',
-            'pattern' => 'mao.users.*',
-            'icon'    => 'M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6',
         ],
         /* "Announcements", not "Notification and Alerts". This page is where
            the office WRITES and reviews what it has SENT: advisories,
@@ -190,7 +196,7 @@
                          stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         <path d="{{ $item['icon'] }}"/>
                     </svg>
-                    <span class="min-w-0 truncate">{{ $item['label'] }}</span>
+                    <span class="min-w-0 leading-tight">{{ $item['label'] }}</span>
                 </span>
                 <svg class="h-4 w-4 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''"
                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -216,7 +222,7 @@
                      stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                     <path d="{{ $item['icon'] }}"/>
                 </svg>
-                <span class="truncate">{{ $item['label'] }}</span>
+                <span class="min-w-0 leading-tight">{{ $item['label'] }}</span>
             </span>
             @if (! empty($item['badge']))
                 <span class="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full
@@ -232,7 +238,7 @@
                  stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                 <path d="{{ $item['icon'] }}"/>
             </svg>
-            <span class="truncate">{{ $item['label'] }}</span>
+            <span class="min-w-0 leading-tight">{{ $item['label'] }}</span>
         </span>
     @endif
 @endforeach

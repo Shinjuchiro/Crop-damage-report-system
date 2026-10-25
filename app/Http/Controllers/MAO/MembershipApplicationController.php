@@ -319,6 +319,8 @@ class MembershipApplicationController extends Controller
                 'priority'    => 'urgent',
                 'target_type' => 'specific_farmer',
                 'target_id'   => $farmer->id,
+                'link_type'   => 'membership_application',
+                'link_id'     => $farmer->id,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
             ]);
@@ -369,6 +371,8 @@ class MembershipApplicationController extends Controller
                 'priority'    => 'normal',
                 'target_type' => 'specific_association',
                 'target_id'   => $farmer->association_id,
+                'link_type'   => 'membership_application',
+                'link_id'     => $farmer->id,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
             ]);
@@ -461,6 +465,8 @@ class MembershipApplicationController extends Controller
                 'priority'    => 'normal',
                 'target_type' => 'specific_farmer',
                 'target_id'   => $farmer->id,
+                'link_type'   => 'membership_application',
+                'link_id'     => $farmer->id,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
             ]);
@@ -548,6 +554,8 @@ class MembershipApplicationController extends Controller
                 'priority'    => 'normal',
                 'target_type' => 'specific_farmer',
                 'target_id'   => $farmer->id,
+                'link_type'   => 'membership_application',
+                'link_id'     => $farmer->id,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
             ])->dispatchToRecipients();
@@ -569,6 +577,8 @@ class MembershipApplicationController extends Controller
                 'priority'    => 'normal',
                 'target_type' => 'specific_association',
                 'target_id'   => $farmer->association_id,
+                'link_type'   => 'membership_application',
+                'link_id'     => $farmer->id,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
             ])->dispatchToRecipients();

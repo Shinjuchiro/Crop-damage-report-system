@@ -39,7 +39,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class ReportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $months = collect(range(1, 12))
             ->mapWithKeys(fn ($m) => [$m => Carbon::create()->month($m)->format('F')]);
@@ -56,7 +56,11 @@ class ReportController extends Controller
             ->orderByDesc('generated_at')
             ->paginate(10);
 
-        return view('mao.reports.index', compact('months', 'years', 'history'));
+        $analyticsYear = (int) $request->query('analytics_year', now()->year);
+        $analyticsYear = max(2020, min(now()->year, $analyticsYear));
+        $analytics     = \App\Services\ReportAnalytics::forYear($analyticsYear);
+
+        return view('mao.reports.index', compact('months', 'years', 'history', 'analytics'));
     }
 
     public function store(Request $request)
@@ -64,6 +68,8 @@ class ReportController extends Controller
         $data = $request->validate([
             'year'  => ['required', 'integer', 'min:2020', 'max:' . now()->year],
             'month' => ['required', 'integer', 'min:1', 'max:12'],
+            'types'   => ['nullable', 'array'],
+            'types.*' => ['string', 'in:all,planting,damage,validation,assistance'],
         ]);
 
         $generation = ReportGeneration::create([
@@ -76,14 +82,15 @@ class ReportController extends Controller
         AuditLog::create([
             'user_id'      => Auth::id(),
             'action'       => 'Generated monthly report for '
-                . Carbon::create($data['year'], $data['month'], 1)->format('F Y'),
+                . Carbon::create($data['year'], $data['month'], 1)->format('F Y')
+                . ' (' . (in_array('all', $data['types'] ?? [], true) || empty($data['types']) ? 'all types' : implode(', ', $data['types'])) . ')',
             'target_table' => 'report_generations',
             'target_id'    => $generation->id,
             'created_at'   => now(),
         ]);
 
         return redirect()
-            ->route('mao.reports.show', ['year' => $data['year'], 'month' => $data['month']])
+            ->route('mao.reports.show', ['year' => $data['year'], 'month' => $data['month'], 'types' => $data['types'] ?? []])
             ->with('status', 'Report generated successfully.');
     }
 
@@ -91,14 +98,14 @@ class ReportController extends Controller
     {
         $this->assertValidPeriod($year, $month);
 
-        return view('mao.reports.show', ['data' => MonthlyReportBuilder::forPeriod($year, $month)]);
+        return view('mao.reports.show', ['data' => MonthlyReportBuilder::forPeriod($year, $month, null, request()->query('types'))]);
     }
 
     public function downloadPdf(int $year, int $month)
     {
         $this->assertValidPeriod($year, $month);
 
-        $data = MonthlyReportBuilder::forPeriod($year, $month);
+        $data = MonthlyReportBuilder::forPeriod($year, $month, null, request()->query('types'));
 
         $options = new Options();
         $options->set('isRemoteEnabled', false);
@@ -121,7 +128,7 @@ class ReportController extends Controller
     {
         $this->assertValidPeriod($year, $month);
 
-        $data        = MonthlyReportBuilder::forPeriod($year, $month);
+        $data        = MonthlyReportBuilder::forPeriod($year, $month, null, request()->query('types'));
         $spreadsheet = MonthlyReportSpreadsheetBuilder::build($data);
         $filename    = 'monthly-report-' . $year . '-' . str_pad((string) $month, 2, '0', STR_PAD_LEFT) . '.xlsx';
 

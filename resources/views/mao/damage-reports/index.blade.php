@@ -166,7 +166,7 @@
 
                         <li class="{{ $grouped ? 'ml-3' : '' }}">
                             <x-ui.record-card :href="$viewUrl($report->id)"
-                                              :eyebrow="$grouped ? null : $report->reference"
+                                              :eyebrow="$grouped ? null : $report->full_reference"
                                               :title="$grouped
                                                   ? $report->reference
                                                   : ($report->farmer?->full_name ?? 'Unknown')"
@@ -215,6 +215,7 @@
                                     @php $lastFarmer = $report->farmer?->id; @endphp
                                     <x-record.group-head :farmer="$report->farmer"
                                                          :count="$perGroup[$report->farmer?->id] ?? 1"
+                                                         :total="$farmerTotals[$report->farmer?->id] ?? null"
                                                          noun="damage report"
                                                          :colspan="4"
                                                          :href="$report->farmer ? route('mao.farmers.show', $report->farmer) : null" />
@@ -225,7 +226,7 @@
                                         {{-- Indented under the farmer's heading when grouped, so
                                              the block still reads as theirs without repeating
                                              anything. --}}
-                                        <span class="{{ $grouped ? 'pl-3' : '' }}">{{ $report->reference }}</span>
+                                        <span class="{{ $grouped ? 'pl-3' : '' }}">{{ $grouped ? $report->reference : $report->full_reference }}</span>
                                     </td>
                                     {{-- The name in both views, muted under a
                                          group heading that already carries it
@@ -303,7 +304,7 @@
                      }">
                     <div class="mb-4 flex items-start justify-between gap-3">
                         <div>
-                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ $damageReport->reference }}</p>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ $damageReport->full_reference }}</p>
                             <h3 class="mt-0.5 text-lg font-bold text-foreground">
                                 <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
                             </h3>
@@ -458,7 +459,7 @@
                             <button type="button"
                                     @click="assigning = {
                                         id: {{ $damageReport->id }},
-                                        code: @js($damageReport->reference),
+                                        code: @js($damageReport->full_reference),
                                         farmer: @js($farmer->full_name ?? 'Unknown'),
                                         current: {{ $damageReport->assigned_technician_id ?: 'null' }}
                                     }"
@@ -494,7 +495,7 @@
                             <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
                                 <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm <span x-text="decision"></span></h3>
                                 <p class="mb-4 text-sm text-muted-foreground">
-                                    You are about to mark report <strong>{{ $damageReport->reference }}</strong> for
+                                    You are about to mark report <strong>{{ $damageReport->full_reference }}</strong> for
                                     <strong>{{ $farmer->full_name }}</strong> as <span class="font-semibold" x-text="decision"></span>.
                                     Please review the inspection above before continuing.
                                 </p>
@@ -544,6 +545,16 @@
                         </script>
                     @endpush
                 @endif
+            @php
+                    $historyRows = $history->map(fn ($h) => [
+                        'label'   => $h->full_reference,
+                        'meta'    => $h->created_at?->format('M d, Y'),
+                        'href'    => request()->fullUrlWithQuery(['selected' => $h->id]),
+                        'status'  => $h->status,
+                        'current' => $h->id === $selected->id,
+                    ])->all();
+                @endphp
+                <x-record.farmer-history title="All reports from this farmer" :items="$historyRows" />
             @endif
         </x-ui.detail-panel>
     </div>

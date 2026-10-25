@@ -160,8 +160,45 @@ class RecordListExport
     }
 
     /**
+     * Landscape page widths in points (1 pt = 1/72 in), narrowest first.
+     * "folio" is 8.5 x 13 in, the long bond paper Philippine offices
+     * actually print on, and the only larger size worth offering: A3 would
+     * export fine and then not go through the office printer.
+     */
+    private const PAPERS = ['a4' => 841.89, 'folio' => 936.0];
+
+    /** Left and right page margin together: @page is 10 mm a side. */
+    private const SIDE_MARGINS_PT = 56.7;
+
+    /** Body type sizes tried in order, largest first. */
+    private const FONT_SIZES = [8.5, 8.0, 7.5, 7.0, 6.5];
+
+    /**
+     * Horizontal cell padding, per side. A table of six columns can afford
+     * 4 pt; a table of twenty-one spends a sixth of the page on padding at
+     * that, and the type has to shrink to pay for it.
+     */
+    private const PADDING_PT = 4.0;
+    private const PADDING_WIDE_PT = 2.5;
+    private const WIDE_AFTER_COLUMNS = 12;
+
+    /**
      * The printable copy. Landscape, because these tables are wider than
      * they are tall and portrait would shrink the type past reading.
+     *
+     * WHY THE LAYOUT IS WORKED OUT HERE (fixed Oct 2026)
+     *
+     * This used to hand Dompdf a 100%-wide table and let it size the
+     * columns. That is fine for six columns and fails for twenty-one:
+     * Dompdf's automatic layout gives every column at least the width of its
+     * longest unbreakable word, the sum of those came to more than the page,
+     * and it did not shrink or wrap anything. It just kept going past the
+     * right edge, so the Crop Damage Reports PDF lost everything after
+     * "Assessed Damage": severity, date inspected and the farmer's remarks.
+     * No error, a file that looked complete, and the missing columns were
+     * the technician's findings.
+     *
+     * So the widths are decided before Dompdf sees the table. See layout().
      */
     private static function pdf(
         string $title,
@@ -174,6 +211,8 @@ class RecordListExport
         $options->set('isRemoteEnabled', false);     // nothing is fetched over the network
         $options->set('defaultFont', 'Helvetica');
 
+        $layout = self::layout($headings, $rows);
+
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml(view('exports.record-list', [
             'title'     => $title,
@@ -182,15 +221,151 @@ class RecordListExport
             'rows'      => $rows,
             'generated' => now()->format('d F Y, g:i A'),
             'who'       => self::who(),
+            'widths'    => $layout['widths'],
+            'fontSize'  => $layout['font'],
+            'padding'   => $layout['padding'],
         ])->render());
 
-        $dompdf->setPaper('a4', 'landscape');
+        $dompdf->setPaper($layout['paper'], 'landscape');
         $dompdf->render();
 
         return response($dompdf->output(), 200, [
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
+    }
+
+    /**
+     * Choose the paper, the type size and every column's width so the whole
+     * table fits the page.
+     *
+     * The method: measure, in characters, the longest unbreakable word each
+     * column has to hold (its floor) and how wide its text would like to be
+     * (its preference). Then try A4 at the largest type, then smaller type,
+     * then long bond, and take the first combination where every floor fits.
+     * Whatever width is left over goes to the columns that want it most, so
+     * Remarks and Association grow while Date Assigned and a two-digit
+     * percentage stay narrow, instead of twenty-one equal slices.
+     *
+     * Estimating from characters is approximate on purpose: Dompdf cannot be
+     * asked how wide a word is before it lays the page out. 0.58 em per
+     * character is a little above Helvetica's real average (digits are 0.556,
+     * capitals up to 0.72), so a column errs wide rather than clipping a
+     * phone number, and headings get a further 10 per cent for being bold.
+     *
+     * A single token longer than 14 characters is not allowed to set the
+     * floor. Without that cap one pasted URL in a remark would force every
+     * other column to shrink; the cell wraps it instead.
+     *
+     * @return array{paper:string, font:float, widths:array<int,float>, padding:float}
+     */
+    private static function layout(array $headings, array $rows): array
+    {
+        $count    = max(count($headings), 1);
+        $padding  = $count > self::WIDE_AFTER_COLUMNS ? self::PADDING_WIDE_PT : self::PADDING_PT;
+        $overhead = $padding * 2 + 1;          // both sides, plus the border
+        $floor    = array_fill(0, $count, 1.0);
+        $want  = array_fill(0, $count, 1.0);
+
+        foreach (array_values($headings) as $i => $heading) {
+            $longestWord = self::longestWord((string) $heading);
+            $floor[$i]   = max($floor[$i], min($longestWord, 14) * 1.1);
+            $want[$i]    = max($want[$i], $floor[$i]);
+        }
+
+        foreach ($rows as $row) {
+            foreach (array_values($row) as $i => $value) {
+                if ($i >= $count) {
+                    break;
+                }
+
+                $text = trim((string) $value);
+                $text = $text === '' ? '-' : $text;
+
+                $floor[$i] = max($floor[$i], min(self::longestWord($text), 14));
+                $want[$i]  = max($want[$i], min(mb_strlen($text), 36));
+            }
+        }
+
+        // A column never wants less than it needs.
+        foreach ($floor as $i => $f) {
+            $want[$i] = max($want[$i], $f);
+        }
+
+        $attempts = [];
+        foreach (self::PAPERS as $paper => $pageWidth) {
+            foreach (self::FONT_SIZES as $font) {
+                $attempts[] = [$paper, $pageWidth - self::SIDE_MARGINS_PT, $font];
+            }
+        }
+
+        // Nothing fits at a readable size: take the last resort rather than
+        // clip. Long bond at the smallest size, and the widths below are
+        // squeezed proportionally. Cells wrap their words instead.
+        $chosen = null;
+        foreach ($attempts as [$paper, $usable, $font]) {
+            $needed = array_sum(array_map(
+                fn ($f) => $f * $font * 0.58 + $overhead, $floor
+            ));
+
+            if ($needed <= $usable) {
+                $chosen = [$paper, $usable, $font];
+                break;
+            }
+        }
+
+        $chosen ??= ['folio', self::PAPERS['folio'] - self::SIDE_MARGINS_PT, 6.0];
+        [$paper, $usable, $font] = $chosen;
+
+        $charWidth = $font * 0.58;
+        $widths    = [];
+        foreach ($floor as $i => $f) {
+            $widths[$i] = $f * $charWidth + $overhead;
+        }
+
+        $spare = $usable - array_sum($widths);
+
+        if ($spare > 0) {
+            // First hand out what the columns asked for, most-wanting first
+            // in proportion, then whatever is still left across the lot.
+            $wants     = array_map(fn ($w, $f) => max(0, $w - $f) * $charWidth, $want, $floor);
+            $totalWant = array_sum($wants);
+
+            if ($totalWant > 0) {
+                $share = min(1.0, $spare / $totalWant);
+                foreach ($wants as $i => $w) {
+                    $widths[$i] += $w * $share;
+                }
+            }
+
+            $spare = $usable - array_sum($widths);
+
+            if ($spare > 0) {
+                $sum = array_sum($widths);
+                foreach ($widths as $i => $w) {
+                    $widths[$i] += $spare * ($w / $sum);
+                }
+            }
+        }
+
+        // To percentages that add to exactly 100, so the table is the page
+        // width and never a hair past it.
+        $total  = array_sum($widths);
+        $widths = array_map(fn ($w) => round($w / $total * 100, 2), $widths);
+
+        return ['paper' => $paper, 'font' => $font, 'widths' => $widths, 'padding' => $padding];
+    }
+
+    /** Length in characters of the longest run with no space in it. */
+    private static function longestWord(string $text): int
+    {
+        $longest = 1;
+
+        foreach (preg_split('/\s+/u', trim($text)) ?: [] as $word) {
+            $longest = max($longest, mb_strlen($word));
+        }
+
+        return $longest;
     }
 
     /**

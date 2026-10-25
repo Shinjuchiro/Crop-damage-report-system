@@ -25,7 +25,7 @@
 
         body {
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 8.5pt;
+            font-size: {{ $fontSize }}pt;
             color: #111827;
             margin: 0;
         }
@@ -55,19 +55,27 @@
             margin: 7pt 0 9pt;
         }
 
-        table { width: 100%; border-collapse: collapse; }
+        /* FIXED LAYOUT, WIDTHS FROM RecordListExport::layout() (Oct 2026)
+
+           Automatic layout let a 21 column table run off the right edge of
+           the page, silently dropping the last columns. With a fixed layout
+           the column widths below are the widths, and a cell that is too
+           narrow for its text wraps instead of pushing the table wider. */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+        th, td { word-wrap: break-word; overflow-wrap: break-word; }
 
         thead th {
             background: #166534;
             color: #ffffff;
-            font-size: 8pt;
+            font-size: {{ max($fontSize - 0.5, 6) }}pt;
             text-align: left;
-            padding: 5pt 4pt;
+            padding: 5pt {{ $padding }}pt;
             border: .5pt solid #166534;
         }
 
         tbody td {
-            padding: 4pt;
+            padding: 4pt {{ $padding }}pt;
             border: .5pt solid #d1d5db;
             vertical-align: top;
         }
@@ -103,8 +111,9 @@
     <table>
         <thead>
             <tr>
-                @foreach ($headings as $heading)
-                    <th>{{ $heading }}</th>
+                {{-- Dompdf takes a fixed table's widths from this first row. --}}
+                @foreach ($headings as $i => $heading)
+                    <th style="width: {{ $widths[$i] ?? (100 / max(count($headings), 1)) }}%">{{ $heading }}</th>
                 @endforeach
             </tr>
         </thead>

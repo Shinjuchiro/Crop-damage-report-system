@@ -110,7 +110,7 @@
 
             @if ($report = $member->latestDamageReport)
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-sm font-semibold text-card-foreground">{{ $report->reference }}</span>
+                    <span class="text-sm font-semibold text-card-foreground">{{ $report->full_reference }}</span>
                     <x-ui.status :value="$report->status" />
                     <span class="text-xs text-muted-foreground">
                         {{ $report->created_at?->format('d M Y') }}

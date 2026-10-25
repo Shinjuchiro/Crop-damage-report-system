@@ -262,7 +262,7 @@
                                     <path d="M12 21s7-5.7 7-11a7 7 0 10-14 0c0 5.3 7 11 7 11z"/>
                                     <circle cx="12" cy="10" r="2.5"/>
                                 </svg>
-                                {{ $report->reference }}
+                                {{ $report->full_reference }}
                             </span>
                             @if ($report->photos_count)
                                 <span class="ml-6 block text-xs text-muted-foreground">
@@ -321,59 +321,10 @@
     </x-ui.card>
 
     {{-- =================================================================
-         BOTTOM ROW: upcoming, summary donut, quick access
+         BOTTOM ROW: validation summary donut and map overview
     ================================================================== --}}
-    <div class="grid gap-4 lg:grid-cols-3">
+    <div class="grid gap-4 lg:grid-cols-2">
 
-        {{-- Upcoming activities.
-             These are not entries in a calendar somebody has to maintain.
-             They ARE the assignments that have not been started yet, oldest
-             first, which is exactly the list a technician plans their day
-             around. --}}
-        <x-ui.card title="Upcoming Activities" description="Hindi pa nasisimulan">
-            @if ($upcoming->isEmpty())
-                <p class="py-4 text-center text-sm text-muted-foreground">
-                    Nothing waiting. Every report assigned to you has been started.
-                </p>
-            @else
-                <ul class="space-y-3">
-                    @foreach ($upcoming as $item)
-                        <li>
-                            <a href="{{ route('technician.reports.show', $item) }}"
-                               class="flex items-start gap-3 rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-muted">
-
-                                <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center
-                                             rounded-lg bg-accent text-primary" aria-hidden="true">
-                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
-                                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                                        <rect x="3" y="5" width="18" height="16" rx="2"/>
-                                        <path d="M3 10h18M8 3v4M16 3v4"/>
-                                    </svg>
-                                </span>
-
-                                <span class="min-w-0 flex-1">
-                                    <span class="block truncate text-sm font-medium">
-                                        Field Validation
-                                        &middot; {{ $item->reportedBarangay?->name ?? $item->farmer?->barangay?->name ?? 'Location not set' }}
-                                    </span>
-                                    <span class="block text-xs text-muted-foreground">
-                                        {{ $item->reference }}
-                                        &middot; assigned {{ $item->assigned_at?->format('M d, Y') ?? 'recently' }}
-                                    </span>
-                                </span>
-                            </a>
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
-
-            <x-slot:footer>
-                <div class="flex justify-end">
-                    <a href="{{ route('technician.validation.index') }}"
-                       class="text-sm font-medium text-primary hover:underline">View All</a>
-                </div>
-            </x-slot:footer>
-        </x-ui.card>
 
         {{-- Validation summary. Two slices only, so the chart makes one
              point instead of five. --}}
@@ -419,44 +370,16 @@
             @endif
         </x-ui.card>
 
-        {{-- Quick access. One tap to whatever is next, so a technician does
-             not have to read the table to work out where to start. --}}
-        <x-ui.card title="Quick Access Inspection" description="Simulan agad">
-            @if ($nextUp)
-                {{-- A job not yet started goes to the Validation briefing,
-                     not to the read only report: the briefing is where the
-                     planted-against-damaged comparison and Start Inspection
-                     live. A job already started resumes in the form. --}}
-                <a href="{{ $nextUp->status === 'under_verification'
-                        ? route('technician.inspection.edit', $nextUp)
-                        : route('technician.validation.show', $nextUp) }}"
-                   class="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-input
-                          px-4 py-6 text-center transition hover:border-primary hover:bg-accent">
-
-                    <span class="flex h-14 w-14 items-center justify-center rounded-xl bg-accent text-primary">
-                        <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.7"
-                             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                            <path d="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4"/>
-                        </svg>
-                    </span>
-
-                    <span>
-                        <span class="block text-base font-semibold">
-                            {{ $nextUp->status === 'under_verification' ? 'Continue Inspection' : 'Validate Report' }}
-                        </span>
-                        <span class="mt-0.5 block text-xs text-muted-foreground">
-                            {{ $nextUp->reference }}
-                            &middot; {{ $nextUp->reportedBarangay?->name ?? $nextUp->farmer?->barangay?->name ?? 'Location not set' }}
-                        </span>
-                    </span>
-                </a>
-            @else
-                <p class="py-8 text-center text-sm text-muted-foreground">
-                    You are all caught up. Nothing is waiting to be inspected.
-                    <span class="mt-1 block text-xs">Wala na pong naghihintay na ulat.</span>
-                </p>
-            @endif
+        {{-- Maps and Visualization overview: the same circles as the full map, small. --}}
+        <x-ui.card title="Maps and Visualization" description="Your assignments by association">
+            <x-technician.assoc-map :bubbles="$mapBubbles" height="h-64" id="techDashMap" />
+            <x-slot:footer>
+                <div class="flex justify-end">
+                    <a href="{{ route('technician.map.index') }}" class="text-sm font-medium text-primary hover:underline">View all</a>
+                </div>
+            </x-slot:footer>
         </x-ui.card>
+
     </div>
 </div>
 @endsection

@@ -2,7 +2,7 @@
 
 @section('title', 'Monthly Reports')
 @section('heading', 'Monthly Reports')
-@section('subheading', 'Generate a downloadable summary of farmers, farms, planting, damage, verification and assistance activity for one month.')
+@section('subheading', 'Generate a downloadable report for one month, choosing which kinds of records it covers, and see the year's analytics below.')
 
 @section('content')
 <div class="grid gap-6 lg:grid-cols-3">
@@ -27,6 +27,9 @@
                 <x-ui.select name="year" :options="$years" :selected="old('year', now()->year)" />
                 @error('year') <p class="mt-1 text-xs text-destructive">{{ $message }}</p> @enderror
             </div>
+
+            <x-report.type-picker :selected="old('types', ['all'])" />
+            @error('types') <p class="mt-1 text-xs text-destructive">{{ $message }}</p> @enderror
 
             <x-ui.button type="submit" class="w-full">Generate Report</x-ui.button>
         </form>
@@ -91,5 +94,9 @@
             <div class="border-t border-border px-4 py-3">{{ $history->links() }}</div>
         @endif
     </x-ui.card>
+</div>
+
+<div class="mt-6">
+    <x-report.analytics :analytics="$analytics" :years="$years" />
 </div>
 @endsection

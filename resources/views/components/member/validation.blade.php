@@ -57,7 +57,7 @@
 
                 <tr>
                     <td class="whitespace-nowrap font-medium">
-                        {{ $report->reference }}
+                        {{ $report->full_reference }}
                         <span class="block text-xs font-normal text-muted-foreground">
                             {{ $check?->validated_at?->format('M d, Y') ?? 'filed ' . $report->created_at?->format('M d, Y') }}
                         </span>

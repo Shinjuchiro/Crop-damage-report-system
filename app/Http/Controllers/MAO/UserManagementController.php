@@ -61,9 +61,9 @@ class UserManagementController extends Controller
             'full_name'    => ['required', 'string', 'max:255'],
             'username'     => ['required', 'string', 'max:100', 'unique:users,username'],
             'email'        => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone_number' => ['required', 'string', 'max:20'],
+            'phone_number' => ['required', 'string', 'regex:/^[0-9]{11}$/'],
             'password'     => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-        ]);
+        ], ['phone_number.regex' => 'The contact number must be exactly 11 digits, numbers only.']);
 
         $user = new User([
             'username'     => $data['username'],
@@ -100,9 +100,9 @@ class UserManagementController extends Controller
             'association_id' => ['required', 'exists:associations,id'],
             'username'       => ['required', 'string', 'max:100', 'unique:users,username'],
             'email'          => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone_number'   => ['required', 'string', 'max:20'],
+            'phone_number'   => ['required', 'string', 'regex:/^[0-9]{11}$/'],
             'password'       => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-        ]);
+        ], ['phone_number.regex' => 'The contact number must be exactly 11 digits, numbers only.']);
 
         $created = DB::transaction(function () use ($data) {
             $user = new User([
@@ -167,7 +167,7 @@ class UserManagementController extends Controller
             'full_name'      => ['nullable', 'string', 'max:255'],
             'username'       => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($user->id)],
             'email'          => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone_number'   => ['required', 'string', 'max:20'],
+            'phone_number'   => ['required', 'string', 'max:20', fn ($a, $v, $fail) => $v === $user->phone_number || preg_match('/^[0-9]{11}$/', (string) $v) ? null : $fail('The contact number must be exactly 11 digits.')],
             'password'       => ['nullable', 'confirmed', Password::min(8)->letters()->numbers()],
             'association_id' => [
                 Rule::requiredIf($user->role === 'association'),

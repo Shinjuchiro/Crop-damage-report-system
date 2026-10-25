@@ -58,7 +58,7 @@
                     <li class="rounded-xl border border-border bg-card p-3.5 shadow-sm">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
-                                <p class="text-sm font-semibold">{{ $inspection->damageReport?->reference }}</p>
+                                <p class="text-sm font-semibold">{{ $inspection->damageReport?->full_reference }}</p>
                                 <p class="truncate text-sm">
                                     {{ $inspection->damageReport?->farmer?->full_name ?? 'Unknown farmer' }}
                                 </p>
@@ -83,7 +83,7 @@
                             </svg>
                             View Details
                             <span class="sr-only">
-                                for {{ $inspection->damageReport?->reference }}
+                                for {{ $inspection->damageReport?->full_reference }}
                             </span>
                         </a>
                     </li>
@@ -110,7 +110,7 @@
                         @endphp
 
                         <tr>
-                            <td class="whitespace-nowrap font-medium">{{ $report?->reference ?? '-' }}</td>
+                            <td class="whitespace-nowrap font-medium">{{ $report?->full_reference ?? '-' }}</td>
 
                             <td>
                                 <span class="font-medium">{{ $report?->farmer?->full_name ?? 'Unknown' }}</span>

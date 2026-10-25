@@ -2,7 +2,7 @@
 
 @section('title', 'Monthly Report - ' . $data['period_label'])
 @section('heading', 'Monthly Report: ' . $data['period_label'])
-@section('subheading', 'Generated ' . $data['generated_at']->format('M j, Y g:i A') . '. Every figure below is computed live from the database.')
+@section('subheading', 'Generated ' . $data['generated_at']->format('M j, Y g:i A') . '. Report type: ' . $data['type_label'] . '. Every figure below is computed live from the database.')
 
 @section('content')
 <div class="space-y-6">
@@ -10,15 +10,16 @@
     <div class="flex flex-wrap items-center justify-end gap-2">
         <x-ui.button variant="outline" href="{{ route('mao.reports.index') }}">Back to Reports</x-ui.button>
         <x-ui.button variant="outline"
-            href="{{ route('mao.reports.pdf', ['year' => $data['year'], 'month' => $data['month']]) }}">
+            href="{{ route('mao.reports.pdf', ['year' => $data['year'], 'month' => $data['month'], 'types' => $data['everything'] ? [] : $data['types']]) }}">
             Download PDF
         </x-ui.button>
-        <x-ui.button href="{{ route('mao.reports.excel', ['year' => $data['year'], 'month' => $data['month']]) }}">
+        <x-ui.button href="{{ route('mao.reports.excel', ['year' => $data['year'], 'month' => $data['month'], 'types' => $data['everything'] ? [] : $data['types']]) }}">
             Download Excel
         </x-ui.button>
     </div>
 
     {{-- Farmer Summary --}}
+@if ($data['show']['farmer'] ?? true)
     <x-ui.card title="Farmer Summary">
         <div class="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <x-stat-card label="Total Farmers" :value="$data['farmer']['total_farmers']" />
@@ -33,8 +34,10 @@
             <x-stat-card label="Affected Farmers" :value="$data['farmer']['affected_farmers']" />
         </div>
     </x-ui.card>
+@endif
 
     {{-- Farm Summary --}}
+@if ($data['show']['farm'] ?? true)
     <x-ui.card title="Farm Summary">
         <div class="mb-5 grid gap-4 sm:grid-cols-2">
             <x-stat-card label="Total Farms" :value="$data['farm']['total_farms']" />
@@ -66,8 +69,10 @@
             </div>
         </div>
     </x-ui.card>
+@endif
 
     {{-- Planting Summary --}}
+@if ($data['show']['planting'] ?? true)
     <x-ui.card title="Planting Summary">
         <div class="mb-5 grid gap-4 sm:grid-cols-3">
             <x-stat-card label="Planting Activities" :value="$data['planting']['activities']" />
@@ -91,8 +96,10 @@
             @endforelse
         </x-ui.table>
     </x-ui.card>
+@endif
 
     {{-- Damage Summary --}}
+@if ($data['show']['damage'] ?? true)
     <x-ui.card title="Damage Summary">
         <div class="mb-5 grid gap-4 sm:grid-cols-3">
             <x-stat-card label="Total Damage Reports" :value="$data['damage']['total_reports']" />
@@ -176,8 +183,10 @@
             </div>
         </div>
     </x-ui.card>
+@endif
 
     {{-- Verification Summary --}}
+@if ($data['show']['verification'] ?? true)
     <x-ui.card title="Verification Summary">
         <div class="mb-5 grid gap-4 sm:grid-cols-3">
             <x-stat-card label="Reports Assigned" :value="$data['verification']['reports_assigned']" />
@@ -194,8 +203,10 @@
             @endforelse
         </x-ui.table>
     </x-ui.card>
+@endif
 
     {{-- Assistance Summary --}}
+@if ($data['show']['assistance'] ?? true)
     <x-ui.card title="Assistance Summary">
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {{-- Cash Allocated, In-Kind Allocated and Total Distributed
@@ -210,6 +221,7 @@
             <x-stat-card label="Not Received" :value="$data['assistance']['not_received']" />
         </div>
     </x-ui.card>
+@endif
 
     {{-- The rows behind every figure above, named. Shared with the
          association's own report so the two can never drift - see

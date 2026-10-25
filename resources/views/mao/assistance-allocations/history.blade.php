@@ -104,7 +104,7 @@
                             <x-ui.record-card :href="$viewUrl($allocation->id)"
                                               :eyebrow="'AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT)"
                                               :title="$allocation->display_name"
-                                              :subtitle="$allocation->association?->name ?? 'No association'"
+                                              :subtitle="$allocation->concerned_associations->pluck('name')->join(', ') ?: ($allocation->association?->name ?? 'No association')"
                                               :status="$allocation->status" />
                         </li>
                     @empty
@@ -149,7 +149,7 @@
                             @forelse ($allocations as $allocation)
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $allocation->id ? 'bg-muted/60' : '' }}">
                                     <td class="px-3 py-4 text-foreground">AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}</td>
-                                    <td class="px-3 py-4 text-muted-foreground">{{ $allocation->association?->name ?? '-' }}</td>
+                                    <td class="px-3 py-4 text-muted-foreground">{{ $allocation->concerned_associations->pluck('name')->join(', ') ?: ($allocation->association?->name ?? '-') }}</td>
                                     <td class="px-3 py-4 text-center">
                                         <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $statusBadges[$allocation->status] ?? $statusBadges['pending'] }}">
                                             {{ ucfirst($allocation->status) }}

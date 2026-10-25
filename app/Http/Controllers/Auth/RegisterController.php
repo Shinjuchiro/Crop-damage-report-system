@@ -29,7 +29,7 @@ class RegisterController extends Controller
             // A brand new farmer should never be offered an association or a
             // crop the office has archived out of circulation.
             'associations' => Association::active()->orderBy('name')->get(),
-            'crops'        => Crop::active()->orderBy('name')->get(),
+            'crops'        => Crop::active()->inDisplayOrder()->get(),
         ]);
     }
 
@@ -198,6 +198,8 @@ class RegisterController extends Controller
                 'priority'    => 'normal',
                 'target_type' => 'specific_association',
                 'target_id'   => $farmer->association_id,
+                'link_type'   => 'membership_application',
+                'link_id'     => $farmer->id,
                 'status'      => 'draft',
                 'created_by'  => $farmer->user_id,
             ]);

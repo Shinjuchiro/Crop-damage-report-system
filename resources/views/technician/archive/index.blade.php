@@ -48,7 +48,7 @@
                                 <p class="truncate text-sm font-semibold">
                                     {{ $report->farmer?->full_name ?? 'Unknown farmer' }}
                                 </p>
-                                <p class="text-xs text-muted-foreground">{{ $report->reference }}</p>
+                                <p class="text-xs text-muted-foreground">{{ $report->full_reference }}</p>
                             </div>
                             <x-ui.status :value="$report->status" />
                         </div>
@@ -94,7 +94,7 @@
                         @endphp
                         <tr>
                             <td class="whitespace-nowrap font-medium">
-                                {{ $report->reference }}
+                                {{ $report->full_reference }}
                                 <span class="block text-xs text-muted-foreground">
                                     {{ $report->updated_at?->format('M d, Y') }}
                                 </span>

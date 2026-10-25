@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Inspection Record')
-@section('heading', 'Inspection record for ' . ($report?->reference ?? 'this report'))
+@section('heading', 'Inspection record for ' . ($report?->full_reference ?? 'this report'))
 @section('heading-fil', 'Talaan ng Pagsusuri')
 @section('subheading', 'Planted, reported, inspected. The whole chain in the order it happened.')
 

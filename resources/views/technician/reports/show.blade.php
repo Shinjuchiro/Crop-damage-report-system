@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Field Inspection & Validation')
-@section('heading', 'Report ' . $report->reference)
+@section('heading', 'Report ' . $report->full_reference)
 @section('subheading', 'Submitted by ' . ($report->farmer?->full_name ?? 'a farmer') . ' on ' . $report->created_at?->format('F d, Y'))
 
 @section('header-actions')
@@ -72,7 +72,7 @@
 
         <x-ui.card>
             <div class="flex items-start justify-between gap-3">
-                <p class="text-base font-bold">{{ $report->reference }}</p>
+                <p class="text-base font-bold">{{ $report->full_reference }}</p>
                 <x-ui.status :value="$report->status" />
             </div>
 

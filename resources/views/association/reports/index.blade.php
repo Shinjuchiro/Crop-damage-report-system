@@ -116,7 +116,7 @@
                          crops are in View now. --}}
                     <li class="{{ $grouped ? 'ml-3' : '' }}">
                         <x-ui.record-card :href="$viewUrl($report->id)"
-                                          :eyebrow="$report->reference"
+                                          :eyebrow="$grouped ? $report->reference : $report->full_reference"
                                           :title="$report->farmer?->full_name ?? 'Unknown member'"
                                           :status="$report->status" />
                     </li>
@@ -149,6 +149,7 @@
                             @php $lastFarmer = $report->farmer?->id; @endphp
                             <x-record.group-head :farmer="$report->farmer"
                                                  :count="$perGroup[$report->farmer?->id] ?? 1"
+                                                 :total="$farmerTotals[$report->farmer?->id] ?? null"
                                                  noun="damage report"
                                                  :colspan="4"
                                                  :href="$report->farmer ? route('association.members.show', $report->farmer) : null" />
@@ -156,7 +157,7 @@
 
                         <tr>
                             <td class="whitespace-nowrap font-medium">
-                                <span class="{{ $grouped ? 'pl-3' : '' }}">{{ $report->reference }}</span>
+                                <span class="{{ $grouped ? 'pl-3' : '' }}">{{ $grouped ? $report->reference : $report->full_reference }}</span>
                             </td>
 
                             {{-- The name in both views, muted under a group

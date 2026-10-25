@@ -167,6 +167,7 @@
                             @php $lastFarmer = $record->farmer?->id; @endphp
                             <x-record.group-head :farmer="$record->farmer"
                                                  :count="$perGroup[$record->farmer?->id] ?? 1"
+                                                 :total="$farmerTotals[$record->farmer?->id] ?? null"
                                                  noun="planting record"
                                                  :colspan="4"
                                                  :href="$record->farmer ? route('association.members.show', $record->farmer) : null" />

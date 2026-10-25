@@ -53,7 +53,7 @@ class AssignmentController extends Controller
         return view('technician.reports.index', [
             'reports'   => $reports,
             'barangays' => $this->myBarangays(),
-            'filters'   => $request->only(['status', 'barangay', 'q']),
+            'filters'   => $request->only(['status', 'barangay', 'q', 'association_id']),
         ]);
     }
 
@@ -193,6 +193,9 @@ class AssignmentController extends Controller
             ])
             ->withCount('photos')
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
+            // From the map's "View Details": only this association's members.
+            ->when($request->query('association_id'), fn ($q, $assoc) => $q
+                ->whereHas('farmer', fn ($f) => $f->where('association_id', $assoc)))
             ->when($request->query('barangay'), function ($q, $barangay) {
                 $q->where(function ($inner) use ($barangay) {
                     $inner->where('reported_barangay_id', $barangay)

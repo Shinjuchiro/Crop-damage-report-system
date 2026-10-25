@@ -61,7 +61,7 @@
             'at'    => $report->created_at,
             'kind'  => 'Damage report',
             'tone'  => 'damage',
-            'title' => $report->reference . ' filed',
+            'title' => $report->full_reference . ' filed',
             'note'  => number_format($report->crops->sum('damaged_area_hectares'), 2) . ' ha reported damaged'
                 . ($report->damage_cause_label ? ' after ' . strtolower($report->damage_cause_label) : ''),
         ]);
@@ -76,7 +76,7 @@
                 'at'    => $check->validated_at,
                 'kind'  => 'Inspection',
                 'tone'  => 'check',
-                'title' => $report->reference . ' inspected',
+                'title' => $report->full_reference . ' inspected',
                 'note'  => (\App\Models\Validation::severityLabel($check->severity) ?? 'Assessed') . ', '
                     . round($check->assessed_damage_percent) . '% assessed by '
                     . ($check->technician?->display_name ?? $check->technician?->username ?? 'a technician'),

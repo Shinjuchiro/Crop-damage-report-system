@@ -68,7 +68,10 @@ class DamageReportMonitorController extends Controller
             return $this->export($request);
         }
 
+        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
+
         $reports = $this->baseQuery($request)
+            ->when($limited, fn ($query) => \App\Support\LatestPerFarmer::damageReports($query))
             ->when($view === 'grouped', fn ($query) => $query
                 ->orderByDesc(self::farmerLatestReport())
                 ->orderBy('damage_reports.farmer_id'))
@@ -119,10 +122,14 @@ class DamageReportMonitorController extends Controller
             ? DamageReport::query()->with(self::detailRelations())->find($request->selected)
             : null;
 
+        \App\Support\Seen::mark(Auth::user(), 'damage_report', $selected?->id);
+
         return view('mao.damage-reports.index', [
             'view'    => $view,
             'reports'      => $reports,
+            'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::damageTotals() : collect(),
             'selected'     => $selected,
+            'history'      => $selected ? $this->farmerHistory($selected) : collect(),
             'availableDisasters' => $selected ? Disaster::active()->orderByDesc('date_start')->orderBy('name')->get() : collect(),
             'canEditDisasters'   => $selected ? in_array($selected->status, self::DISASTER_EDITABLE_STATUSES, true) : false,
             'summary'      => $summary,
@@ -157,7 +164,7 @@ class DamageReportMonitorController extends Controller
         $reports = $this->baseQuery($request)->latest()->get();
 
         $rows = $reports->map(fn ($report) => [
-            $report->reference,
+            $report->full_reference,
             $report->farmer?->full_name ?? 'Unknown',
             $report->farmer?->user?->phone_number ?: '-',
             $report->farmer?->barangay?->name ?? '-',
@@ -332,18 +339,18 @@ class DamageReportMonitorController extends Controller
         [$title, $message] = match ($decision) {
             'approved' => [
                 'Report Approved',
-                'Your damage report ' . $damageReport->reference . ' has been approved by the Municipal '
+                'Your damage report ' . $damageReport->full_reference . ' has been approved by the Municipal '
                     . 'Agriculture Office. It may now be considered for assistance allocation.',
             ],
             'flagged' => [
                 'Report Needs a Second Look',
-                'Your damage report ' . $damageReport->reference . ' has been flagged for a second look by the '
+                'Your damage report ' . $damageReport->full_reference . ' has been flagged for a second look by the '
                     . 'Municipal Agriculture Office. Additional information may be requested - please watch for '
                     . 'a follow-up, or check with your association or the office.',
             ],
             'rejected' => [
                 'Report Rejected',
-                'Your damage report ' . $damageReport->reference . ' has been reviewed and was not approved by '
+                'Your damage report ' . $damageReport->full_reference . ' has been reviewed and was not approved by '
                     . 'the Municipal Agriculture Office. Please contact the office if you have questions.',
             ],
             default => [null, null],
@@ -415,7 +422,7 @@ class DamageReportMonitorController extends Controller
 
         AuditLog::create([
             'user_id'      => Auth::id(),
-            'action'       => 'Archived damage report ' . $damageReport->reference,
+            'action'       => 'Archived damage report ' . $damageReport->full_reference,
             'target_table' => 'damage_reports',
             'target_id'    => $damageReport->id,
             'created_at'   => now(),
@@ -434,7 +441,7 @@ class DamageReportMonitorController extends Controller
 
         AuditLog::create([
             'user_id'      => Auth::id(),
-            'action'       => 'Restored damage report ' . $damageReport->reference,
+            'action'       => 'Restored damage report ' . $damageReport->full_reference,
             'target_table' => 'damage_reports',
             'target_id'    => $damageReport->id,
             'created_at'   => now(),
@@ -536,5 +543,18 @@ class DamageReportMonitorController extends Controller
                             ->orWhere('last_name', 'like', $term));
                     });
             });
+    }
+
+    /**
+     * Every report this farmer has filed, newest first, for the View panel.
+     * The list keeps only the latest few per farmer; the full history is here.
+     */
+    private function farmerHistory(DamageReport $report)
+    {
+        return DamageReport::query()
+            ->notDeleted()
+            ->where('farmer_id', $report->farmer_id)
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->get(['id', 'farmer_id', 'farmer_report_no', 'status', 'created_at']);
     }
 }

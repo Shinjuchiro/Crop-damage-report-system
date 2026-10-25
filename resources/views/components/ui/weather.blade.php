@@ -44,18 +44,36 @@
     unreachable forecast can no longer hold up the dashboard's own render,
     which it could when this was fetched server-side.
 
-    FAILURE IS SILENT
+    FAILURE IS QUIET, NOT INVISIBLE
 
     The route answers 204 No Content when there is nothing to show - no key
-    set, no network, the service down - and the card stays hidden. No error,
-    no empty card, no "unavailable" placeholder taking up a screen. The
-    dashboard's job is damage reports; the weather is a courtesy.
+    set, no network, the service down - and the card shows a small "Weather
+    unavailable right now" placeholder instead of disappearing (Oct 25: the
+    old hide-completely behaviour made it look removed). A good earlier
+    reading is kept on screen if one poll fails.
 --}}
 
-<div x-data="tanzaWeather()"
-     x-show="reading"
-     x-cloak
-     {{ $attributes->class('mb-5 flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-5') }}>
+<div x-data="tanzaWeather()" {{ $attributes->class('mb-5') }}>
+
+{{-- Shown whenever the lookup has finished and returned nothing (no key, no
+     network, service down). The card used to vanish in that case, which read
+     as "the weather card was removed". A quiet placeholder keeps it visible
+     on every dashboard and says why there is no number. --}}
+<div x-show="settled && ! reading" x-cloak
+     class="flex items-center gap-4 rounded-2xl border border-dashed border-border bg-card px-4 py-4 shadow-sm sm:px-5">
+    <span class="shrink-0 text-muted-foreground" aria-hidden="true">
+        <svg class="h-11 w-11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 48 48">
+            <path d="M14 34a8 8 0 010-16 11 11 0 0121-3 8 8 0 01-1 19z"/>
+        </svg>
+    </span>
+    <div class="min-w-0 flex-1">
+        <p class="text-sm font-medium text-foreground">Weather unavailable right now</p>
+        <p class="text-xs text-muted-foreground">Tanza, Cavite. It will refresh automatically.</p>
+    </div>
+</div>
+
+<div x-show="reading" x-cloak
+     class="flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-5">
 
     {{-- The drawing. Stroke and fill, so it holds its shape at 44px, and the
          sun keeps its warm colour while the cloud stays grey: this is the
@@ -124,6 +142,8 @@
     </div>
 </div>
 
+</div>
+
 {{-- @once: the card appears on one dashboard at a time, but the guard means
      a page that ever shows two of them still defines this once. --}}
 @once
@@ -132,6 +152,7 @@
         function tanzaWeather() {
             return {
                 reading: null,
+                settled: false,
 
                 /* This application's own endpoint, not OpenWeatherMap's.
                    The key stays on the server; see the note above. */
@@ -164,14 +185,16 @@
                            same way: leave whatever is on screen alone
                            rather than blanking a good reading because one
                            poll failed. */
-                        if (response.status !== 200) return;
+                        if (response.status !== 200) { this.settled = true; return; }
 
                         const data = await response.json();
 
                         if (data && typeof data.temperature === 'number') {
                             this.reading = data;
                         }
+                        this.settled = true;
                     } catch (e) {
+                        this.settled = true;
                         /* Offline, or the app is restarting. The card keeps
                            its last reading, or stays hidden if it never had
                            one. Nothing else on the page cares. */

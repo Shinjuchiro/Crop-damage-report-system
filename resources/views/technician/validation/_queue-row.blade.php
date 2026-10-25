@@ -76,7 +76,7 @@
                 <span class="truncate text-[15px] font-bold leading-tight text-foreground">
                     {{ $report->farmer?->full_name ?? 'Unknown farmer' }}
                 </span>
-                <span class="shrink-0 text-xs font-semibold text-muted-foreground">{{ $report->reference }}</span>
+                <span class="shrink-0 text-xs font-semibold text-muted-foreground">{{ $report->full_reference }}</span>
             </span>
 
             <span class="mt-0.5 block truncate text-sm text-muted-foreground">
@@ -112,7 +112,7 @@
             </svg>
             <span class="sr-only">
                 {{ $rowStarted ? 'the inspection for' : 'the briefing for' }}
-                {{ $report->reference }}
+                {{ $report->full_reference }}
             </span>
         </a>
     </div>

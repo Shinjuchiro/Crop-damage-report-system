@@ -108,12 +108,6 @@
             </div>
         </div>
 
-        <div class="relative mt-10 hidden lg:block">
-            <h2 class="text-3xl font-bold leading-tight text-white">
-                Create your account
-                <span class="text-[#7ddc8f]">and help build a stronger farming community.</span>
-            </h2>
-        </div>
 
     </div>
 

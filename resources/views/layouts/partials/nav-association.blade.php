@@ -32,6 +32,8 @@
        which is what a queue badge has to do. */
     $associationId = \App\Models\AssociationOfficer::where('user_id', auth()->id())->value('association_id');
 
+    $cropCounts = $associationId ? \App\Support\Seen::counts(auth()->user(), $associationId) : ['planting' => 0, 'damage' => 0, 'validation' => 0];
+
     $assistanceNeedingAction = $associationId
         ? \App\Models\AssistanceAllocationBeneficiary::query()
             ->whereHas('allocation', fn ($allocation) => $allocation
@@ -119,8 +121,12 @@
                 'association.crop-management.*',
                 'association.planting.*',
                 'association.reports.*',
+                'association.validations.*',
             ],
             'icon'     => 'M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14z',
+            'badge'       => array_sum($cropCounts),
+            'badge_noun'  => 'record',
+            'badge_label' => 'new to you',
         ],
         [
             'label'       => 'Assistance Allocation & Tracking',
@@ -182,8 +188,8 @@
             </svg>
 
             <span class="min-w-0 flex-1 leading-tight">
-                <span class="block truncate">{{ $item['label'] }}</span>
-                <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
+                <span class="block leading-tight">{{ $item['label'] }}</span>
+                <span class="block text-xs leading-tight opacity-70">{{ $item['filipino'] }}</span>
             </span>
         </span>
 

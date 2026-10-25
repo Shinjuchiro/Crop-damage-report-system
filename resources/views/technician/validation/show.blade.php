@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Inspection Briefing')
-@section('heading', 'Before you inspect ' . $report->reference)
+@section('heading', 'Before you inspect ' . $report->full_reference)
 @section('heading-fil', 'Bago ang Pagsusuri')
 @section('subheading', 'What the farmer recorded planting, against what they are reporting damaged.')
 

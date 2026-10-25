@@ -77,11 +77,15 @@ class CropPlantingMonitorController extends Controller
             return $this->export($request);
         }
 
+        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
+
         $plantings = $this->filtered($request)
+            ->when($limited, fn ($query) => \App\Support\LatestPerFarmer::plantings($query))
             ->when($view === 'grouped', fn ($query) => $query
                 ->orderByDesc($farmerLastFiled)
                 ->orderBy($farmerOfRow))
             ->orderByDesc('date_planted')
+            ->orderByDesc('crop_planting_record_crops.id')
             ->paginate(15)
             ->withQueryString();
 
@@ -107,10 +111,16 @@ class CropPlantingMonitorController extends Controller
             ? CropPlantingRecord::query()->with($this->detailRelations())->find($request->selected)
             : null;
 
+        \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'planting', $selected?->id);
+
         return view('mao.crop-planting.index', [
             'plantings'    => $plantings,
+            'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::plantingTotals() : collect(),
             'view'         => $view,
             'selected'     => $selected,
+            'history'      => $selected ? CropPlantingRecord::query()->notDeleted()->whereNull('archived_at')
+                ->where('farmer_id', $selected->farmer_id)->with('crops.crop')
+                ->orderByDesc('date_submitted')->orderByDesc('id')->get() : collect(),
             'summary'      => $summary,
             'associations' => Association::orderBy('name')->get(),
             'barangays'    => Barangay::orderBy('name')->get(),

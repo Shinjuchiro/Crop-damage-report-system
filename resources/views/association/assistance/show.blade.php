@@ -136,7 +136,7 @@
                         <td class="font-medium">{{ $given->farmer?->full_name ?? 'Unknown' }}</td>
 
                         <td class="whitespace-nowrap text-muted-foreground">
-                            {{ $given->damageReport?->reference ?? '-' }}
+                            {{ $given->damageReport?->full_reference ?? '-' }}
                         </td>
 
                         <td class="whitespace-nowrap text-muted-foreground">

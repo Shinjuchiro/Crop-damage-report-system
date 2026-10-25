@@ -69,26 +69,17 @@
     </div>
 
     {{-- ================= REPORTS AND ASSISTANCE ================= --}}
-    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4">
         <x-ui.stat label="Damage Reports" :value="number_format($summary['total_reports'])"
                    icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01"
                    :href="route('association.reports.index')" />
 
-        <x-ui.stat label="Awaiting Verification" :value="number_format($summary['pending_reports'])"
-                   tone="warning" hint="Not yet inspected"
-                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2"
-                   :href="route('association.reports.index', ['status' => 'pending'])" />
 
         <x-ui.stat label="Verified Reports" :value="number_format($summary['verified_reports'])"
                    tone="primary" hint="Eligible for assistance"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"
                    :href="route('association.reports.index', ['status' => 'verified'])" />
 
-        <x-ui.stat label="Awaiting Confirmation"
-                   :value="number_format($summary['awaiting_confirmation'])"
-                   hint="Members have not confirmed receipt"
-                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2"
-                   :href="route('association.assistance.index')" />
     </div>
 
     {{-- MEMBERS, NOT QUANTITIES (Oct 2026, client decision)
@@ -207,7 +198,7 @@
                                         {{ $report->farmer?->full_name ?? 'Unknown farmer' }}
                                     </p>
                                     <p class="mt-0.5 truncate text-xs text-muted-foreground">
-                                        {{ $report->reference }}
+                                        {{ $report->full_reference }}
                                         &middot; {{ $report->damage_cause_label }}
                                         &middot; {{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Location not set' }}
                                     </p>

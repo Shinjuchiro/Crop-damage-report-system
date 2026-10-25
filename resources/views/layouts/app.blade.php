@@ -51,7 +51,7 @@
     {{-- sidebar-shell pairs with sidebar-scroll on the <nav> below: the
          menu's scrollbar is invisible until the pointer is anywhere over
          this panel. The rules are in resources/css/app.css. --}}
-    <aside class="sidebar-shell hidden w-72 shrink-0 flex-col border-r border-sidebar-border
+    <aside class="sidebar-shell hidden w-80 shrink-0 flex-col border-r border-sidebar-border
                   bg-sidebar text-sidebar-foreground lg:sticky lg:top-0 lg:flex lg:h-screen">
 
         {{-- Logo. Tighter than before: the old block wasted most of a phone

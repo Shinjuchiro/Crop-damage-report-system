@@ -79,7 +79,7 @@
 
                 <div>
                     <label class="{{ $labelClass }}">Phone Number <span class="text-red-500">*</span></label>
-                    <input type="text" name="phone_number" x-model="phone" required maxlength="20"
+                    <input type="text" name="phone_number" x-model="phone" required inputmode="numeric" maxlength="11" title="11 digits, numbers only" @input="phone = phone.replace(/\D/g, '').slice(0, 11)"
                            class="{{ $inputClass }}">
                 </div>
 

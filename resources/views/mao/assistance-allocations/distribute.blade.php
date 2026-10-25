@@ -3,7 +3,7 @@
 @section('title', 'Record a hand-over')
 @section('heading', 'Record a hand-over')
 @section('heading-fil', 'Itala ang Pamamahagi')
-@section('subheading', $allocation->display_name . ' to a member of ' . ($allocation->association?->name ?? 'the association'))
+@section('subheading', $allocation->display_name . ' to a member of ' . ($allocation->concerned_associations->pluck('name')->join(', ') ?: ($allocation->association?->name ?? 'the designated farmers')))
 
 @section('header-actions')
     <x-ui.button variant="outline" :href="route('mao.assistance-allocations.show', $allocation)">Cancel</x-ui.button>
@@ -47,8 +47,8 @@
         'barangay' => $farmer->barangay?->name ?? 'Barangay not set',
         'reports'  => $farmer->damageReports->map(fn ($report) => [
             'id'        => $report->id,
-            'reference' => $report->reference,
-            'label'     => $report->reference . ' - ' . $report->damage_cause_label
+            'reference' => $report->full_reference,
+            'label'     => $report->full_reference . ' - ' . $report->damage_cause_label
                             . ' (' . $report->created_at?->format('M d, Y') . ')',
             'crops'     => $report->crops->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)->join(', '),
             'area'      => number_format($report->crops->sum('damaged_area_hectares'), 2),
@@ -78,7 +78,7 @@
             </div>
             <div>
                 <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Association</dt>
-                <dd class="mt-1 text-sm font-medium">{{ $allocation->association?->name ?? '-' }}</dd>
+                <dd class="mt-1 text-sm font-medium">{{ $allocation->concerned_associations->pluck('name')->join(', ') ?: ($allocation->association?->name ?? '-') }}</dd>
             </div>
             <div>
                 <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">For disaster</dt>

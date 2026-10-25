@@ -73,7 +73,7 @@ class DamageReport extends Model
     protected $table = 'damage_reports';
 
     protected $fillable = [
-        'farmer_id', 'damage_cause', 'damage_cause_other',
+        'farmer_id', 'farmer_report_no', 'damage_cause', 'damage_cause_other',
         'assigned_technician_id', 'assigned_at', 'farm_location_description',
         'reported_barangay_id',
         // The farmer's own coordinates, set once when the report is filed.
@@ -96,17 +96,33 @@ class DamageReport extends Model
     }
 
     /**
-     * The reference number people say out loud: DR-0007.
+     * Each farmer's reports are numbered from DR-0001 on their own. A farmer's
+     * ID (FARM-005) is the only thing that is unique by itself, so the number
+     * alone is only meaningful beside it - see getFullReferenceAttribute().
      *
-     * Every page used to build this by hand with str_pad, which meant one
-     * screen could easily end up formatting it differently from another.
-     * Now there is a single place that decides it, so if the office ever
-     * asks for a different prefix or a year inside it, this is the only
-     * line that has to change.
+     * The number is stored (farmer_report_no), so archiving or deleting a
+     * report never renumbers the ones after it.
      */
+    protected static function booted(): void
+    {
+        static::creating(function (DamageReport $report) {
+            if (! $report->farmer_report_no && $report->farmer_id) {
+                $report->farmer_report_no = 1 + (int) static::query()
+                    ->where('farmer_id', $report->farmer_id)
+                    ->max('farmer_report_no');
+            }
+        });
+    }
+
     public function getReferenceAttribute(): string
     {
-        return 'DR-' . str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+        return 'DR-' . str_pad((string) ($this->farmer_report_no ?: $this->id), 4, '0', STR_PAD_LEFT);
+    }
+
+    /** "FARM-005 / DR-0001": the form that identifies one report on its own. */
+    public function getFullReferenceAttribute(): string
+    {
+        return 'FARM-' . str_pad((string) $this->farmer_id, 3, '0', STR_PAD_LEFT) . ' / ' . $this->reference;
     }
 
     /**

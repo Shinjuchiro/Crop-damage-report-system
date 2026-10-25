@@ -171,6 +171,22 @@ class MonthlyReportSpreadsheetBuilder
             );
         }
 
+        // Only the report types that were chosen keep their summary sheet.
+        $hidden = collect([
+            'Farmer Summary'       => 'farmer',
+            'Farm Summary'         => 'farm',
+            'Planting Summary'     => 'planting',
+            'Damage Summary'       => 'damage',
+            'Verification Summary' => 'verification',
+            'Assistance Summary'   => 'assistance',
+        ])->filter(fn ($key) => ! ($data['show'][$key] ?? true))->keys();
+
+        foreach ($hidden as $title) {
+            if ($sheet = $spreadsheet->getSheetByName($title)) {
+                $spreadsheet->removeSheetByIndex($spreadsheet->getIndex($sheet));
+            }
+        }
+
         $spreadsheet->setActiveSheetIndex(0);
 
         return $spreadsheet;

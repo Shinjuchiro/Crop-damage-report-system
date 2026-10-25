@@ -396,6 +396,7 @@
 
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="{{ asset('js/tanza-mask.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -432,6 +433,8 @@
                 attribution: '&copy; OpenStreetMap contributors | ' +
                              'Boundaries: PSA via faeldon/philippines-json-maps',
             }).addTo(map);
+            maskOutsideTanza(map, '{{ asset('geo/tanza-outline.json') }}');
+
 
             let boundaries = null;
 
@@ -454,6 +457,15 @@
                     '<div class="tip-name">' + row.name + '</div>' +
                     '<div class="tip-row"><span class="tip-dot" style="background:' + dot + '"></span>' +
                         '<span>' + headline + '</span></div>' +
+                    (row.reports > 0 ?
+                        '<div class="tip-sep"></div>' +
+                        '<div class="tip-row"><span class="tip-dot" style="background:#facc15"></span><span>Awaiting Inspection</span>' +
+                            '<span style="margin-left:auto;color:#f1f5f9">' + row.awaiting + '</span></div>' +
+                        '<div class="tip-row"><span class="tip-dot" style="background:#3b82f6"></span><span>Assigned for Inspection</span>' +
+                            '<span style="margin-left:auto;color:#f1f5f9">' + row.assigned + '</span></div>' +
+                        '<div class="tip-row"><span class="tip-dot" style="background:#22c55e"></span><span>Verified</span>' +
+                            '<span style="margin-left:auto;color:#f1f5f9">' + row.verified_count + '</span></div>'
+                        : '') +
                     '<div class="tip-sep"></div>' +
                     '<div class="tip-row"><span>Office</span>' +
                         '<span style="margin-left:auto;color:#f1f5f9">' + row.location + '</span></div>' +

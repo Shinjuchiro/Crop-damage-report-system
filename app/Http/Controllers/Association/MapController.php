@@ -51,6 +51,18 @@ class MapController extends Controller
 
         $memberIds = Farmer::where('association_id', $association->id)->select('id');
 
+        /* THE BARANGAYS THIS OFFICER GOVERNS
+
+           The map is limited to the association's own coverage (the
+           barangays it works in), with its office barangay as the fallback
+           when no coverage has been recorded yet. Pins outside those
+           barangays are not plotted and other barangays are not drawn. */
+        $governed = $association->coverage()->get();
+        if ($governed->isEmpty() && $association->barangay) {
+            $governed = collect([$association->barangay]);
+        }
+        $governedIds = $governed->pluck('id');
+
         /* active() skips reports the office has archived or deleted. The
            lists dropped them in Oct 2026 (section 16) and the map has to
            agree: a pin for a report that is no longer on the officer's own
@@ -58,6 +70,11 @@ class MapController extends Controller
         $reports = DamageReport::active()
             ->whereIn('farmer_id', $memberIds)
             ->whereHas('validation', fn ($v) => $v->whereNotNull('latitude'))
+            ->when($governedIds->isNotEmpty(), fn ($q) => $q->where(function ($query) use ($governedIds) {
+                $query->whereIn('reported_barangay_id', $governedIds)
+                      ->orWhere(fn ($sub) => $sub->whereNull('reported_barangay_id')
+                          ->whereHas('farmer', fn ($f) => $f->whereIn('barangay_id', $governedIds)));
+            }))
             ->with(['farmer.barangay', 'reportedBarangay', 'crops.crop', 'validation'])
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
             ->when($request->query('barangay_id'), function ($q, $barangayId) {
@@ -73,7 +90,7 @@ class MapController extends Controller
             ->map(fn ($report) => [
                 'lat'      => (float) $report->validation->latitude,
                 'lng'      => (float) $report->validation->longitude,
-                'report'   => $report->reference,
+                'report'   => $report->full_reference,
                 'farmer'   => $report->farmer?->full_name ?? 'Unknown',
                 'barangay' => $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Unknown barangay',
                 'severity' => Validation::severityLabel($report->validation->severity) ?? 'Not yet assessed',
@@ -88,10 +105,7 @@ class MapController extends Controller
         // Only the barangays this association's own members actually live or
         // report in, not every barangay in Tanza - the filter should only
         // ever offer choices that can change what's on the map.
-        $barangayIds = Farmer::where('association_id', $association->id)->pluck('barangay_id')
-            ->merge(DamageReport::active()->whereIn('farmer_id', $memberIds)->pluck('reported_barangay_id'))
-            ->filter()
-            ->unique();
+        $barangayIds = $governedIds;
 
         return view('association.map.index', [
             'association'  => $association,
@@ -100,6 +114,7 @@ class MapController extends Controller
             'statuses'     => DamageReport::STATUSES,
             'barangays'    => Barangay::whereIn('id', $barangayIds)->orderBy('name')->get(),
             'filters'      => $request->only(['status', 'barangay_id']),
+            'governed'     => $governed->map(fn ($b) => ['id' => $b->id, 'name' => $b->name, 'psgc' => $b->psgc_code])->values(),
             'coverage'     => [
                 'total' => $verifiedPins->count(),
             ],

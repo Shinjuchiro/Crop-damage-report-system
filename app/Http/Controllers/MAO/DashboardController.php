@@ -246,15 +246,23 @@ class DashboardController extends Controller
             // builder and not the model. Same two columns the scope checks.
             ->whereNull('dr.archived_at')
             ->whereNull('dr.deleted_at')
-            ->select('f.association_id', DB::raw('COUNT(DISTINCT dr.id) as reports'))
+            ->select(
+                'f.association_id',
+                DB::raw('COUNT(DISTINCT dr.id) as reports'),
+                DB::raw("COUNT(DISTINCT CASE WHEN dr.status = 'pending' THEN dr.id END) as awaiting"),
+                DB::raw("COUNT(DISTINCT CASE WHEN dr.status IN ('assigned', 'under_verification') THEN dr.id END) as assigned"),
+                DB::raw("COUNT(DISTINCT CASE WHEN dr.status IN ('verified', 'approved') THEN dr.id END) as verified")
+            )
             ->groupBy('f.association_id')
-            ->pluck('reports', 'association_id');
+            ->get()
+            ->keyBy('association_id');
 
         return Association::with('barangay')
             ->orderBy('name')
             ->get()
             ->map(function (Association $association) use ($totals) {
-                $reports = (int) ($totals[$association->id] ?? 0);
+                $counts  = $totals->get($association->id);
+                $reports = (int) ($counts->reports ?? 0);
 
                 return [
                     'id'      => $association->id,
@@ -262,6 +270,9 @@ class DashboardController extends Controller
                     'short'   => $association->short_name,
                     'psgc'    => $association->barangay?->psgc_code,
                     'reports' => $reports,
+                    'awaiting'       => (int) ($counts->awaiting ?? 0),
+                    'assigned'       => (int) ($counts->assigned ?? 0),
+                    'verified_count' => (int) ($counts->verified ?? 0),
                     'color'   => $this->countColor($reports),
                 ];
             })

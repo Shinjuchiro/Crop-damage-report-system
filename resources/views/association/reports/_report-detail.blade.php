@@ -35,7 +35,7 @@
 
 <div class="mb-4">
     <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Damage Report &middot; {{ $report->reference }}
+        Damage Report &middot; {{ $report->full_reference }}
     </p>
 
     <h3 class="mt-0.5 text-lg font-bold text-foreground">

@@ -58,7 +58,7 @@
 
                 <x-ui.field label="Contact Number" name="phone_number" required
                             hint="Used for urgent field verification alerts." class="sm:max-w-xs">
-                    <x-ui.input name="phone_number" inputmode="tel" required />
+                    <x-ui.input name="phone_number" inputmode="numeric" maxlength="11" pattern="[0-9]{11}" title="11 digits, numbers only" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)" required />
                 </x-ui.field>
 
                 <x-ui.separator label="Password" />

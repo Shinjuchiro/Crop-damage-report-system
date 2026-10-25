@@ -114,6 +114,12 @@ class MapController extends Controller
                     'f.association_id',
                     DB::raw('COUNT(DISTINCT dr.id) as reports'),
                     DB::raw('COUNT(DISTINCT dr.farmer_id) as farmers'),
+                    // The popup's breakdown. Real counts from the same filtered
+                    // set as the total; assigning or verifying a report moves
+                    // it between these, and never changes the total.
+                    DB::raw("COUNT(DISTINCT CASE WHEN dr.status = 'pending' THEN dr.id END) as awaiting"),
+                    DB::raw("COUNT(DISTINCT CASE WHEN dr.status IN ('assigned', 'under_verification') THEN dr.id END) as assigned"),
+                    DB::raw("COUNT(DISTINCT CASE WHEN dr.status IN ('verified', 'approved') THEN dr.id END) as verified"),
                     DB::raw("MAX(FIELD(v.severity, 'slight', 'moderate', 'partial', 'total')) as severity_rank")
                 )
                 ->groupBy('f.association_id')
@@ -161,6 +167,9 @@ class MapController extends Controller
                     'members'        => (int) ($registered[$association->id] ?? 0),
                     'reports'        => $reports,
                     'farmers'        => (int) ($row->farmers ?? 0),
+                    'awaiting'       => (int) ($row->awaiting ?? 0),
+                    'assigned'       => (int) ($row->assigned ?? 0),
+                    'verified_count' => (int) ($row->verified ?? 0),
                     'area'           => round((float) ($areas[$association->id] ?? 0), 2),
                     'severity'       => $key,
                     // Through severityLabel()/severityColor() rather than

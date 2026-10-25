@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MAO;
 use App\Http\Controllers\Controller;
 use App\Models\AssistanceAllocation;
 use App\Models\AssistanceAllocationBeneficiary;
+use App\Models\AssistanceAllocationDraft;
 use App\Models\AssistanceAllocationDocument;
 use App\Models\AssistanceDecision;
 use App\Models\AssistanceDistribution;
@@ -154,11 +155,6 @@ class AssistanceAllocationController extends Controller
         return view('mao.assistance-allocations.index', $overview + [
             'selected'     => $selected,
             'associations' => Association::active()->orderBy('name')->get(),
-            /* The whole checklist, rendered with the page. It used to be
-               fetched over JSON once an association had been chosen; there
-               is no association to choose any more, so there is nothing to
-               wait for. */
-            'eligible'     => $this->eligibleForChecklist(),
             'disputeCount' => AssistanceDistribution::where('receipt_status', 'not_received')->count(),
         ]);
     }
@@ -376,7 +372,7 @@ class AssistanceAllocationController extends Controller
                 // ticks with.
                 'association_id'   => $report->farmer->association_id,
                 'association'      => $report->farmer->association?->name ?? 'No association',
-                'reference'        => $report->reference,
+                'reference'        => $report->full_reference,
                 'severity_label'   => Validation::severityLabel($report->validation?->severity) ?? '-',
             ])
             ->values();
@@ -636,23 +632,131 @@ class AssistanceAllocationController extends Controller
      | Create / store
      ===================================================================== */
 
-    public function create()
+    /**
+     * Create Assistance Distribution (Oct 2026 revision): the full page that
+     * replaced the Allocate Assistance pop-up. One form, two sections (basic
+     * information, then beneficiaries), a review screen, and a confirmed
+     * finalize. ?draft=<id> reopens a saved draft.
+     */
+    public function create(Request $request)
     {
-        /* ONE ALLOCATE FORM, AND IT IS THE MODAL (Oct 2026)
+        $draft = $request->filled('draft')
+            ? AssistanceAllocationDraft::where('user_id', Auth::id())->find($request->query('draft'))
+            : null;
 
-           There were two: this standalone page and the Allocate Assistance
-           modal on the index, both posting to store() and both asking the
-           same questions. Two copies of one form is two copies to keep in
-           step, and in the Oct 2026 rework they drifted within a single
-           day - the same failure the association's duplicate Crop
-           Management page had (BUILD-STATUS section 52).
+        return view('mao.assistance-allocations.create', [
+            'farmers'      => $this->wizardFarmers(),
+            'associations' => Association::active()->orderBy('name')->get(['id', 'name']),
+            'draft'        => $draft,
+            'drafts'       => AssistanceAllocationDraft::where('user_id', Auth::id())
+                ->latest('updated_at')->get(),
+        ]);
+    }
 
-           The route is kept rather than removed so an old bookmark still
-           lands somewhere sensible, and it opens the modal on arrival.
-           resources/views/mao/assistance-allocations/form.blade.php is now
-           an orphan and can be git rm'd. */
+    /**
+     * One row per farmer for the beneficiary table: their most recent
+     * verified or approved report, and whether that report is already
+     * spoken for by a live allocation.
+     *
+     * Already-designated farmers are LISTED, marked, and cannot be ticked
+     * (the client's choice), so the office can see why somebody is missing
+     * rather than wondering. The server re-checks this on finalize.
+     *
+     * Severity is grouped into the three the office uses: Slight, Moderate,
+     * Total. A retired "Partial" inspection groups under Total for the
+     * filter, but its badge keeps the word the technician recorded.
+     */
+    private function wizardFarmers(): Collection
+    {
+        return DamageReport::query()
+            ->whereIn('status', self::QUALIFYING_REPORT_STATUSES)
+            ->with(['farmer.barangay', 'farmer.association', 'validation',
+                    'allocationBeneficiaries.allocation'])
+            ->latest('created_at')
+            ->get()
+            ->unique('farmer_id')
+            ->filter(fn ($report) => $report->farmer)
+            ->map(function ($report) {
+                $designation = $report->allocationBeneficiaries
+                    ->first(fn ($b) => $b->allocation && $b->allocation->status !== 'cancelled');
+
+                $severity = $report->validation?->severity;
+                $group    = match ($severity) {
+                    'slight'            => 'slight',
+                    'moderate'          => 'moderate',
+                    'total', 'partial'  => 'total',
+                    default             => null,
+                };
+
+                return [
+                    'farmer_id'        => $report->farmer_id,
+                    'code'             => 'FARM-' . str_pad((string) $report->farmer_id, 3, '0', STR_PAD_LEFT),
+                    'name'             => $report->farmer->full_name,
+                    'barangay'         => $report->farmer->barangay?->name ?? '-',
+                    'association_id'   => $report->farmer->association_id,
+                    'association'      => $report->farmer->association?->name ?? 'No association',
+                    'reference'        => $report->full_reference,
+                    'severity_group'   => $group,
+                    'severity_label'   => Validation::severityLabel($severity),
+                    'severity_color'   => Validation::severityColor($severity),
+                    'assessed'         => $report->validation?->assessed_damage_percent !== null
+                        ? (float) $report->validation->assessed_damage_percent : null,
+                    'verified'         => true,
+                    'designated'       => (bool) $designation,
+                    'designated_batch' => $designation?->allocation?->batch_name
+                        ?: ($designation ? 'AA-' . str_pad($designation->allocation->id, 3, '0', STR_PAD_LEFT) : null),
+                ];
+            })
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+    }
+
+    /**
+     * Save Draft: keeps the form so far. Nothing is validated hard (it is
+     * unfinished by definition), nobody is notified, and the draft is not
+     * counted anywhere until it is finalized.
+     */
+    public function saveDraft(Request $request)
+    {
+        $data = $request->validate([
+            'draft_id'          => ['nullable', 'integer'],
+            'batch_name'        => ['nullable', 'string', 'max:150'],
+            'details'           => ['nullable', 'string', 'max:500'],
+            'distribution_date' => ['nullable', 'date'],
+            'venue'             => ['nullable', 'string', 'max:255'],
+            'beneficiary_ids'   => ['nullable', 'array'],
+            'beneficiary_ids.*' => ['integer'],
+        ]);
+
+        $fields = [
+            'user_id'           => Auth::id(),
+            'batch_name'        => $data['batch_name'] ?? null,
+            'details'           => $data['details'] ?? null,
+            'distribution_date' => $data['distribution_date'] ?? null,
+            'venue'             => $data['venue'] ?? null,
+            'farmer_ids'        => array_values(array_map('intval', $data['beneficiary_ids'] ?? [])),
+        ];
+
+        $draft = ! empty($data['draft_id'])
+            ? AssistanceAllocationDraft::where('user_id', Auth::id())->find($data['draft_id'])
+            : null;
+
+        $draft ? $draft->update($fields) : ($draft = AssistanceAllocationDraft::create($fields));
+
         return redirect()
-            ->route('mao.assistance-allocations.index', ['allocate' => 1]);
+            ->route('mao.assistance-allocations.create', ['draft' => $draft->id])
+            ->with('status', 'Draft saved. Nothing has been sent to anyone.');
+    }
+
+    public function destroyDraft(AssistanceAllocationDraft $draft)
+    {
+        abort_unless($draft->user_id === Auth::id(), 403);
+
+        $draft->delete();
+
+        return redirect()
+            ->route('mao.assistance-allocations.create')
+            ->with('status', 'Draft deleted.');
     }
 
     /* OTHER_ASSISTANCE is gone, and OTHER_IN_KIND before it. Both were the
@@ -684,12 +788,22 @@ class AssistanceAllocationController extends Controller
             'beneficiary_ids'   => ['required', 'array', 'min:1'],
             'beneficiary_ids.*' => ['integer', 'exists:farmers,id'],
 
+            // Create Assistance Distribution (Oct 2026 revision)
+            'batch_name'        => ['required', 'string', 'max:150'],
+            'details'           => ['required', 'string', 'max:500'],
+            'distribution_date' => ['nullable', 'date'],
+            'venue'             => ['nullable', 'string', 'max:255'],
+            'draft_id'          => ['nullable', 'integer'],
+
             'remarks'     => ['nullable', 'string', 'max:1000'],
             'documents'   => ['nullable', 'array', 'max:5'],
             'documents.*' => ['file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ], [
             'beneficiary_ids.required' => 'Please select at least one farmer to receive this assistance.',
             'beneficiary_ids.min'      => 'Please select at least one farmer to receive this assistance.',
+            'batch_name.required'      => 'Please give this distribution batch a name.',
+            'details.required'         => 'Please enter the assistance details.',
+            'details.max'              => 'Assistance details can be up to 500 characters.',
             'documents.*.max'          => 'Each file must be 10 MB or smaller.',
             'documents.*.mimes'        => 'Only PDF, JPG or PNG files are accepted.',
         ]);
@@ -703,7 +817,7 @@ class AssistanceAllocationController extends Controller
                there is no separate start date to record, and promising one
                would be promising the farmer a collection date the office
                cannot keep. */
-            $allocation = AssistanceAllocation::create(Arr::only($data, ['remarks']) + [
+            $allocation = AssistanceAllocation::create(Arr::only($data, ['remarks', 'batch_name', 'details', 'distribution_date', 'venue']) + [
                 'allocated_by' => Auth::id(),
                 'allocated_at' => now(),
                 'status'       => 'allocated',
@@ -720,6 +834,11 @@ class AssistanceAllocationController extends Controller
 
             $designated = 0;
 
+            // The finished form replaces the draft it came from.
+            if (! empty($data['draft_id'])) {
+                AssistanceAllocationDraft::where('user_id', Auth::id())->where('id', $data['draft_id'])->delete();
+            }
+
             foreach ($eligible->whereIn('farmer_id', $data['beneficiary_ids']) as $report) {
                 AssistanceAllocationBeneficiary::create([
                     'assistance_allocation_id' => $allocation->id,
@@ -729,6 +848,15 @@ class AssistanceAllocationController extends Controller
                 ]);
 
                 $designated++;
+            }
+
+            // Everyone ticked turned out to be designated elsewhere in the
+            // meantime. Throwing inside the transaction rolls the empty
+            // batch back instead of leaving a record of nothing.
+            if ($designated === 0) {
+                throw ValidationException::withMessages([
+                    'beneficiary_ids' => 'None of the selected farmers are eligible any more. They may have just been designated in another batch. Please reselect.',
+                ]);
             }
 
             // Supporting documents (the MAO endorsement memo, a beneficiary
@@ -751,8 +879,8 @@ class AssistanceAllocationController extends Controller
 
             AuditLog::create([
                 'user_id'      => Auth::id(),
-                'action'       => 'Allocated assistance AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT)
-                    . ' to ' . $designated . ' ' . ($designated === 1 ? 'farmer' : 'farmers'),
+                'action'       => 'Finalized distribution batch "' . $allocation->batch_name . '" (AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT) . ')'
+                    . ' for ' . $designated . ' ' . ($designated === 1 ? 'farmer' : 'farmers'),
                 'target_table' => 'assistance_allocations',
                 'target_id'    => $allocation->id,
                 'created_at'   => now(),
@@ -764,7 +892,7 @@ class AssistanceAllocationController extends Controller
         $this->notifyDesignated($allocation->fresh(['beneficiaries.farmer.association']));
 
         return redirect()->route('mao.assistance-allocations.show', $allocation)
-            ->with('status', 'Assistance allocated. The farmers and their associations have been notified.');
+            ->with('status', 'Distribution batch finalized. The farmers and their associations have been notified.');
     }
 
     /**
@@ -811,11 +939,9 @@ class AssistanceAllocationController extends Controller
 
             $this->sendAlert(
                 'You Have Been Selected for Assistance',
-                'The Municipal Agriculture Office has selected you to receive assistance. '
-                    . 'There is no collection date yet. Your Farmers\' Association will tell you when and '
-                    . 'where to collect it, so please wait for them to contact you. '
-                    . 'Wala pa pong takdang petsa. Ang inyong asosasyon po ang magsasabi kung kailan '
-                    . 'at saan ito kukunin.',
+                'The Municipal Agriculture Office has selected you to receive assistance'
+                    . ($allocation->batch_name ? ' (' . $allocation->batch_name . ')' : '') . '. '
+                    . $this->farmerScheduleText($allocation),
                 'normal',
                 'specific_farmer',
                 $beneficiary->farmer_id,
@@ -842,8 +968,8 @@ class AssistanceAllocationController extends Controller
                 'Your Members Have Been Selected for Assistance',
                 'The Municipal Agriculture Office has selected ' . $members->count() . ' of your '
                     . ($members->count() === 1 ? 'members' : 'members') . ' to receive assistance ('
-                    . $reference . '): ' . $names . '. '
-                    . 'There is no collection date set. Please tell them when and where to collect it.',
+                    . $reference . ($allocation->batch_name ? ', ' . $allocation->batch_name : '') . '): ' . $names . '. '
+                    . $this->associationScheduleText($allocation),
                 'important',
                 'specific_association',
                 (int) $associationId,
@@ -851,6 +977,96 @@ class AssistanceAllocationController extends Controller
                 'association ' . $associationId
             );
         }
+    }
+
+    private function whenWhere(AssistanceAllocation $allocation): string
+    {
+        return $allocation->distribution_date->format('F j, Y')
+            . ($allocation->venue ? ' at ' . $allocation->venue : '');
+    }
+
+    private function farmerScheduleText(AssistanceAllocation $allocation): string
+    {
+        if ($allocation->distribution_date) {
+            return 'Distribution is on ' . $this->whenWhere($allocation) . '. '
+                . 'Ang pamamahagi po ay sa ' . $this->whenWhere($allocation) . '.';
+        }
+
+        return 'There is no collection date yet. Your Farmers\' Association will tell you when and '
+            . 'where to collect it, so please wait for them to contact you. '
+            . 'Wala pa pong takdang petsa. Ang inyong asosasyon po ang magsasabi kung kailan '
+            . 'at saan ito kukunin.';
+    }
+
+    private function associationScheduleText(AssistanceAllocation $allocation): string
+    {
+        return $allocation->distribution_date
+            ? 'Distribution is scheduled for ' . $this->whenWhere($allocation) . '. Please remind them.'
+            : 'There is no collection date set. Please tell them when and where to collect it.';
+    }
+
+    /**
+     * Set or change the distribution date and venue of a finalized batch.
+     *
+     * The date is optional when the batch is created because the office often
+     * does not know it yet. Once it is known, this tells everyone concerned.
+     */
+    public function schedule(Request $request, AssistanceAllocation $allocation)
+    {
+        abort_if($allocation->status === 'cancelled', 404);
+
+        $data = $request->validate([
+            'distribution_date' => ['required', 'date'],
+            'venue'             => ['nullable', 'string', 'max:255'],
+        ], [
+            'distribution_date.required' => 'Please choose the distribution date.',
+        ]);
+
+        $allocation->update($data);
+
+        AuditLog::create([
+            'user_id'      => Auth::id(),
+            'action'       => 'Set distribution schedule for AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT)
+                . ': ' . $this->whenWhere($allocation->fresh()),
+            'target_table' => 'assistance_allocations',
+            'target_id'    => $allocation->id,
+            'created_at'   => now(),
+        ]);
+
+        $fresh = $allocation->fresh(['beneficiaries.farmer.association']);
+
+        foreach ($fresh->beneficiaries as $beneficiary) {
+            if (! $beneficiary->farmer) {
+                continue;
+            }
+
+            $this->sendAlert(
+                'Distribution Schedule Set',
+                ($fresh->batch_name ? $fresh->batch_name . ': ' : '') . $this->farmerScheduleText($fresh),
+                'important',
+                'specific_farmer',
+                $beneficiary->farmer_id,
+                $fresh->id,
+                'farmer ' . $beneficiary->farmer_id
+            );
+        }
+
+        $fresh->beneficiaries
+            ->filter(fn ($b) => $b->farmer?->association_id)
+            ->groupBy(fn ($b) => $b->farmer->association_id)
+            ->each(function ($members, $associationId) use ($fresh) {
+                $this->sendAlert(
+                    'Distribution Schedule Set',
+                    ($fresh->batch_name ? $fresh->batch_name . ': ' : '') . $this->associationScheduleText($fresh),
+                    'important',
+                    'specific_association',
+                    (int) $associationId,
+                    $fresh->id,
+                    'association ' . $associationId
+                );
+            });
+
+        return back()->with('status', 'Distribution schedule saved. The farmers and their associations have been notified.');
     }
 
     /**
@@ -916,6 +1132,8 @@ class AssistanceAllocationController extends Controller
             'distributions.distributedBy',
             'beneficiaries.farmer.barangay',
             'beneficiaries.farmer.association',
+            // For the Crop line: the crops the designated reports are about.
+            'beneficiaries.damageReport.crops.crop',
             'documents.uploadedBy',
         ];
     }
@@ -1032,7 +1250,7 @@ class AssistanceAllocationController extends Controller
             AuditLog::create([
                 'user_id'      => Auth::id(),
                 'action'       => 'Handed ' . $allocation->display_name . ' to ' . $farmer->full_name
-                    . ' for ' . $report->reference,
+                    . ' for ' . $report->full_reference,
                 'target_table' => 'assistance_distributions',
                 'target_id'    => $distribution->id,
                 'created_at'   => now(),
@@ -1091,7 +1309,7 @@ class AssistanceAllocationController extends Controller
 
         if (! in_array($report->status, self::QUALIFYING_REPORT_STATUSES, true)) {
             throw ValidationException::withMessages([
-                'damage_report_id' => 'Report ' . $report->reference . ' has not been inspected yet, '
+                'damage_report_id' => 'Report ' . $report->full_reference . ' has not been inspected yet, '
                     . 'so assistance cannot be recorded against it.',
             ]);
         }
@@ -1166,6 +1384,8 @@ class AssistanceAllocationController extends Controller
                 'priority'    => 'normal',
                 'target_type' => 'specific_farmer',
                 'target_id'   => $farmer->id,
+                'link_type'   => 'assistance_allocation',
+                'link_id'     => $allocation->id,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
             ])->dispatchToRecipients();
@@ -1303,7 +1523,7 @@ class AssistanceAllocationController extends Controller
                 'user_id'      => Auth::id(),
                 'action'       => ($designated ? 'Designated' : 'Did not designate')
                     . ' ' . ($damageReport->farmer?->full_name ?? 'a farmer')
-                    . ' for assistance on report ' . $damageReport->reference,
+                    . ' for assistance on report ' . $damageReport->full_reference,
                 'target_table' => 'assistance_decisions',
                 'target_id'    => $damageReport->id,
                 'created_at'   => now(),
@@ -1348,9 +1568,9 @@ class AssistanceAllocationController extends Controller
                     : 'Not Designated for Assistance',
                 'message' => $designated
                     ? 'The Municipal Agriculture Office has designated you for assistance on report '
-                        . $damageReport->reference . '. Nothing has been handed over yet; you will be '
+                        . $damageReport->full_reference . '. Nothing has been handed over yet; you will be '
                         . 'notified again when your association distributes it.'
-                    : 'The Municipal Agriculture Office has reviewed report ' . $damageReport->reference
+                    : 'The Municipal Agriculture Office has reviewed report ' . $damageReport->full_reference
                         . ' and you were not designated for assistance on this allocation.'
                         . ($remarks ? ' Reason: ' . $remarks : ''),
                 'category'    => 'system',

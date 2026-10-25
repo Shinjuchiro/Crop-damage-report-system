@@ -212,7 +212,7 @@ class InspectionController extends Controller
 
             AuditLog::create([
                 'user_id'      => Auth::id(),
-                'action'       => 'Started inspection of ' . $report->reference,
+                'action'       => 'Started inspection of ' . $report->full_reference,
                 'target_table' => 'damage_reports',
                 'target_id'    => $report->id,
                 'created_at'   => now(),
@@ -320,6 +320,15 @@ class InspectionController extends Controller
             'photos.*.max'                     => 'Each additional photo must be 5 MB or smaller.',
         ]);
 
+        // The verified location must be inside Tanza. The map and the form
+        // already refuse anything else; this is the check that cannot be
+        // skipped by typing coordinates or posting the form directly.
+        if (! \App\Support\TanzaBounds::contains((float) $data['latitude'], (float) $data['longitude'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'latitude' => 'The verified location must be inside Tanza, Cavite.',
+            ]);
+        }
+
         $this->assertSeverityMatchesPercent($data['severity'], (float) $data['assessed_damage_percent']);
         $this->assertNotesExplainDisagreement($report, $data);
 
@@ -350,7 +359,7 @@ class InspectionController extends Controller
 
             AuditLog::create([
                 'user_id'      => Auth::id(),
-                'action'       => 'Submitted inspection for ' . $report->reference
+                'action'       => 'Submitted inspection for ' . $report->full_reference
                                   . ': ' . Validation::severityLabel($data['severity']) . ', '
                                   . $data['assessed_damage_percent'] . '% assessed',
                 'target_table' => 'validations',
@@ -383,7 +392,7 @@ class InspectionController extends Controller
         try {
             $alert = NotificationBroadcast::create([
                 'title'       => 'Report Verified',
-                'message'     => $report->reference . ' has been inspected and verified. It is now ready for review and possible assistance allocation.',
+                'message'     => $report->full_reference . ' has been inspected and verified. It is now ready for review and possible assistance allocation.',
                 'category'    => 'system',
                 'priority'    => 'normal',
                 'target_type' => 'all_mao',
@@ -401,7 +410,7 @@ class InspectionController extends Controller
         try {
             $alert = NotificationBroadcast::create([
                 'title'       => 'Your Report Was Verified',
-                'message'     => 'Your damage report ' . $report->reference . ' has been inspected by a technician '
+                'message'     => 'Your damage report ' . $report->full_reference . ' has been inspected by a technician '
                     . 'and is now with the Municipal Agriculture Office for review.',
                 'category'    => 'system',
                 'priority'    => 'normal',

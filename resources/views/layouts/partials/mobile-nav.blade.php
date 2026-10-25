@@ -82,7 +82,7 @@
         'farmer' => [
             'tabs' => [
                 ['label' => 'Home',       'route' => 'farmer.dashboard',       'pattern' => 'farmer.dashboard',     'icon' => $ico['home']],
-                ['label' => 'Planting',   'route' => 'farmer.planting.index',  'pattern' => 'farmer.planting.*',    'icon' => $ico['planting']],
+                ['label' => 'My Planting','route' => 'farmer.planting.index',  'pattern' => 'farmer.planting.*',    'icon' => $ico['planting']],
                 /* The list of what they have filed, with the Report Damage
                    button on it - the same single destination the sidebar
                    now uses, so the phone and the laptop agree. */
@@ -103,7 +103,7 @@
                this role in line with the other three, which have always been
                four tabs plus More. */
             'more' => [
-                ['label' => 'Membership Application', 'fil' => 'Aplikasyon sa Pagkasapi', 'route' => 'farmer.application.index', 'icon' => $ico['people']],
+                ['label' => 'My Profile',             'fil' => 'Aking Profile',           'route' => 'farmer.profile', 'icon' => $ico['people']],
                 ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong',     'route' => 'help',                     'icon' => $ico['help']],
             ],
         ],

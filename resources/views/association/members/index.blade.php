@@ -86,9 +86,8 @@
                         {{-- The whole header is the toggle, so a thumb has
                              the full width of the card to aim at rather
                              than a chevron. --}}
-                        <button type="button" class="block w-full p-3.5 text-left transition active:bg-muted"
-                                @click="open[{{ $member->id }}] = ! open[{{ $member->id }}]"
-                                :aria-expanded="open[{{ $member->id }}] ? 'true' : 'false'">
+                        <a href="{{ request()->fullUrlWithQuery(['selected' => $member->id]) }}"
+                           class="block w-full p-3.5 text-left transition active:bg-muted">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-semibold">{{ $member->full_name }}</p>
@@ -99,13 +98,6 @@
 
                                 <span class="flex shrink-0 items-center gap-2">
                                     <x-ui.status :value="$member->activity_status" />
-                                    <svg class="h-4 w-4 text-muted-foreground transition-transform"
-                                         :class="open[{{ $member->id }}] ? 'rotate-180' : ''"
-                                         fill="none" stroke="currentColor" stroke-width="2"
-                                         stroke-linecap="round" stroke-linejoin="round"
-                                         viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M6 9l6 6 6-6"/>
-                                    </svg>
                                 </span>
                             </div>
 
@@ -114,16 +106,7 @@
                                 &middot; {{ $member->damage_reports_count }} damage
                                 {{ $member->damage_reports_count === 1 ? 'report' : 'reports' }}
                             </p>
-                        </button>
-
-                        {{-- x-transition, not x-collapse: resources/js/app.js
-                             imports core Alpine only, and the collapse plugin
-                             is not among it. A directive Alpine does not know
-                             is simply ignored, so the card would snap open
-                             with no warning that the animation never ran. --}}
-                        <div x-show="open[{{ $member->id }}]" x-cloak x-transition.opacity.duration.200ms>
-                            @include('association.members._member-summary', ['member' => $member])
-                        </div>
+                        </a>
                     </li>
                 @endforeach
             </ul>
@@ -149,18 +132,7 @@
                                      column of its own: a seventh column
                                      holding nothing but a chevron needs a
                                      heading that says nothing. --}}
-                                <button type="button" class="flex items-start gap-2 text-left"
-                                        @click="open[{{ $member->id }}] = ! open[{{ $member->id }}]"
-                                        :aria-expanded="open[{{ $member->id }}] ? 'true' : 'false'"
-                                        aria-label="Show {{ $member->full_name }} at a glance">
-                                    <svg class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform"
-                                         :class="open[{{ $member->id }}] ? 'rotate-180' : ''"
-                                         fill="none" stroke="currentColor" stroke-width="2"
-                                         stroke-linecap="round" stroke-linejoin="round"
-                                         viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M6 9l6 6 6-6"/>
-                                    </svg>
-
+                                <span class="flex items-start gap-2 text-left">
                                     {{-- THE MEMBER'S REFERENCE, NOT THEIR PHONE NUMBER
                                          (Oct 2026)
 
@@ -196,7 +168,7 @@
                                             FARM-{{ str_pad($member->id, 3, '0', STR_PAD_LEFT) }}
                                         </span>
                                     </span>
-                                </button>
+                                </span>
                             </td>
 
                             <td class="text-muted-foreground">{{ $member->barangay?->name ?? '-' }}</td>
@@ -228,24 +200,6 @@
                             </td>
                         </tr>
 
-                        {{-- The expansion is its own row, because a table
-                             cannot hold anything between two rows. The
-                             colspan has to match the six columns above it:
-                             a wrong number here shows up at once as a
-                             ragged row, which is better than a silent
-                             misalignment.
-
-                             x-collapse is NOT used here. It animates height
-                             on the element it is placed on, and a <tr> does
-                             not take a height the way a block does - the
-                             row would jump instead of opening. The div
-                             inside carries the padding, so the row has no
-                             height of its own when it is closed. --}}
-                        <tr x-show="open[{{ $member->id }}]" x-cloak class="!border-t-0">
-                            <td colspan="6" class="!p-0">
-                                @include('association.members._member-summary', ['member' => $member])
-                            </td>
-                        </tr>
                     @endforeach
                 </x-ui.table>
             </div>

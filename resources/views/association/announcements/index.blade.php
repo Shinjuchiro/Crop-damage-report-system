@@ -6,11 +6,14 @@
 @section('subheading', 'What you tell the members of ' . $association->name . '. Only they receive it.')
 
 @section('header-actions')
+    <div class="flex flex-wrap items-center gap-2">
+    <x-ui.button size="lg" variant="outline" :href="route('association.sms-history.index')">SMS History</x-ui.button>
     <x-ui.button size="lg" x-data @click="$dispatch('open-announcement-composer')">
         <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
              stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
         New Announcement
     </x-ui.button>
+    </div>
 @endsection
 
 @section('content')

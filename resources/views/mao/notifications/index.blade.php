@@ -53,7 +53,7 @@
         <x-ui.button variant="outline" :href="route('mao.sms-history.index')">SMS History</x-ui.button>
         <button type="button" @click="$dispatch('open-alert-composer')"
                 class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">
-            <span class="text-base leading-none">+</span> Create New Alert
+            <span class="text-base leading-none">+</span> New Announcement
         </button>
     </div>
 @endsection
@@ -208,7 +208,7 @@
             <div class="px-6 py-16 text-center">
                 <p class="text-sm font-medium text-muted-foreground">No alerts here yet</p>
                 <p class="mt-1 text-xs text-muted-foreground">
-                    Use Create New Alert to send an advisory, a deadline reminder or an announcement.
+                    Use New Announcement to send an advisory, a deadline reminder or an announcement.
                 </p>
             </div>
         @endif
@@ -238,7 +238,7 @@
 
                 <div class="flex items-center justify-between border-b border-border px-6 py-4">
                     <h3 class="text-lg font-semibold text-foreground"
-                        x-text="step === 'compose' ? 'Create New Alert' : 'Review Alert'"></h3>
+                        x-text="step === 'compose' ? 'New Announcement' : 'Review Alert'"></h3>
                     <button type="button" @click="showing = false"
                             class="rounded p-1.5 text-muted-foreground hover:bg-secondary">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

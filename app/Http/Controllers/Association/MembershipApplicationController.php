@@ -358,16 +358,17 @@ class MembershipApplicationController extends Controller
                 . ($note ? ' Association remarks: ' . $note : ''),
             'all_mao',
             null,
-            'MAO'
+            'MAO',
+            $farmer->id
         );
     }
 
     private function notifyFarmer(Farmer $farmer, string $title, string $message): void
     {
-        $this->send($title, $message, 'specific_farmer', $farmer->id, 'farmer ' . $farmer->id);
+        $this->send($title, $message, 'specific_farmer', $farmer->id, 'farmer ' . $farmer->id, $farmer->id);
     }
 
-    private function send(string $title, string $message, string $targetType, ?int $targetId, string $who): void
+    private function send(string $title, string $message, string $targetType, ?int $targetId, string $who, ?int $farmerId = null): void
     {
         try {
             $alert = NotificationBroadcast::create([
@@ -377,6 +378,8 @@ class MembershipApplicationController extends Controller
                 'priority'    => 'normal',
                 'target_type' => $targetType,
                 'target_id'   => $targetId,
+                'link_type'   => $farmerId ? 'membership_application' : null,
+                'link_id'     => $farmerId,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
             ]);

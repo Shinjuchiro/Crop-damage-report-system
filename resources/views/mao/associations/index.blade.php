@@ -176,15 +176,15 @@
                     <dl class="grid grid-cols-3 gap-2 text-center">
                         <div class="rounded-lg bg-muted/50 px-2 py-3">
                             <dd class="text-lg font-bold text-foreground">{{ $selected->farmers_count }}</dd>
-                            <dt class="mt-0.5 text-xs text-muted-foreground">Registered</dt>
+                            <dt class="mt-0.5 text-xs text-muted-foreground">Total Members</dt>
                         </div>
                         <div class="rounded-lg bg-muted/50 px-2 py-3">
-                            <dd class="text-lg font-bold text-foreground">{{ $selected->officers_count }}</dd>
-                            <dt class="mt-0.5 text-xs text-muted-foreground">Officers</dt>
+                            <dd class="text-lg font-bold text-foreground">{{ $selected->active_farmers_count }}</dd>
+                            <dt class="mt-0.5 text-xs text-muted-foreground">Active</dt>
                         </div>
                         <div class="rounded-lg bg-muted/50 px-2 py-3">
-                            <dd class="text-lg font-bold text-foreground">{{ $selected->assistance_allocations_count }}</dd>
-                            <dt class="mt-0.5 text-xs text-muted-foreground">Allocations</dt>
+                            <dd class="text-lg font-bold text-foreground">{{ $selected->inactive_farmers_count }}</dd>
+                            <dt class="mt-0.5 text-xs text-muted-foreground">Inactive</dt>
                         </div>
                     </dl>
                 </div>
@@ -192,7 +192,7 @@
                 <div class="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                     <a href="{{ route('mao.farmers.index', ['association_id' => $selected->id]) }}"
                        class="flex-1 rounded-lg border border-input px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-muted/60">
-                        Members
+                        View Details
                     </a>
                     <a href="{{ route('mao.associations.edit', $selected) }}"
                        class="flex-1 rounded-lg border border-input px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-muted/60">

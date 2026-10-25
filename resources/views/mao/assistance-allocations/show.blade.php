@@ -2,7 +2,7 @@
 
 @section('title', 'Allocation Details')
 @section('heading', 'Allocation AA-' . str_pad($allocation->id, 3, '0', STR_PAD_LEFT))
-@section('subheading', 'What the MAO sent to the association, and what the association handed to its members.')
+@section('subheading', 'The farmers the office designated in this batch, and what has been handed over to them.')
 
 @php
     $statusBadges = [
@@ -57,9 +57,9 @@
 
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <div><dt class="text-muted-foreground">Assistance</dt><dd class="font-medium text-foreground">{{ $allocation->display_name }}</dd></div>
-            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $allocation->association?->name ?? '-' }}</dd></div>
+            <div><dt class="text-muted-foreground">Association</dt><dd class="font-bold text-foreground">{{ $allocation->concerned_associations->pluck('name')->join(', ') ?: ($allocation->association?->name ?? 'No association') }}</dd></div>
             <div><dt class="text-muted-foreground">Disaster Event</dt><dd class="font-medium text-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</dd></div>
-            <div><dt class="text-muted-foreground">Crop</dt><dd class="font-medium text-foreground">{{ $allocation->crop?->name ?? 'Not crop specific' }}</dd></div>
+            <div><dt class="text-muted-foreground">Crop</dt><dd class="font-medium text-foreground">{{ $allocation->concerned_crops->pluck('name')->join(', ') ?: ($allocation->crop?->name ?? 'Not crop specific') }}</dd></div>
             {{-- Amount Allocated and Amount Released were here. Two
                  counts of people replace them, which answer the same
                  question without a figure about anyone. --}}
@@ -76,7 +76,7 @@
             <div class="sm:col-span-2 lg:col-span-3">
                 <dt class="text-muted-foreground">Description</dt>
                 <dd class="font-medium text-foreground">
-                    {{ $allocation->assistance?->description ?: 'Not specified' }}
+                    {{ $allocation->details ?: ($allocation->assistance?->description ?: 'Not specified') }}
                 </dd>
             </div>
             <div><dt class="text-muted-foreground">Allocated On</dt><dd class="font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
@@ -87,10 +87,12 @@
                 </dd>
             </div>
             <div>
-                <dt class="text-muted-foreground">Released To Association</dt>
-                <dd class="font-medium text-foreground">
-                    {{ $allocation->distributed_to_association_at?->format('M d, Y') ?? 'Not yet' }}
-                </dd>
+                <dt class="text-muted-foreground">Distribution Date</dt>
+                <dd class="font-medium text-foreground">{{ $allocation->distribution_date?->format('M d, Y') ?? 'To be scheduled' }}</dd>
+            </div>
+            <div>
+                <dt class="text-muted-foreground">Venue</dt>
+                <dd class="font-medium text-foreground">{{ $allocation->venue ?: 'To be scheduled' }}</dd>
             </div>
 
             @if ($allocation->remarks)
@@ -108,9 +110,8 @@
             <div class="border-b border-border px-6 py-4">
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-green-800">Qualified Beneficiaries</h3>
                 <p class="mt-0.5 text-xs text-muted-foreground">
-                    The farmers MAO selected when this pool was allocated. Informational for the association's
-                    reference - it does not by itself record that anyone was handed anything. The association
-                    still distributes and records that separately, below.
+                    The farmers the office designated in this batch. Being listed here does not by itself record
+                    that anyone was handed anything; hand-overs are recorded separately, below.
                 </p>
             </div>
 
@@ -119,7 +120,9 @@
                     <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
                             <th class="px-6 py-3 font-medium">Farmer</th>
+                            <th class="px-6 py-3 font-medium">Association</th>
                             <th class="px-6 py-3 font-medium">Barangay</th>
+                            <th class="px-6 py-3 font-medium">Crop</th>
                             <th class="px-6 py-3 font-medium">Damage Report</th>
                         </tr>
                     </thead>
@@ -127,12 +130,14 @@
                         @foreach ($allocation->beneficiaries as $beneficiary)
                             <tr class="hover:bg-muted/60">
                                 <td class="px-6 py-3 font-bold text-foreground">{{ $beneficiary->farmer?->full_name ?? 'Unknown' }}</td>
+                                <td class="px-6 py-3 text-muted-foreground">{{ $beneficiary->farmer?->association?->name ?? 'No association' }}</td>
                                 <td class="px-6 py-3 text-muted-foreground">{{ $beneficiary->farmer?->barangay?->name ?? '-' }}</td>
+                                <td class="px-6 py-3 text-muted-foreground">{{ $beneficiary->damageReport?->crops->map(fn ($c) => $c->crop?->name)->filter()->unique()->join(', ') ?: '-' }}</td>
                                 <td class="px-6 py-3 text-muted-foreground">
                                     @if ($beneficiary->damageReport)
                                         <a href="{{ route('mao.damage-reports.show', $beneficiary->damageReport) }}"
                                            class="text-sky-700 underline hover:text-sky-900">
-                                            {{ $beneficiary->damageReport->reference }}
+                                            {{ $beneficiary->damageReport->full_reference }}
                                         </a>
                                     @else
                                         -
@@ -286,7 +291,7 @@
                 </h3>
                 <p class="mb-4 text-sm text-muted-foreground">
                     Allocation <strong>AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}</strong>
-                    for <strong>{{ $allocation->association?->name }}</strong>.
+                    for <strong>{{ $allocation->display_name }}</strong>.
                 </p>
 
                 <form method="POST" action="{{ route('mao.assistance-allocations.status', $allocation) }}">

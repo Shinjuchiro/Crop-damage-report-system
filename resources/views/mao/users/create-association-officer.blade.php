@@ -58,7 +58,7 @@
 
         <div>
             <label class="mb-1 block text-sm font-medium text-foreground">Contact Number <span class="text-red-500">*</span></label>
-            <input type="text" name="phone_number" value="{{ old('phone_number') }}" required
+            <input type="text" name="phone_number" value="{{ old('phone_number') }}" required inputmode="numeric" maxlength="11" pattern="[0-9]{11}" title="11 digits, numbers only" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"
                    class="w-full rounded-lg border border-input px-3 py-2 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600 sm:max-w-xs">
         </div>
 

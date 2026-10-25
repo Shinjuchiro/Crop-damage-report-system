@@ -154,25 +154,9 @@ class ApplicationController extends Controller
      */
     public function status()
     {
-        $farmer = $this->farmerOrNull();
-
-        /* Not a farmer at all. The 'active' middleware lets any approved
-           account into its own role's group, but this route is in the
-           farmer's, so this only happens if the office switched somebody's
-           role without clearing their farmer row. A plain 403 says more than
-           a page of empty fields. */
-        abort_if($farmer === null, 403, 'Only a farmer has a membership application.');
-
-        $farmer->load(['association', 'barangay', 'mainCrops.crop', 'forwardedBy', 'decidedBy']);
-
-        return view('farmer.application.status', [
-            'farmer'  => $farmer,
-            'status'  => MembershipApplication::forFarmer($farmer),
-            // The same audit-log reader the office's own screens use, so the
-            // farmer sees the same history rather than a second, friendlier
-            // version of it that could drift.
-            'history' => MembershipApplication::history($farmer),
-        ]);
+        // The membership record moved into My Profile; old links and
+        // saved notifications still land in the right place.
+        return redirect()->to(route('farmer.profile') . '#membership');
     }
 
     /**
@@ -366,6 +350,8 @@ class ApplicationController extends Controller
                 'priority'    => 'normal',
                 'target_type' => 'specific_association',
                 'target_id'   => $farmer->association_id,
+                'link_type'   => 'membership_application',
+                'link_id'     => $farmer->id,
                 'status'      => 'draft',
                 'created_by'  => Auth::id(),
             ])->dispatchToRecipients();

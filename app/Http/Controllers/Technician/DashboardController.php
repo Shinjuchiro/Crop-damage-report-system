@@ -163,6 +163,7 @@ class DashboardController extends Controller
             ->first();
 
         return view('technician.dashboard', [
+            'mapBubbles' => \App\Support\TechnicianMapData::bubbles($technicianId),
             'reports'  => $reports,
             'upcoming' => $upcoming,
             'nextUp'   => $nextUp,

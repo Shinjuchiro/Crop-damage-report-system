@@ -76,7 +76,7 @@
                         @endphp
 
                         <tr>
-                            <td class="whitespace-nowrap font-medium">{{ $report->reference }}</td>
+                            <td class="whitespace-nowrap font-medium">{{ $report->full_reference }}</td>
 
                             <td>
                                 <span class="font-medium">{{ $report->farmer?->full_name ?? 'Unknown' }}</span>

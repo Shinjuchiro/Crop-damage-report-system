@@ -25,10 +25,7 @@
      /create page was retired (there were two copies of one form); its route
      now redirects here with that flag, so an old bookmark still ends up at
      the form rather than at a page with the form hidden behind a button. --}}
-<div x-data="{ action: null, deciding: null }"
-     @if (request()->boolean('allocate'))
-         x-init="$nextTick(() => $dispatch('open-dialog', 'allocate-assistance'))"
-     @endif>
+<div x-data="{ action: null, deciding: null }">
 
     @if ($errors->any())
         <x-ui.alert variant="destructive" title="Please check the form" class="mb-5">
@@ -231,10 +228,10 @@
                 Export List
             </x-ui.button>
 
-            <x-ui.button @click="$dispatch('open-dialog', 'allocate-assistance')">
+            <x-ui.button :href="route('mao.assistance-allocations.create')">
                 <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                      stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
-                Allocate Assistance
+                Create Assistance Distribution
             </x-ui.button>
         </div>
     </div>
@@ -281,7 +278,7 @@
                                     <p class="mt-3 border-t border-border pt-3 text-sm text-muted-foreground">
                                         <span class="font-semibold text-foreground">{{ $row->qualified_count }}</span>
                                         qualified {{ $row->qualified_count === 1 ? 'beneficiary' : 'beneficiaries' }}, nothing allocated yet.
-                                        Use Allocate Assistance above.
+                                        Use Create Assistance Distribution above.
                                     </p>
                                 </div>
                             @endif
@@ -330,11 +327,10 @@
                                         <x-ui.button :href="$viewUrl($row->allocation->id)"
                                                      variant="view" size="sm">View</x-ui.button>
                                     @elseif ($row->qualified_count > 0)
-                                        <button type="button"
-                                                @click="$dispatch('preselect-association', {{ $row->association->id }}); $dispatch('open-dialog', 'allocate-assistance')"
-                                                class="text-sm font-medium text-primary underline hover:brightness-110">
+                                        <a href="{{ route('mao.assistance-allocations.create') }}"
+                                           class="text-sm font-medium text-primary underline hover:brightness-110">
                                             Allocate
-                                        </button>
+                                        </a>
                                     @else
                                         <span class="text-sm text-muted-foreground">—</span>
                                     @endif
@@ -406,260 +402,6 @@
             @endif
         </div>
     </div>
-
-    {{-- ===================== ALLOCATE ASSISTANCE MODAL ===================== --}}
-    <x-ui.dialog name="allocate-assistance" size="xl" title="Allocate Assistance"
-                 description="Choose the farmers who will receive this batch of assistance.">
-
-        <form id="allocate-assistance-form" method="POST"
-              action="{{ route('mao.assistance-allocations.store') }}" enctype="multipart/form-data"
-              data-confirm="Please review the selected farmers and any attached files before allocating. The farmers and their associations are notified as soon as you confirm."
-              data-confirm-title="Allocate this assistance?"
-              data-confirm-action="Confirm & Allocate"
-              data-confirm-review="auto"
-              class="space-y-5"
-              x-data="{
-                  /* The whole eligible list, rendered with the page rather
-                     than fetched: nothing has to be chosen before it can be
-                     shown. */
-                  beneficiaries: @js($eligible),
-                  selected: [],
-                  files: [],
-                  search: '',
-
-                  /* The list can be the whole municipality, so a search box
-                     earns its place here in a way it did not when the list
-                     was one association's members. Filtering only changes
-                     what is VISIBLE: a farmer ticked and then filtered out
-                     of view stays selected, which is why selected is never
-                     touched here. */
-                  visible() {
-                      const term = this.search.trim().toLowerCase();
-
-                      if (! term) { return this.beneficiaries; }
-
-                      return this.beneficiaries.filter((b) =>
-                          b.name.toLowerCase().includes(term)
-                          || b.barangay.toLowerCase().includes(term)
-                          || b.association.toLowerCase().includes(term)
-                          || b.reference.toLowerCase().includes(term));
-                  },
-
-                  /* Select All acts on what is on screen, not on everything,
-                     because that is what somebody who has just filtered the
-                     list means by it. Clearing works the same way. */
-                  toggleAllVisible() {
-                      const ids = this.visible().map((b) => b.farmer_id);
-                      const allShown = ids.every((id) => this.selected.includes(id));
-
-                      this.selected = allShown
-                          ? this.selected.filter((id) => ! ids.includes(id))
-                          : [...new Set([...this.selected, ...ids])];
-                  },
-
-                  toggleAll() {
-                      this.selected = (this.selected.length === this.beneficiaries.length && this.beneficiaries.length > 0)
-                          ? []
-                          : this.beneficiaries.map((b) => b.farmer_id);
-                  },
-
-                  onFilesSelected(event) {
-                      this.files = Array.from(event.target.files);
-                  },
-
-                  removeFile(index) {
-                      const input = this.$refs.documentsInput;
-                      const transfer = new DataTransfer();
-
-                      this.files.forEach((file, i) => { if (i !== index) { transfer.items.add(file); } });
-
-                      input.files = transfer.files;
-                      this.files = Array.from(input.files);
-                  },
-
-                  /* An allocation IS its list of farmers, so one ticked
-                     name is the whole requirement. */
-                  ready() {
-                      return this.selected.length > 0;
-                  },
-              }"
-              {{-- The overview table's "Allocate" button still points at one
-                   association. It cannot preselect an association any more,
-                   because there is no association field, so it preselects
-                   that association's eligible members instead, which is what
-                   an officer clicking it from that row actually wants. --}}
-              @preselect-association.window="
-                  search = '';
-                  selected = beneficiaries
-                      .filter((b) => String(b.association_id) === String($event.detail))
-                      .map((b) => b.farmer_id)">
-            @csrf
-
-            {{-- ---------- 1. Select Beneficiaries ---------- --}}
-            <div>
-                <p class="text-sm font-semibold text-foreground">1. Select the farmers</p>
-                <p class="mt-0.5 text-xs text-muted-foreground">
-                    Everyone here has a damage report a technician has verified, and is not already on another
-                    allocation. Their association is shown so you can see who will have to be told.
-                </p>
-
-                <div class="mt-3">
-                    <x-ui.input type="search" x-model="search" placeholder="Search by name, barangay, association or report" />
-                </div>
-
-                <div class="mt-2 overflow-hidden rounded-lg border border-border">
-                    <div class="flex items-center justify-between border-b border-border bg-muted px-4 py-2.5">
-                        <span class="text-sm text-muted-foreground">
-                            Selected: <span class="font-semibold text-foreground" x-text="selected.length"></span>
-                            / <span x-text="beneficiaries.length"></span>
-                            <span x-show="search.trim()" x-cloak class="text-xs">
-                                (showing <span x-text="visible().length"></span>)
-                            </span>
-                        </span>
-                        <x-ui.button type="button" size="sm" variant="outline" @click="toggleAllVisible()"
-                                     x-show="visible().length > 0">
-                            <span x-text="visible().every((b) => selected.includes(b.farmer_id)) ? 'Clear shown' : 'Select shown'"></span>
-                        </x-ui.button>
-                    </div>
-
-                    <div class="max-h-56 overflow-y-auto">
-                        <p x-show="beneficiaries.length === 0" class="px-4 py-6 text-center text-sm text-muted-foreground">
-                            No farmer qualifies right now. A farmer appears here once a technician has verified
-                            their damage report, and drops off once they are on an allocation.
-                        </p>
-                        <p x-show="beneficiaries.length > 0 && visible().length === 0" x-cloak
-                           class="px-4 py-6 text-center text-sm text-muted-foreground">
-                            No farmer matches that search.
-                        </p>
-
-                        <table class="w-full text-left text-sm" x-show="visible().length > 0">
-                            <thead class="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-                                <tr>
-                                    <th class="px-4 py-2"></th>
-                                    <th class="px-4 py-2">Name</th>
-                                    <th class="px-4 py-2">Barangay</th>
-                                    <th class="px-4 py-2">Association</th>
-                                    <th class="px-4 py-2">Report</th>
-                                    <th class="px-4 py-2">Damage</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border">
-                                <template x-for="b in visible()" :key="b.farmer_id">
-                                    <tr>
-                                        <td class="px-4 py-2">
-                                            <input type="checkbox" :value="b.farmer_id" x-model="selected" data-confirm-skip
-                                                   class="h-4 w-4 rounded border-input text-primary focus:ring-ring">
-                                        </td>
-                                        <td class="px-4 py-2 font-medium text-foreground" x-text="b.name"></td>
-                                        <td class="px-4 py-2 text-muted-foreground" x-text="b.barangay"></td>
-                                        <td class="px-4 py-2 text-muted-foreground" x-text="b.association"></td>
-                                        <td class="px-4 py-2 text-muted-foreground" x-text="b.reference"></td>
-                                        <td class="px-4 py-2 text-muted-foreground" x-text="b.severity_label"></td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {{-- The actual submitted list. A plain, visible (but small) field
-                     so the auto-generated review step shows a real summary
-                     rather than nothing at all - hidden inputs are skipped by
-                     the review builder on purpose. --}}
-                <input type="text" readonly tabindex="-1" data-confirm-label="Farmers selected"
-                       class="sr-only" :value="selected.length + ' of ' + beneficiaries.length + ' eligible farmer(s)'">
-
-                <template x-for="id in selected" :key="'beneficiary-' + id">
-                    <input type="hidden" name="beneficiary_ids[]" :value="id">
-                </template>
-            </div>
-
-            {{-- ---------- 2. Remarks ----------
-
-                 This whole step used to ask for the assistance item, the
-                 type, the quantity, the start date and the crop. All of it
-                 went in Oct 2026; see the note at the top of this file.
-                 What is left is the one optional note. --}}
-            <div class="border-t border-border pt-5">
-                <p class="text-sm font-semibold text-foreground">2. Remarks <span class="font-normal text-muted-foreground">(optional)</span></p>
-
-                <div class="mt-3">
-                    <x-ui.textarea name="remarks" rows="2"
-                                   placeholder="Anything the office should record about this batch."
-                                   maxlength="1000">{{ old('remarks') }}</x-ui.textarea>
-                </div>
-            </div>
-
-            {{-- WHO GETS TOLD, SAID BEFORE THEY CONFIRM
-                 An officer allocating is about to send messages to farmers
-                 and to association officers. That should not be a surprise
-                 discovered afterwards. --}}
-            <div class="rounded-lg border border-primary/30 bg-accent px-4 py-3 text-sm text-accent-foreground">
-                <p class="font-medium">Everyone selected is notified as soon as you confirm.</p>
-                <p class="mt-1 text-xs">
-                    Each farmer is told they have been selected and that there is no collection date yet. Their
-                    association is told which of its members to contact, and arranges when they collect it.
-                </p>
-            </div>
-
-            {{-- ---------- 3. Upload Supporting Documents ---------- --}}
-            <div class="border-t border-border pt-5">
-                <p class="text-sm font-semibold text-foreground">3. Upload Supporting Documents <span class="font-normal text-muted-foreground">(optional)</span></p>
-                <p class="mt-0.5 text-xs text-muted-foreground">
-                    You may attach the MAO endorsement letter, allocation memo, or other relevant files.
-                </p>
-
-                <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                    <label class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-input px-4 py-8 text-center hover:border-primary/50">
-                        <svg class="mb-2 h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="1.6"
-                             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                            <path d="M12 16V4m0 0L7 9m5-5l5 5M5 20h14"/>
-                        </svg>
-                        <span class="text-sm text-muted-foreground">
-                            Drag and drop files here, or <span class="font-medium text-primary">click to browse</span>
-                        </span>
-                        <span class="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG (Max 10MB per file)</span>
-                        <input type="file" name="documents[]" multiple accept=".pdf,.jpg,.jpeg,.png"
-                               x-ref="documentsInput" @change="onFilesSelected($event)" class="hidden">
-                    </label>
-
-                    <div>
-                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Attached Files</p>
-                        <p x-show="files.length === 0" class="text-sm text-muted-foreground">No files attached yet.</p>
-                        <ul class="space-y-2" x-show="files.length > 0">
-                            <template x-for="(file, index) in files" :key="file.name + file.size">
-                                <li class="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
-                                    <span class="flex min-w-0 items-center gap-2">
-                                        <svg class="h-4 w-4 shrink-0 text-muted-foreground" fill="none" stroke="currentColor"
-                                             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                                            <path d="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"/>
-                                        </svg>
-                                        <span class="truncate" x-text="file.name"></span>
-                                    </span>
-                                    <button type="button" @click="removeFile(index)"
-                                            class="shrink-0 text-muted-foreground hover:text-destructive">
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"
-                                             stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                                            <path d="M6 6l12 12M18 6L6 18"/>
-                                        </svg>
-                                    </button>
-                                </li>
-                            </template>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </form>
-
-        <x-slot:footer>
-            <x-ui.button variant="outline" @click="$dispatch('close-dialog', 'allocate-assistance')">Cancel</x-ui.button>
-            <x-ui.button type="submit" form="allocate-assistance-form">
-                <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                     stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-                Allocate Assistance
-            </x-ui.button>
-        </x-slot:footer>
-    </x-ui.dialog>
 
     </div>{{-- /LIST --}}
 

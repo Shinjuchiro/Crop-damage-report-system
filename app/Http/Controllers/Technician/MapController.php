@@ -46,7 +46,7 @@ class MapController extends Controller
             ->map(fn ($report) => [
                 'lat'      => (float) $report->validation->latitude,
                 'lng'      => (float) $report->validation->longitude,
-                'report'   => $report->reference,
+                'report'   => $report->full_reference,
                 'farmer'   => $report->farmer?->full_name ?? 'Unknown',
                 'barangay' => $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? 'Unknown barangay',
                 'severity' => Validation::severityLabel($report->validation->severity) ?? 'Not yet assessed',
@@ -59,6 +59,7 @@ class MapController extends Controller
             ->values();
 
         return view('technician.map.index', [
+            'mapBubbles'   => \App\Support\TechnicianMapData::bubbles($technicianId),
             'verifiedPins' => $verifiedPins,
             'center'       => self::CENTER,
             'statuses'     => DamageReport::STATUSES,

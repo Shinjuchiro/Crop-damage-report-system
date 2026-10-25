@@ -36,7 +36,7 @@
             'icon'    => 'M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9',
         ],
         [
-            'label'   => 'Planting',
+            'label'   => 'My Crop Planting',
             'filipino'=> 'Pagtatanim',
             'route'   => 'farmer.planting.index',
             'pattern' => 'farmer.planting.*',
@@ -58,18 +58,13 @@
             'badge'       => $reportsNeedingAttention,
             'badge_label' => 'with a status update',
         ],
-        /* Revision section 4 lists Membership Application in the farmer's
-           navigation. Placed after the two things they DO here and before
-           Assistance, because it is a record to look up rather than a task:
-           a farmer opens it to answer "which association am I under" or to
-           show somebody when they were approved, not as part of a day's
-           work. No badge, for the same reason - there is never anything on
-           it waiting for them. */
+        /* Membership Application no longer has its own entry: the record is
+           inside My Profile. */
         [
-            'label'   => 'Membership Application',
-            'filipino'=> 'Aplikasyon sa Pagkasapi',
-            'route'   => 'farmer.application.index',
-            'pattern' => 'farmer.application.index',
+            'label'   => 'My Profile',
+            'filipino'=> 'Aking Profile',
+            'route'   => 'farmer.profile',
+            'pattern' => ['farmer.profile*', 'farmer.application.*'],
             'icon'    => 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6',
         ],
         [
@@ -115,9 +110,9 @@
             </svg>
 
             <span class="min-w-0 flex-1 leading-tight">
-                <span class="block truncate">{{ $item['label'] }}</span>
+                <span class="block leading-tight">{{ $item['label'] }}</span>
                 {{-- The Filipino line is the one most farmers will actually read --}}
-                <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
+                <span class="block text-xs leading-tight opacity-70">{{ $item['filipino'] }}</span>
             </span>
         </span>
 

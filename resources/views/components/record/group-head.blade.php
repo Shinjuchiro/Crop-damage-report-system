@@ -25,6 +25,7 @@
     props
       farmer   the Farmer whose block this opens
       count    how many of their records are in this block
+      total    all they have, when the block shows only their latest few
       noun     singular noun for the count, pluralised here
       colspan  number of columns in the host table
       href     their profile, or null for no link
@@ -33,6 +34,7 @@
 @props([
     'farmer',
     'count'   => 0,
+    'total'   => null,
     'noun'    => 'record',
     'colspan' => 4,
     'href'    => null,
@@ -62,7 +64,7 @@
 
             <div class="flex shrink-0 items-center gap-3">
                 <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
-                    {{ $count }} {{ \Illuminate\Support\Str::plural($noun, $count) }}
+                    @if ($total && $total > $count)Latest {{ $count }} of {{ $total }} {{ \Illuminate\Support\Str::plural($noun, $total) }}@else{{ $count }} {{ \Illuminate\Support\Str::plural($noun, $count) }}@endif
                 </span>
 
                 @if ($href)

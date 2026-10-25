@@ -24,7 +24,7 @@
         AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}
     </p>
     <h3 class="mt-0.5 text-lg font-semibold text-foreground">{{ $allocation->display_name }}</h3>
-    <p class="text-sm text-muted-foreground">{{ $allocation->association?->name ?? 'No association' }}</p>
+    <p class="text-sm text-muted-foreground">{{ $allocation->concerned_associations->pluck('name')->join(', ') ?: ($allocation->association?->name ?? 'No association') }}</p>
     <div class="mt-2 flex flex-wrap gap-2">
         <span class="inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $statusBadges[$allocation->status] ?? $statusBadges['pending'] }}">
             {{ ucfirst($allocation->status) }}
@@ -39,7 +39,7 @@
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Allocation</p>
         <dl class="space-y-1.5">
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Disaster Event</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->disaster?->name ?? 'Not tied to an event' }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Crop</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->crop?->name ?? 'Not crop specific' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Crop</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->concerned_crops->pluck('name')->join(', ') ?: ($allocation->crop?->name ?? 'Not crop specific') }}</dd></div>
             <div class="flex justify-between gap-3">
                 <dt class="shrink-0 text-muted-foreground">Farmers Designated</dt>
                 <dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->beneficiaries->count() }}</dd>
@@ -50,10 +50,11 @@
             </div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Allocated On</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->allocated_at?->format('M d, Y') }}</dd></div>
             <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Allocated By</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $allocation->allocatedBy?->full_name ?: $allocation->allocatedBy?->username ?? '-' }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Released To Assoc.</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distributed_to_association_at?->format('M d, Y') ?? 'Not yet' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Distribution Date</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->distribution_date?->format('M d, Y') ?? 'To be scheduled' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Venue</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $allocation->venue ?: 'To be scheduled' }}</dd></div>
             <div>
-                <dt class="text-muted-foreground">Description</dt>
-                <dd class="font-medium text-foreground">{{ $allocation->assistance?->description ?: 'Not specified' }}</dd>
+                <dt class="text-muted-foreground">Assistance Details</dt>
+                <dd class="whitespace-pre-line font-medium text-foreground">{{ $allocation->details ?: ($allocation->assistance?->description ?: 'Not specified') }}</dd>
             </div>
             @if ($allocation->remarks)
                 <div>
@@ -63,6 +64,31 @@
             @endif
         </dl>
     </div>
+
+    {{-- Set or change the schedule. The date is optional when a batch is
+         created; this is where it gets filled in, and saving it notifies the
+         farmers and associations concerned. --}}
+    @if ($allocation->status !== 'cancelled')
+        <div class="border-t border-border pt-4">
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {{ $allocation->distribution_date ? 'Change Schedule' : 'Set Schedule' }}
+            </p>
+            <form method="POST" action="{{ route('mao.assistance-allocations.schedule', $allocation) }}"
+                  data-confirm="The designated farmers and their associations will be notified of this date and venue."
+                  data-confirm-title="Save this distribution schedule?"
+                  data-confirm-action="Confirm & Notify"
+                  class="space-y-2">
+                @csrf @method('PUT')
+                <input type="date" name="distribution_date" required
+                       value="{{ old('distribution_date', $allocation->distribution_date?->toDateString()) }}"
+                       class="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                <input type="text" name="venue" maxlength="255" placeholder="Venue, e.g., MAO Office, Tanza, Cavite"
+                       value="{{ old('venue', $allocation->venue) }}"
+                       class="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none">
+                <x-ui.button type="submit" size="sm">Save Schedule</x-ui.button>
+            </form>
+        </div>
+    @endif
 
     {{-- Qualified beneficiaries --}}
     @if ($allocation->beneficiaries->isNotEmpty())
@@ -76,7 +102,7 @@
                         @if ($beneficiary->damageReport)
                             &middot;
                             <a href="{{ route('mao.damage-reports.show', $beneficiary->damageReport) }}"
-                               class="text-sky-700 underline hover:text-sky-900">{{ $beneficiary->damageReport->reference }}</a>
+                               class="text-sky-700 underline hover:text-sky-900">{{ $beneficiary->damageReport->full_reference }}</a>
                         @endif
                     </p>
                 </div>
@@ -157,7 +183,7 @@
                 </h3>
                 <p class="mb-4 text-sm text-muted-foreground">
                     Allocation <strong>AA-{{ str_pad($allocation->id, 3, '0', STR_PAD_LEFT) }}</strong>
-                    for <strong>{{ $allocation->association?->name }}</strong>.
+                    for <strong>{{ $allocation->display_name }}</strong>.
                 </p>
 
                 <form method="POST" action="{{ route('mao.assistance-allocations.status', $allocation) }}">

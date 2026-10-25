@@ -49,7 +49,11 @@ class AssociationController extends Controller
         $selected = $request->filled('selected')
             ? Association::active()
                 ->with('barangay')
-                ->withCount(['farmers', 'officers', 'assistanceAllocations'])
+                ->withCount([
+                    'farmers',
+                    'farmers as active_farmers_count'   => fn ($q) => $q->where('activity_status', 'active'),
+                    'farmers as inactive_farmers_count' => fn ($q) => $q->where('activity_status', 'inactive'),
+                ])
                 ->find($request->query('selected'))
             : null;
 

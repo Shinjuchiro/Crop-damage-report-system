@@ -292,7 +292,7 @@
                         @foreach ($member->damageReports->sortByDesc('created_at') as $report)
                             <tr>
                                 <td class="whitespace-nowrap font-medium">
-                                    {{ $report->reference }}
+                                    {{ $report->full_reference }}
                                     <span class="block text-xs text-muted-foreground">
                                         {{ $report->created_at?->format('M d, Y') }}
                                     </span>
@@ -380,7 +380,7 @@
                                     AA-{{ str_pad((string) $given->assistance_allocation_id, 3, '0', STR_PAD_LEFT) }}
                                 </td>
                                 <td class="whitespace-nowrap text-muted-foreground">
-                                    {{ $given->damageReport?->reference ?? '-' }}
+                                    {{ $given->damageReport?->full_reference ?? '-' }}
                                 </td>
                                 <td class="whitespace-nowrap text-muted-foreground">
                                     {{ $given->distributed_at?->format('M d, Y') }}

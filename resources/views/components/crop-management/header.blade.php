@@ -55,6 +55,13 @@
 @php
     $tabs = \App\Support\CropManagement::tabs($role);
 
+    // Each tab's own "new to you" count; opening a record lowers it.
+    $assocId = $role === 'association'
+        ? \App\Models\AssociationOfficer::where('user_id', auth()->id())->value('association_id')
+        : null;
+    $tabCounts = auth()->user() ? \App\Support\Seen::counts(auth()->user(), $assocId) : [];
+    $countKey = ['planting' => 'planting', 'damage' => 'damage', 'validation' => 'validation'];
+
     /* Tailwind compiles the classes it can see in the source, so the column
        count cannot be interpolated from count($tabs) - that class would
        never be generated and the strip would fall back to one column. Both
@@ -62,7 +69,7 @@
     $columns = count($tabs) === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3';
 
     $blurb = $role === 'association'
-        ? 'Monitor what your members have planted and what they have reported damaged.'
+        ? 'Monitor what your members have planted, reported damaged, and had inspected.'
         : 'Monitor crop planting records, crop damage reports, and field validation in one place.';
 @endphp
 
@@ -115,6 +122,10 @@
                         <path d="{{ $item['icon'] }}"/>
                     </svg>
                     {{ $item['label'] }}
+                    @if (! empty($tabCounts[$key]))
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-none text-destructive-foreground"
+                              title="{{ $tabCounts[$key] }} new to you">{{ $tabCounts[$key] > 99 ? '99+' : $tabCounts[$key] }}</span>
+                    @endif
                 </a>
             @endforeach
         </nav>

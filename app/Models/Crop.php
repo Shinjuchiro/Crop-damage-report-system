@@ -46,8 +46,8 @@ class Crop extends Model
     {
         return $query
             ->orderByRaw("CASE crops.name
-                              WHEN 'Rice' THEN 1
-                              WHEN 'Corn' THEN 2
+                              WHEN 'Corn' THEN 1
+                              WHEN 'Rice' THEN 2
                               WHEN 'HVCC' THEN 3
                               ELSE 4
                           END")

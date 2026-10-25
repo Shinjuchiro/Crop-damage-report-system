@@ -209,6 +209,7 @@
                                     @php $lastFarmer = $farmer?->id; @endphp
                                     <x-record.group-head :farmer="$farmer"
                                                          :count="$perGroup[$farmer?->id] ?? 1"
+                                                         :total="$farmerTotals[$farmer?->id] ?? null"
                                                          noun="planting record"
                                                          :colspan="4"
                                                          :href="$farmer ? route('mao.farmers.show', $farmer) : null" />
@@ -345,6 +346,16 @@
                     @endif
                 </div>
 
+            @php
+                    $historyRows = $history->map(fn ($h) => [
+                        'label'   => 'Planting record, ' . $h->date_submitted?->format('M d, Y'),
+                        'meta'    => $h->crops->map(fn ($c) => $c->crop?->name)->filter()->implode(', '),
+                        'href'    => request()->fullUrlWithQuery(['selected' => $h->id]),
+                        'status'  => null,
+                        'current' => $h->id === $selected->id,
+                    ])->all();
+                @endphp
+                <x-record.farmer-history title="All planting records from this farmer" :items="$historyRows" />
             @endif
         </x-ui.detail-panel>
     </div>

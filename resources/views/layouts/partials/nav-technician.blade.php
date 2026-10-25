@@ -106,8 +106,8 @@
         </svg>
 
         <span class="min-w-0 flex-1 leading-tight">
-            <span class="block truncate">{{ $item['label'] }}</span>
-            <span class="block truncate text-xs opacity-70">{{ $item['filipino'] }}</span>
+            <span class="block leading-tight">{{ $item['label'] }}</span>
+            <span class="block text-xs leading-tight opacity-70">{{ $item['filipino'] }}</span>
         </span>
 
         @if (! empty($item['badge']))

@@ -60,7 +60,7 @@
         {{-- Reference and status --}}
         <div class="flex items-start justify-between gap-2">
             <span class="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold tracking-wide text-foreground">
-                {{ $report->reference }}
+                {{ $report->full_reference }}
             </span>
             <x-ui.status :value="$report->status" />
         </div>

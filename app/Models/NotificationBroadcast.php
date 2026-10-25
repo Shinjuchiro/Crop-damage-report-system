@@ -144,13 +144,17 @@ class NotificationBroadcast extends Model
                     'mao'         => route('mao.damage-reports.show', $this->link_id),
                     // No per-report page on the association side - the
                     // monitoring list is the closest thing it has.
-                    'association' => route('association.reports.index'),
+                    'association' => route('association.reports.index', ['selected' => $this->link_id]),
                     default       => null,
                 },
                 'membership_application' => match ($forRole) {
-                    // Only MAO reviews applications - nobody else has this page.
-                    'mao' => route('mao.membership-applications.show', $this->link_id),
-                    default => null,
+                    'mao'         => route('mao.membership-applications.show', $this->link_id),
+                    // The association's list opens the applicant's record
+                    // in its own detail panel (?selected=).
+                    'association' => route('association.membership-applications.index', ['selected' => $this->link_id]),
+                    // A farmer's application record lives in My Profile.
+                    'farmer'      => route('farmer.profile') . '#membership',
+                    default       => null,
                 },
                 'assistance_allocation' => match ($forRole) {
                     'mao'         => route('mao.assistance-allocations.show', $this->link_id),

@@ -46,7 +46,10 @@ class ValidationMonitorController extends Controller
             return $this->export($request);
         }
 
+        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
+
         $reports = DamageReportMonitorController::baseQuery($request)
+            ->when($limited, fn ($query) => \App\Support\LatestPerFarmer::damageReports($query, true))
             ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
             // Ordered by who was inspected last, not alphabetically. The
             // true flag keeps the subquery to reports that have actually
@@ -72,9 +75,16 @@ class ValidationMonitorController extends Controller
             ? DamageReport::query()->with(DamageReportMonitorController::detailRelations())->find($request->selected)
             : null;
 
+        \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'validation', $selected?->id);
+
         return view('mao.validations.index', [
             'view'               => $view,
             'reports'            => $reports,
+            'farmerTotals'       => $limited ? \App\Support\LatestPerFarmer::damageTotals(true) : collect(),
+            'history'            => $selected ? DamageReport::query()->notDeleted()->where('farmer_id', $selected->farmer_id)
+                ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
+                ->orderByDesc('created_at')->orderByDesc('id')
+                ->get(['id', 'farmer_id', 'farmer_report_no', 'status', 'created_at']) : collect(),
             'selected'           => $selected,
             'plantingComparison' => $selected ? $this->plantingComparison($selected) : collect(),
             'summary'            => $summary,
@@ -103,7 +113,7 @@ class ValidationMonitorController extends Controller
             $validation = $report->validation;
 
             return [
-                $report->reference,
+                $report->full_reference,
                 $report->farmer?->full_name ?? 'Unknown',
                 $report->farmer?->user?->phone_number ?: '-',
                 $report->farmer?->barangay?->name ?? '-',
@@ -207,6 +217,9 @@ class ValidationMonitorController extends Controller
 
         $technician = User::find($data['assigned_technician_id']);
 
+        // Assigning is acting on the report, so it no longer counts as new.
+        \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'damage_report', $damageReport->id);
+
         DB::transaction(function () use ($damageReport, $data, $technician) {
             $damageReport->update([
                 'assigned_technician_id' => $data['assigned_technician_id'],
@@ -220,7 +233,7 @@ class ValidationMonitorController extends Controller
 
             AuditLog::create([
                 'user_id'      => Auth::id(),
-                'action'       => 'Assigned damage report ' . $damageReport->reference
+                'action'       => 'Assigned damage report ' . $damageReport->full_reference
                     . ' to ' . ($technician->full_name ?: $technician->username),
                 'target_table' => 'damage_reports',
                 'target_id'    => $damageReport->id,
@@ -253,7 +266,7 @@ class ValidationMonitorController extends Controller
         try {
             $alert = NotificationBroadcast::create([
                 'title'       => 'New Assignment',
-                'message'     => 'You have been assigned to inspect damage report ' . $damageReport->reference . '.',
+                'message'     => 'You have been assigned to inspect damage report ' . $damageReport->full_reference . '.',
                 'category'    => 'system',
                 'priority'    => 'important',
                 'target_type' => 'specific_technician',

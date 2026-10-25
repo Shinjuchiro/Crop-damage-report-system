@@ -79,7 +79,7 @@ trait SyncsDisasterLinks
 
         AuditLog::create([
             'user_id'      => Auth::id(),
-            'action'       => 'Updated disaster events on ' . $report->reference . ': ' . $summary,
+            'action'       => 'Updated disaster events on ' . $report->full_reference . ': ' . $summary,
             'target_table' => 'damage_report_disasters',
             'target_id'    => $report->id,
             'created_at'   => now(),

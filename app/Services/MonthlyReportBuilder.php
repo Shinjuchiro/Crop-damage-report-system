@@ -66,8 +66,31 @@ use Illuminate\Support\Facades\DB;
  */
 class MonthlyReportBuilder
 {
-    public static function forPeriod(int $year, int $month, ?int $associationId = null): array
+    /** The report types a person can choose. 'all' is every one of them plus the farmer and farm summaries. */
+    public const TYPES = [
+        'planting'   => 'Crop Planting',
+        'damage'     => 'Crop Damage',
+        'validation' => 'Validation / Inspections',
+        'assistance' => 'Assistance',
+    ];
+
+    /**
+     * Which of the four types were chosen. Nothing chosen, or 'all' among
+     * them, means everything.
+     *
+     * @return array<int, string>
+     */
+    public static function normalizeTypes(?array $types): array
     {
+        $types = array_values(array_intersect(array_keys(self::TYPES), $types ?? []));
+
+        return $types === [] ? array_keys(self::TYPES) : $types;
+    }
+
+    public static function forPeriod(int $year, int $month, ?int $associationId = null, ?array $types = null): array
+    {
+        $everything = $types === null || $types === [] || in_array('all', $types, true);
+        $types      = $everything ? array_keys(self::TYPES) : self::normalizeTypes($types);
         // Section 22's inactivity rule: Active/Inactive Farmers below is a
         // point-in-time snapshot, so it has to be current as of the moment
         // the report is generated, not whenever a farmer last happened to
@@ -90,8 +113,36 @@ class MonthlyReportBuilder
             'assistance'   => self::assistanceSummary($start, $end, $associationId),
 
             // The records behind every figure above, named. See records().
-            'records'      => self::records($start, $end, $associationId),
+            'records'      => self::filterRecords(self::records($start, $end, $associationId), $types, $everything),
+
+            // What this report was asked to contain.
+            'types'        => $types,
+            'everything'   => $everything,
+            'type_label'   => $everything ? 'All' : collect($types)->map(fn ($t) => self::TYPES[$t])->join(', '),
+            'show'         => [
+                'farmer'       => $everything,
+                'farm'         => $everything,
+                'planting'     => in_array('planting', $types, true),
+                'damage'       => in_array('damage', $types, true),
+                'verification' => in_array('validation', $types, true),
+                'assistance'   => in_array('assistance', $types, true),
+            ],
         ];
+    }
+
+    /** Keep only the listings that belong to the chosen types. */
+    private static function filterRecords(array $records, array $types, bool $everything): array
+    {
+        $keep = [];
+        if ($everything) {
+            $keep[] = 'farmers';
+        }
+        in_array('planting', $types, true)   && $keep[] = 'planting';
+        in_array('damage', $types, true)     && $keep[] = 'damage';
+        in_array('validation', $types, true) && $keep[] = 'inspections';
+        in_array('assistance', $types, true) && array_push($keep, 'allocations', 'distributions');
+
+        return array_intersect_key($records, array_flip($keep));
     }
 
     /* ================= The records themselves =================
@@ -215,7 +266,7 @@ class MonthlyReportBuilder
                 $damageCost = (float) $report->crops->sum('total_damage_cost');
 
                 return [
-                    $report->reference,
+                    $report->full_reference,
                     $report->farmer?->full_name ?? 'Unknown',
                     $report->farmer?->user?->phone_number ?: '-',
                     $report->farmer?->barangay?->name ?? '-',
@@ -268,7 +319,7 @@ class MonthlyReportBuilder
                 $report = $validation->damageReport;
 
                 return [
-                    $report?->reference ?? '-',
+                    $report?->full_reference ?? '-',
                     $report?->farmer?->full_name ?? 'Unknown',
                     $report?->farmer?->barangay?->name ?? '-',
                     $validation->technician?->full_name ?: ($validation->technician?->username ?? '-'),
@@ -356,7 +407,7 @@ class MonthlyReportBuilder
                 $distribution->allocation
                     ? 'AA-' . str_pad((string) $distribution->assistance_allocation_id, 3, '0', STR_PAD_LEFT)
                     : '-',
-                $distribution->damageReport?->reference ?? '-',
+                $distribution->damageReport?->full_reference ?? '-',
                 $distribution->distributed_at?->format('d M Y') ?? '-',
                 $distribution->distributedBy?->full_name ?: ($distribution->distributedBy?->username ?? '-'),
                 ucwords(str_replace('_', ' ', (string) $distribution->distribution_status)),

@@ -28,6 +28,9 @@
                 @error('year') <p class="mt-1 text-xs text-destructive">{{ $message }}</p> @enderror
             </div>
 
+            <x-report.type-picker :selected="old('types', ['all'])" />
+            @error('types') <p class="mt-1 text-xs text-destructive">{{ $message }}</p> @enderror
+
             <x-ui.button type="submit" class="w-full">Generate Report</x-ui.button>
         </form>
     </x-ui.card>
@@ -68,5 +71,9 @@
             <div class="border-t border-border px-4 py-3">{{ $history->links() }}</div>
         @endif
     </x-ui.card>
+</div>
+
+<div class="mt-6">
+    <x-report.analytics :analytics="$analytics" :years="$years" />
 </div>
 @endsection

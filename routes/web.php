@@ -441,6 +441,8 @@ Route::middleware(['auth', 'active', 'role:association'])
             ->name('planting.index');
         Route::get('/damage-reports', [AssociationMonitoringController::class, 'damageReports'])
             ->name('reports.index');
+        Route::get('/validations', [AssociationMonitoringController::class, 'validations'])
+            ->name('validations.index');
 
         /* ---------- Assistance (read-only since Oct 2026) ----------
            Two GETs and nothing else. The association used to record each
@@ -477,6 +479,8 @@ Route::middleware(['auth', 'active', 'role:association'])
             ->name('announcements.restore');
 
         /* ---------- Notifications ---------- */
+        Route::get('/sms-history', [\App\Http\Controllers\Association\SmsHistoryController::class, 'index'])
+            ->name('sms-history.index');
         Route::get('/notifications', [AssociationNotificationController::class, 'index'])
             ->name('notifications.index');
         Route::put('/notifications/read-all', [AssociationNotificationController::class, 'markAllRead'])
@@ -613,6 +617,12 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('assistance-allocations.create');
         Route::post('/assistance-allocations', [AssistanceAllocationController::class, 'store'])
             ->name('assistance-allocations.store');
+        Route::post('/assistance-allocations/draft', [AssistanceAllocationController::class, 'saveDraft'])
+            ->name('assistance-allocations.draft.save');
+        Route::delete('/assistance-allocations/draft/{draft}', [AssistanceAllocationController::class, 'destroyDraft'])
+            ->name('assistance-allocations.draft.destroy');
+        Route::put('/assistance-allocations/{allocation}/schedule', [AssistanceAllocationController::class, 'schedule'])
+            ->name('assistance-allocations.schedule');
 
         // Every literal-segment route below must stay ahead of the
         // {allocation} wildcard, or Laravel's implicit route-model binding

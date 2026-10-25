@@ -152,8 +152,17 @@ class MonitoringController extends Controller
             return $this->exportPlanting($request, $association);
         }
 
+        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
+
         $records = $this->ordered(
-                $this->filteredPlanting($request, $association),
+                $this->filteredPlanting($request, $association)
+                    ->when($limited, fn ($q) => $q->whereRaw(
+                        '(SELECT COUNT(*) FROM crop_planting_records p2 WHERE p2.farmer_id = crop_planting_records.farmer_id
+                            AND p2.deleted_at IS NULL AND p2.archived_at IS NULL
+                            AND (p2.date_submitted > crop_planting_records.date_submitted
+                                 OR (p2.date_submitted = crop_planting_records.date_submitted AND p2.id > crop_planting_records.id))) < ?',
+                        [\App\Support\LatestPerFarmer::LIMIT]
+                    )),
                 $view,
                 'date_submitted',
                 'crop_planting_records'
@@ -184,12 +193,16 @@ class MonitoringController extends Controller
                 ->sum('c.area_hectares'),
         ];
 
+        $selected = $this->selectedPlanting($request, $association);
+        \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'planting', $selected?->id);
+
         return view('association.planting.index', [
             'association' => $association,
             'records'     => $records,
             'view'        => $view,
             'summary'     => $summary,
-            'selected'    => $this->selectedPlanting($request, $association),
+            'selected'    => $selected,
+            'farmerTotals' => $limited ? DB::table('crop_planting_records')->whereNull('deleted_at')->whereNull('archived_at')->select('farmer_id', DB::raw('COUNT(*) as total'))->groupBy('farmer_id')->pluck('total', 'farmer_id') : collect(),
             'filters'     => $request->only(['q', 'month', 'year']),
         ]);
     }
@@ -301,8 +314,11 @@ class MonitoringController extends Controller
             return $this->exportDamage($request, $association);
         }
 
+        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
+
         $reports = $this->ordered(
-                $this->filteredDamage($request, $association),
+                $this->filteredDamage($request, $association)
+                    ->when($limited, fn ($q) => \App\Support\LatestPerFarmer::damageReports($q)),
                 $view,
                 'created_at',
                 'damage_reports'
@@ -325,15 +341,70 @@ class MonitoringController extends Controller
             'members'    => $all()->distinct('farmer_id')->count('farmer_id'),
         ];
 
+        $selected = $this->selectedReport($request, $association);
+        \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'damage_report', $selected?->id);
+
         return view('association.reports.index', [
             'association' => $association,
             'reports'     => $reports,
             'view'        => $view,
             'summary'     => $summary,
-            'selected'    => $this->selectedReport($request, $association),
+            'selected'    => $selected,
+            'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::damageTotals() : collect(),
             'filters'     => $request->only(['status', 'cause', 'q']),
             'causes'      => DamageReport::CAUSES,
             'statuses'    => DamageReport::STATUSES,
+        ]);
+    }
+
+    /**
+     * Validation Monitoring, the association's side: its own members'
+     * completed inspections only. Same list as the office's, read only.
+     */
+    public function validations(Request $request)
+    {
+        $association = $this->association();
+        $view        = $this->view($request);
+
+        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
+
+        $reports = $this->ordered(
+                $this->filteredDamage($request, $association)
+                    ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
+                    ->when($limited, fn ($q) => \App\Support\LatestPerFarmer::damageReports($q, true)),
+                $view,
+                'created_at',
+                'damage_reports'
+            )
+            ->paginate(15)
+            ->withQueryString();
+
+        $done = fn () => DamageReport::active()
+            ->whereIn('farmer_id', $this->memberIds($association))
+            ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'));
+
+        $summary = [
+            'completed' => $done()->count(),
+            'approved'  => $done()->where('status', 'approved')->count(),
+            'members'   => $done()->distinct('farmer_id')->count('farmer_id'),
+        ];
+
+        $selected = $this->selectedReport($request, $association);
+        if ($selected && $selected->validation?->validated_at) {
+            \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'validation', $selected->id);
+        }
+
+        return view('association.validations.index', [
+            'association'  => $association,
+            'reports'      => $reports,
+            'view'         => $view,
+            'summary'      => $summary,
+            'selected'     => $selected,
+            'farmerTotals' => $limited
+                ? \App\Support\LatestPerFarmer::damageTotals(true)
+                : collect(),
+            'filters'      => $request->only(['status', 'q']),
+            'statuses'     => DamageReport::STATUSES,
         ]);
     }
 
@@ -383,7 +454,7 @@ class MonitoringController extends Controller
                 $validation = $report->validation;
 
                 return [
-                    $report->reference,
+                    $report->full_reference,
                     $report->farmer?->full_name ?? 'Unknown',
                     $report->farmer?->barangay?->name ?? '-',
                     $report->crops

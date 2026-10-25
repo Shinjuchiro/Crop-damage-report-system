@@ -50,6 +50,7 @@
         Generated {{ $data['generated_at']->format('F j, Y g:i A') }}.
     </p>
 
+    @if ($data['show']['farmer'] ?? true)
     <h2>Farmer Summary</h2>
     <table>
         <tr><th>Metric</th><th class="num">Value</th></tr>
@@ -64,7 +65,8 @@
         <tr><td>Tenants</td><td class="num">{{ $data['farmer']['tenants'] }}</td></tr>
         <tr><td>Affected Farmers</td><td class="num">{{ $data['farmer']['affected_farmers'] }}</td></tr>
     </table>
-
+@endif
+    @if ($data['show']['farm'] ?? true)
     <h2>Farm Summary</h2>
     <table>
         <tr><th>Metric</th><th class="num">Value</th></tr>
@@ -89,7 +91,8 @@
             <tr><td colspan="2">No data</td></tr>
         @endforelse
     </table>
-
+@endif
+    @if ($data['show']['planting'] ?? true)
     <h2>Planting Summary</h2>
     <table>
         <tr><th>Metric</th><th class="num">Value</th></tr>
@@ -105,7 +108,8 @@
             <tr><td colspan="3">No planting activity this period</td></tr>
         @endforelse
     </table>
-
+@endif
+    @if ($data['show']['damage'] ?? true)
     <h2>Damage Summary</h2>
     <table>
         <tr><th>Metric</th><th class="num">Value</th></tr>
@@ -161,7 +165,8 @@
             <tr><td>{{ $row['label'] }}</td><td class="num">{{ $row['total'] }}</td></tr>
         @endforeach
     </table>
-
+@endif
+    @if ($data['show']['verification'] ?? true)
     <h2>Verification Summary</h2>
     <table>
         <tr><th>Metric</th><th class="num">Value</th></tr>
@@ -178,7 +183,8 @@
             <tr><td colspan="2">No inspections completed this period</td></tr>
         @endforelse
     </table>
-
+@endif
+    @if ($data['show']['assistance'] ?? true)
     <h2>Assistance Summary</h2>
     <table>
         <tr><th>Metric</th><th class="num">Value</th></tr>
@@ -212,7 +218,8 @@
          every page by itself, which is what keeps a long listing readable
          after the first page.
     ============================================================= --}}
-    @foreach ($data['records'] ?? [] as $listing)
+@endif
+        @foreach ($data['records'] ?? [] as $listing)
         <div class="records">
             <h2>{{ $listing['title'] }}</h2>
 

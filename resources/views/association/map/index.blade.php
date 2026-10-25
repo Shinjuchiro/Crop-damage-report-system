@@ -61,12 +61,14 @@
         <div class="flex flex-col gap-3 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-base font-semibold uppercase tracking-wide text-foreground">Members' Reports on the Map</h2>
-                <p class="text-xs text-muted-foreground">Tap a pin for the farmer, crop and status, then open the full report list.</p>
+                <p class="text-xs text-muted-foreground">Limited to the barangays your association governs. Tap a pin for the farmer, crop and status.</p>
             </div>
         </div>
 
         <div id="associationMap" class="h-[30rem] w-full"
              data-verified-pins="{{ $verifiedPins->toJson() }}"
+             data-geojson="{{ asset('geo/tanza-barangays.json') }}"
+             data-governed="{{ $governed->toJson() }}"
              data-center-lat="{{ $center['lat'] }}"
              data-center-lng="{{ $center['lng'] }}"
              data-zoom="{{ $center['zoom'] }}"></div>
@@ -95,6 +97,7 @@
 
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="{{ asset('js/tanza-mask.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const el = document.getElementById('associationMap');
@@ -102,7 +105,7 @@
 
             const verifiedPinsData = JSON.parse(el.dataset.verifiedPins);
 
-            const map = L.map(el).setView(
+            const map = L.map(el, { maxBoundsViscosity: 1.0 }).setView(
                 [parseFloat(el.dataset.centerLat), parseFloat(el.dataset.centerLng)],
                 parseInt(el.dataset.zoom)
             );
@@ -111,6 +114,31 @@
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap contributors',
             }).addTo(map);
+            // Only the barangays this association governs are visible (everything
+            // else, including the rest of Tanza, is covered); the map cannot be
+            // dragged away from them.
+            const governedPsgc = JSON.parse(el.dataset.governed).map(b => b.psgc).filter(Boolean);
+            maskOutsideTanza(map, '{{ asset('geo/tanza-outline.json') }}', {
+                barangaysUrl: el.dataset.geojson,
+                only: governedPsgc,
+            }).then(b => { if (b) map.setMaxBounds(b.pad(0.2)); });
+
+
+            /* Only the barangays this association governs are drawn, and the
+               map cannot be dragged away from them. */
+            const governed = JSON.parse(el.dataset.governed);
+            const psgcs    = governed.map(b => b.psgc).filter(Boolean);
+            fetch(el.dataset.geojson).then(r => r.json()).then(function (geojson) {
+                const own = L.geoJSON(geojson, {
+                    filter: f => psgcs.includes(f.properties.psgc),
+                    style: { color: '#15803d', weight: 2, fillColor: '#dcfce7', fillOpacity: 0.4 },
+                    onEachFeature: (f, layer) => layer.bindTooltip(f.properties.name, { sticky: true }),
+                }).addTo(map);
+                own.bringToBack();
+                if (own.getLayers().length) {
+                    map.fitBounds(own.getBounds(), { padding: [20, 20] });
+                }
+            }).catch(function () {});
 
             const verifiedLayer = L.layerGroup().addTo(map);
             const bounds        = [];
