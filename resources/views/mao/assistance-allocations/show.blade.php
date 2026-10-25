@@ -22,15 +22,6 @@
 
 @section('header-actions')
     <div class="flex flex-wrap items-center gap-3">
-        {{-- The office hands assistance over itself now; this is the way in
-             to that form (Oct 2026). Hidden once the allocation is closed,
-             and the controller refuses it there too. --}}
-        @unless (in_array($allocation->status, ['completed', 'cancelled'], true))
-            <x-ui.button :href="route('mao.assistance-allocations.distribute', $allocation)">
-                Record a hand-over
-            </x-ui.button>
-        @endunless
-
         <a href="{{ route('mao.assistance-allocations.index') }}"
            class="inline-block rounded-lg border border-input bg-card px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted/60">
             Back to Allocations

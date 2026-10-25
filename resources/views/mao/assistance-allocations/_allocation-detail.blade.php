@@ -146,7 +146,7 @@
                 </p>
             </div>
         @empty
-            <p class="text-xs text-muted-foreground">Nothing handed over yet. Use "Record a hand-over" on the allocation's own page.</p>
+            <p class="text-xs text-muted-foreground">Nothing handed over yet.</p>
         @endforelse
     </div>
 

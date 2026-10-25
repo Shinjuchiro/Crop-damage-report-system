@@ -113,7 +113,9 @@ class ReportController extends Controller
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml(view('mao.reports.pdf', ['data' => $data])->render());
-        $dompdf->setPaper('a4', 'portrait');
+        // Landscape: the record listings are wide tables (a damage report row
+        // has seventeen columns) and were unreadable in portrait.
+        $dompdf->setPaper('a4', 'landscape');
         $dompdf->render();
 
         $filename = 'monthly-report-' . $year . '-' . str_pad((string) $month, 2, '0', STR_PAD_LEFT) . '.pdf';

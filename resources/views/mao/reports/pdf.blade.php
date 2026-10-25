@@ -6,6 +6,11 @@
 <style>
     /* Dompdf's CSS support is limited, so this is plain and print-oriented
        rather than the app's usual Tailwind styling. */
+    /* Landscape A4 (set in ReportController::downloadPdf). A damage report
+       row has seventeen columns, and in portrait every one of them wrapped
+       to a few letters per line. Narrow side margins give the listings the
+       width back. */
+    @page { margin: 12mm 10mm; }
     body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #1c1c1c; }
     h1 { font-size: 18px; margin: 0 0 2px; color: #14532d; }
     h2 { font-size: 13px; margin: 18px 0 6px; border-bottom: 2px solid #14532d; padding-bottom: 3px; color: #14532d; }
@@ -23,7 +28,7 @@
     .records .count { margin: 0 0 6pt; font-size: 8pt; color: #6b7280; }
     .records .empty { margin: 0 0 10pt; font-size: 9pt; color: #6b7280; font-style: italic; }
 
-    table.list { font-size: 7pt; table-layout: fixed; width: 100%; }
+    table.list { font-size: 7.5pt; table-layout: fixed; width: 100%; }
     table.list th, table.list td { padding: 3pt 4pt; word-wrap: break-word; }
     table.list tbody tr:nth-child(even) td { background: #f5f7f6; }
 </style>
@@ -229,11 +234,30 @@
                 <p class="count">{{ number_format(count($listing['rows'])) }}
                     {{ \Illuminate\Support\Str::plural('record', count($listing['rows'])) }}</p>
 
+                {{-- Column widths follow the content: a column of dates or
+                     counts stays narrow, a column of names and associations
+                     gets room, and no heading is narrower than its longest
+                     word (so "Technician" is never cut mid-word). Equal
+                     widths were what made seventeen columns unreadable. --}}
+                @php
+                    $weights = [];
+                    foreach ($listing['headings'] as $i => $heading) {
+                        $longestCell = 0;
+                        foreach ($listing['rows'] as $row) {
+                            $cell = array_values((array) $row)[$i] ?? '';
+                            $longestCell = max($longestCell, mb_strlen((string) $cell));
+                        }
+                        $longestWord = max(array_map('mb_strlen', preg_split('/\s+/', trim((string) $heading)) ?: ['']));
+                        $weights[$i] = max($longestWord + 1, min($longestCell, 26), 5);
+                    }
+                    $weightTotal = array_sum($weights) ?: 1;
+                @endphp
+
                 <table class="list">
                     <thead>
                         <tr>
-                            @foreach ($listing['headings'] as $heading)
-                                <th>{{ $heading }}</th>
+                            @foreach ($listing['headings'] as $i => $heading)
+                                <th style="width: {{ round($weights[$i] / $weightTotal * 100, 2) }}%">{{ $heading }}</th>
                             @endforeach
                         </tr>
                     </thead>
