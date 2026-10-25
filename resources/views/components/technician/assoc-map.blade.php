@@ -13,15 +13,19 @@
 {{-- Optional, used by the full Map page only (the dashboard preview passes none):
         shading   'count' or 'severity' - which colour the circles take
         pins      technician-verified pins to draw on top (switched by the Verified pins checkbox)
+        zoomIn    how many zoom levels closer than "whole of Tanza just fits" to open at (default 0.5).
+                  Fitting the whole municipality into a wide, short box left it small, so it opens
+                  closer, centred on Tanza, and can be dragged to the edges.
         layers    true on the Map page: registers window.toggleMapLayer for the pins and heatmap checkboxes --}}
-@props(['bubbles', 'height' => 'h-72', 'id' => 'techAssocMap', 'shading' => 'count', 'pins' => [], 'layers' => false])
+@props(['bubbles', 'height' => 'h-72', 'id' => 'techAssocMap', 'shading' => 'count', 'pins' => [], 'layers' => false, 'zoomIn' => 0.5])
 
 <div id="{{ $id }}" class="{{ $height }} w-full"
      data-geojson="{{ asset('geo/tanza-barangays.json') }}"
      data-bubbles="{{ $bubbles->toJson() }}"
      data-shading="{{ $shading }}"
      data-pins="{{ json_encode($pins) }}"
-     data-layers="{{ $layers ? '1' : '0' }}"></div>
+     data-layers="{{ $layers ? '1' : '0' }}"
+     data-zoom-in="{{ $zoomIn }}"></div>
 
 @once
     @push('head')
@@ -103,7 +107,9 @@
                             style: { color: '#94a3b8', weight: 1, fillColor: '#dcfce7', fillOpacity: 0.4 },
                         }).addTo(map);
                         outline.bringToBack();
-                        map.fitBounds(outline.getBounds(), { padding: [12, 12] });
+                        const tanza = outline.getBounds();
+                        map.fitBounds(tanza, { padding: [12, 12] });
+                        map.setView(tanza.getCenter(), map.getZoom() + parseFloat(el.dataset.zoomIn || '0.5'), { animate: false });
                         map.setMaxBounds(outline.getBounds().pad(0.15));
 
                         const centres = {};

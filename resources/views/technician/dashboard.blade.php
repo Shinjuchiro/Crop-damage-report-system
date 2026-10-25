@@ -173,212 +173,219 @@
     </div>
 
     {{-- =================================================================
-         ASSIGNED INSPECTIONS
-         Six rows only. The full list with pagination lives on the
-         Assigned Reports page, which is what "View All" goes to.
+         MAPS AND VISUALIZATION
+         Full width, straight under the tiles, as in the approved mockup.
+         The same circles as the full map page, drawn larger here.
     ================================================================== --}}
-    <x-ui.card title="Assigned Inspections" :padded="false"
-               description="Damage reports the office has handed to you.">
-
-        <x-slot:actions>
-            <form method="GET" action="{{ route('technician.dashboard') }}">
-                <input type="hidden" name="period" value="{{ $period }}">
-                @if ($barangay) <input type="hidden" name="barangay" value="{{ $barangay }}"> @endif
-
-                <select name="status" onchange="this.form.submit()"
-                        class="h-8 rounded-md border border-input bg-card px-2 text-xs font-medium shadow-sm">
-                    <option value="" @selected(! $filter)>ALL</option>
-                    <option value="to_inspect" @selected($filter === 'to_inspect')>To Inspect</option>
-                    <option value="in_progress" @selected($filter === 'in_progress')>In Progress</option>
-                    <option value="done" @selected($filter === 'done')>Completed</option>
-                </select>
-            </form>
-        </x-slot:actions>
-
-        @if ($reports->isEmpty())
-            <x-ui.empty title="Nothing assigned to you yet"
-                        message="The Municipal Agriculture Office assigns damage reports to technicians. When one is assigned to you it appears here, and you inspect it from this page.">
-                <span class="text-xs text-muted-foreground">Wala pang nakatalagang ulat sa inyo.</span>
-            </x-ui.empty>
-        @else
-            {{-- ---------- PHONE: one card per report ----------
-
-                 This is a technician's landing page, and the spec makes
-                 technician screens mobile first, but an eight column table
-                 puts the Action button around 670px in, so the one control
-                 that matters could only be reached by scrolling the card
-                 sideways.
-
-                 The card itself lives in technician/partials/report-card,
-                 shared with technician/reports/index.blade.php so the two
-                 lists cannot drift apart again.
-            --}}
-            <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
-                @foreach ($reports as $report)
-                    <li>@include('technician.partials.report-card', ['report' => $report])</li>
-                @endforeach
-            </ul>
-
-            {{-- ---------- TABLET AND UP: the table ---------- --}}
-            <div class="hidden lg:block">
-            <x-ui.table>
-                <x-slot:head>
-                    <tr>
-                        <th>Report Id</th>
-                        <th>Farmer</th>
-                        <th>Barangay</th>
-                        <th>Submitted</th>
-                        <th>Status</th>
-                        <th class="text-right">Action</th>
-                    </tr>
-                </x-slot:head>
-
-                @foreach ($reports as $report)
-                    @php
-                        /* The Severity column shows YOUR assessed figure once the
-                           inspection is in, and the farmer's estimate before that.
-                           They are labelled differently so nobody mistakes one for
-                           the other (proposal section 45). */
-                        $assessed = $report->validation?->assessed_damage_percent;
-                        $estimate = $report->crops->avg('estimated_damage_percent');
-                        $shown    = $assessed ?? $estimate;
-
-                        /* The little pin in the first column, coloured by that
-                           percentage. The bands come from the severity scale
-                           itself, so the colour means the same thing here as
-                           on the map. It used to be a match() with the four
-                           old boundaries written into it, which is precisely
-                           the copy that would have been left behind when the
-                           client cut the scale to three levels. */
-                        $pin = \App\Models\Validation::colorForPercent($shown);
-                    @endphp
-
-                    <tr>
-                        <td class="whitespace-nowrap font-medium">
-                            <span class="flex items-center gap-2">
-                                <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"
-                                     stroke="{{ $pin }}" stroke-width="2.2" stroke-linecap="round"
-                                     stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M12 21s7-5.7 7-11a7 7 0 10-14 0c0 5.3 7 11 7 11z"/>
-                                    <circle cx="12" cy="10" r="2.5"/>
-                                </svg>
-                                {{ $report->full_reference }}
-                            </span>
-                            @if ($report->photos_count)
-                                <span class="ml-6 block text-xs text-muted-foreground">
-                                    {{ $report->photos_count }} farmer photo{{ $report->photos_count === 1 ? '' : 's' }}
-                                </span>
-                            @endif
-                        </td>
-
-                        <td>
-                            <span class="font-medium">{{ $report->farmer?->full_name ?? 'Unknown' }}</span>
-                            <span class="block text-xs text-muted-foreground">
-                                {{ $report->farmer?->association?->name ?? 'No association' }}
-                            </span>
-                        </td>
-
-                        <td class="text-muted-foreground">
-                            {{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? '-' }}
-                        </td>
-
-                        <td class="whitespace-nowrap text-muted-foreground">
-                            {{ $report->created_at?->format('M d, Y') }}
-                        </td>
-
-                        <td><x-ui.status :value="$report->status" /></td>
-
-                        <td class="whitespace-nowrap text-right">
-                            {{-- One button per row, and it says what happens next
-                                 rather than a generic "View". --}}
-                            @if ($report->status === 'assigned')
-                                <x-ui.button size="sm" variant="view" :href="route('technician.reports.show', $report)">
-                                    View Details
-                                </x-ui.button>
-                            @elseif ($report->status === 'under_verification')
-                                <x-ui.button size="sm" :href="route('technician.inspection.edit', $report)">
-                                    Continue
-                                </x-ui.button>
-                            @else
-                                <x-ui.button size="sm" variant="outline"
-                                             :href="route('technician.reports.show', $report)">
-                                    View
-                                </x-ui.button>
-                            @endif
-                        </td>
-                    </tr>
-                @endforeach
-            </x-ui.table>
-            </div>{{-- /hidden lg:block --}}
-
-            <x-slot:footer>
-                <div class="flex justify-end">
-                    <a href="{{ route('technician.reports.index') }}"
-                       class="text-sm font-medium text-primary hover:underline">View All</a>
-                </div>
-            </x-slot:footer>
-        @endif
+    <x-ui.card title="Maps and Visualization" description="Your assignments by association">
+        <x-technician.assoc-map :bubbles="$mapBubbles" height="h-80 sm:h-96" id="techDashMap" :zoom-in="0.75" />
+        <x-slot:footer>
+            <div class="flex justify-end">
+                <a href="{{ route('technician.map.index') }}" class="text-sm font-medium text-primary hover:underline">View all</a>
+            </div>
+        </x-slot:footer>
     </x-ui.card>
 
     {{-- =================================================================
-         BOTTOM ROW: validation summary donut and map overview
+         BOTTOM ROW: assigned inspections (wide) and validation summary
     ================================================================== --}}
-    <div class="grid gap-4 lg:grid-cols-2">
+    <div class="grid gap-4 xl:grid-cols-3">
 
+        <div class="min-w-0 xl:col-span-2">
+        {{-- =================================================================
+             ASSIGNED INSPECTIONS
+             Six rows only. The full list with pagination lives on the
+             Assigned Reports page, which is what "View All" goes to.
+        ================================================================== --}}
+        <x-ui.card title="Assigned Inspections" :padded="false"
+                   description="Damage reports the office has handed to you.">
 
-        {{-- Validation summary. Two slices only, so the chart makes one
-             point instead of five. --}}
-        <x-ui.card title="Validation Summary" :description="$periods[$period]">
-            @if ($donut['total'] === 0)
-                <p class="py-10 text-center text-sm text-muted-foreground">
-                    No assigned reports in this period yet.
-                </p>
+            <x-slot:actions>
+                <form method="GET" action="{{ route('technician.dashboard') }}">
+                    <input type="hidden" name="period" value="{{ $period }}">
+                    @if ($barangay) <input type="hidden" name="barangay" value="{{ $barangay }}"> @endif
+
+                    <select name="status" onchange="this.form.submit()"
+                            class="h-8 rounded-md border border-input bg-card px-2 text-xs font-medium shadow-sm">
+                        <option value="" @selected(! $filter)>ALL</option>
+                        <option value="to_inspect" @selected($filter === 'to_inspect')>To Inspect</option>
+                        <option value="in_progress" @selected($filter === 'in_progress')>In Progress</option>
+                        <option value="done" @selected($filter === 'done')>Completed</option>
+                    </select>
+                </form>
+            </x-slot:actions>
+
+            @if ($reports->isEmpty())
+                <x-ui.empty title="Nothing assigned to you yet"
+                            message="The Municipal Agriculture Office assigns damage reports to technicians. When one is assigned to you it appears here, and you inspect it from this page.">
+                    <span class="text-xs text-muted-foreground">Wala pang nakatalagang ulat sa inyo.</span>
+                </x-ui.empty>
             @else
-                <div class="relative mx-auto h-52 w-52">
-                    <canvas id="validationDonut"
-                            data-validated="{{ $donut['validated'] }}"
-                            data-pending="{{ $donut['pending'] }}"
-                            aria-label="Validated versus pending reports"></canvas>
+                {{-- ---------- PHONE: one card per report ----------
 
-                    {{-- The total sits in the hole in the middle, as in the
-                         mockup. pointer-events-none so it does not block the
-                         chart's own hover tooltips. --}}
-                    <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                        <span class="text-3xl font-bold leading-none">{{ $donut['total'] }}</span>
-                        <span class="mt-1 text-xs text-muted-foreground">Total Reports</span>
-                    </div>
-                </div>
+                     This is a technician's landing page, and the spec makes
+                     technician screens mobile first, but an eight column table
+                     puts the Action button around 670px in, so the one control
+                     that matters could only be reached by scrolling the card
+                     sideways.
 
-                {{-- A written legend as well as colour, so the chart still
-                     works for anyone who cannot separate the two greens. --}}
-                <ul class="mt-4 space-y-2 text-sm">
-                    <li class="flex items-center justify-between gap-3">
-                        <span class="flex items-center gap-2">
-                            <span class="h-3 w-3 rounded-full" style="background:#166534"></span>
-                            Validated
-                        </span>
-                        <span class="font-semibold">{{ $donut['validated'] }}</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3">
-                        <span class="flex items-center gap-2">
-                            <span class="h-3 w-3 rounded-full" style="background:#eab308"></span>
-                            Pending
-                        </span>
-                        <span class="font-semibold">{{ $donut['pending'] }}</span>
-                    </li>
+                     The card itself lives in technician/partials/report-card,
+                     shared with technician/reports/index.blade.php so the two
+                     lists cannot drift apart again.
+                --}}
+                <ul class="space-y-3 p-4 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:hidden">
+                    @foreach ($reports as $report)
+                        <li>@include('technician.partials.report-card', ['report' => $report])</li>
+                    @endforeach
                 </ul>
+
+                {{-- ---------- TABLET AND UP: the table ---------- --}}
+                <div class="hidden lg:block">
+                <x-ui.table>
+                    <x-slot:head>
+                        <tr>
+                            <th>Report Id</th>
+                            <th>Farmer</th>
+                            <th>Barangay</th>
+                            <th>Submitted</th>
+                            <th>Status</th>
+                            <th class="text-right">Action</th>
+                        </tr>
+                    </x-slot:head>
+
+                    @foreach ($reports as $report)
+                        @php
+                            /* The Severity column shows YOUR assessed figure once the
+                               inspection is in, and the farmer's estimate before that.
+                               They are labelled differently so nobody mistakes one for
+                               the other (proposal section 45). */
+                            $assessed = $report->validation?->assessed_damage_percent;
+                            $estimate = $report->crops->avg('estimated_damage_percent');
+                            $shown    = $assessed ?? $estimate;
+
+                            /* The little pin in the first column, coloured by that
+                               percentage. The bands come from the severity scale
+                               itself, so the colour means the same thing here as
+                               on the map. It used to be a match() with the four
+                               old boundaries written into it, which is precisely
+                               the copy that would have been left behind when the
+                               client cut the scale to three levels. */
+                            $pin = \App\Models\Validation::colorForPercent($shown);
+                        @endphp
+
+                        <tr>
+                            <td class="whitespace-nowrap font-medium">
+                                <span class="flex items-center gap-2">
+                                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"
+                                         stroke="{{ $pin }}" stroke-width="2.2" stroke-linecap="round"
+                                         stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M12 21s7-5.7 7-11a7 7 0 10-14 0c0 5.3 7 11 7 11z"/>
+                                        <circle cx="12" cy="10" r="2.5"/>
+                                    </svg>
+                                    {{ $report->full_reference }}
+                                </span>
+                                @if ($report->photos_count)
+                                    <span class="ml-6 block text-xs text-muted-foreground">
+                                        {{ $report->photos_count }} farmer photo{{ $report->photos_count === 1 ? '' : 's' }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <td>
+                                <span class="font-medium">{{ $report->farmer?->full_name ?? 'Unknown' }}</span>
+                                <span class="block text-xs text-muted-foreground">
+                                    {{ $report->farmer?->association?->name ?? 'No association' }}
+                                </span>
+                            </td>
+
+                            <td class="text-muted-foreground">
+                                {{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? '-' }}
+                            </td>
+
+                            <td class="whitespace-nowrap text-muted-foreground">
+                                {{ $report->created_at?->format('M d, Y') }}
+                            </td>
+
+                            <td><x-ui.status :value="$report->status" /></td>
+
+                            <td class="whitespace-nowrap text-right">
+                                {{-- One button per row, and it says what happens next
+                                     rather than a generic "View". --}}
+                                @if ($report->status === 'assigned')
+                                    <x-ui.button size="sm" variant="view" :href="route('technician.reports.show', $report)">
+                                        View Details
+                                    </x-ui.button>
+                                @elseif ($report->status === 'under_verification')
+                                    <x-ui.button size="sm" :href="route('technician.inspection.edit', $report)">
+                                        Continue
+                                    </x-ui.button>
+                                @else
+                                    <x-ui.button size="sm" variant="outline"
+                                                 :href="route('technician.reports.show', $report)">
+                                        View
+                                    </x-ui.button>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-ui.table>
+                </div>{{-- /hidden lg:block --}}
+
+                <x-slot:footer>
+                    <div class="flex justify-end">
+                        <a href="{{ route('technician.reports.index') }}"
+                           class="text-sm font-medium text-primary hover:underline">View All</a>
+                    </div>
+                </x-slot:footer>
             @endif
         </x-ui.card>
+        </div>
 
-        {{-- Maps and Visualization overview: the same circles as the full map, small. --}}
-        <x-ui.card title="Maps and Visualization" description="Your assignments by association">
-            <x-technician.assoc-map :bubbles="$mapBubbles" height="h-64" id="techDashMap" />
-            <x-slot:footer>
-                <div class="flex justify-end">
-                    <a href="{{ route('technician.map.index') }}" class="text-sm font-medium text-primary hover:underline">View all</a>
-                </div>
-            </x-slot:footer>
-        </x-ui.card>
+        <div class="min-w-0">
+            {{-- Validation summary. Two slices only, so the chart makes one
+                 point instead of five. --}}
+            <x-ui.card title="Validation Summary" :description="$periods[$period]">
+                @if ($donut['total'] === 0)
+                    <p class="py-10 text-center text-sm text-muted-foreground">
+                        No assigned reports in this period yet.
+                    </p>
+                @else
+                    <div class="relative mx-auto h-52 w-52">
+                        <canvas id="validationDonut"
+                                data-validated="{{ $donut['validated'] }}"
+                                data-pending="{{ $donut['pending'] }}"
+                                aria-label="Validated versus pending reports"></canvas>
+
+                        {{-- The total sits in the hole in the middle, as in the
+                             mockup. pointer-events-none so it does not block the
+                             chart's own hover tooltips. --}}
+                        <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="text-3xl font-bold leading-none">{{ $donut['total'] }}</span>
+                            <span class="mt-1 text-xs text-muted-foreground">Total Reports</span>
+                        </div>
+                    </div>
+
+                    {{-- A written legend as well as colour, so the chart still
+                         works for anyone who cannot separate the two greens. --}}
+                    <ul class="mt-4 space-y-2 text-sm">
+                        <li class="flex items-center justify-between gap-3">
+                            <span class="flex items-center gap-2">
+                                <span class="h-3 w-3 rounded-full" style="background:#166534"></span>
+                                Validated
+                            </span>
+                            <span class="font-semibold">{{ $donut['validated'] }}</span>
+                        </li>
+                        <li class="flex items-center justify-between gap-3">
+                            <span class="flex items-center gap-2">
+                                <span class="h-3 w-3 rounded-full" style="background:#eab308"></span>
+                                Pending
+                            </span>
+                            <span class="font-semibold">{{ $donut['pending'] }}</span>
+                        </li>
+                    </ul>
+                @endif
+            </x-ui.card>
+        </div>
 
     </div>
 </div>

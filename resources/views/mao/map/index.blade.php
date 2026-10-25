@@ -547,6 +547,12 @@
                     map.setMinZoom(fitZoom);
                     map.setMaxZoom(17);
 
+                    /* Open half a level closer than "all of Tanza just fits".
+                       Fitted exactly, the municipality sat small in a wide,
+                       short box. The fit zoom stays as the floor above, so
+                       zooming out still returns to the whole municipality. */
+                    map.setView(extent.getCenter(), fitZoom + 0.5, { animate: false });
+
                     /* ---------- Every barangay, by its PSGC code ---------- */
                     const features = {};
                     const centres  = {};

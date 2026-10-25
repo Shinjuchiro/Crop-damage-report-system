@@ -2,7 +2,7 @@
 
 @section('title', 'Monthly Reports')
 @section('heading', 'Monthly Reports')
-@section('subheading', 'Generate a downloadable report for one month, choosing which kinds of records it covers, and see the year's analytics below.')
+@section('subheading', 'Generate a downloadable report for one month, choosing which kinds of records it covers, and see the analytics for the year below.')
 
 @section('content')
 <div class="grid gap-6 lg:grid-cols-3">

@@ -2,7 +2,7 @@
 
 @section('title', 'SMS History')
 @section('heading', 'SMS History')
-@section('subheading', 'Every text sent for your association's Urgent and Critical announcements.')
+@section('subheading', 'Every text sent for your association\'s Urgent and Critical announcements.')
 
 @section('header-actions')
     <x-ui.button variant="outline" :href="route('association.announcements.index')">Back to Announcements</x-ui.button>
