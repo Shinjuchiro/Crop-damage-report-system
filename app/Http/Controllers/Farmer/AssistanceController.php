@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Farmer;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssistanceAllocationBeneficiary;
 use App\Models\AssistanceDistribution;
 use App\Models\AuditLog;
 use App\Models\Farmer;
@@ -19,10 +20,12 @@ use Illuminate\Validation\Rule;
  * Proposal section 65: the farmer can view the assistance they received,
  * and now confirm it.
  *
- * How assistance flows in this system: MAO allocates a pool to an
- * ASSOCIATION, and the association distributes it to its members. So what a
- * farmer sees here are the distribution records addressed to them, not the
- * allocation.
+ * How assistance flows in this system (changed Oct 2026): the MAO selects
+ * the farmers who qualify, in a distribution batch, and hands the assistance
+ * over itself. A farmer therefore sees two things here: the batches they
+ * were SELECTED for (which exist from the moment the MAO finalises the
+ * batch, before anything is handed over) and the distribution records
+ * addressed to them once a hand-over is recorded.
  *
  * The confirmation matters more than it looks. The association recording
  * "we gave this out" and the farmer saying "I got it" are two different
@@ -40,7 +43,7 @@ class AssistanceController extends Controller
             ->with([
                 'allocation.assistance',   // what the assistance actually is
                 'allocation.disaster',     // which disaster it was for
-                'allocation.association',  // who handed it over
+                'allocation.association',  // the batch's association, when it has one
                 'damageReport',            // the report that made them eligible
                 'distributedBy',
             ])
@@ -48,9 +51,27 @@ class AssistanceController extends Controller
             ->orderByDesc('distributed_at')
             ->paginate(10);
 
+        /* Batches this farmer was selected for that have no hand-over record
+           yet. Before this, the page listed distributions only, so a farmer
+           who had been selected (and notified) saw "No assistance recorded
+           yet". A batch that already has a distribution row for this farmer
+           is shown by that row instead, so it is never listed twice, and a
+           cancelled batch is not shown at all. */
+        $handedOverBatchIds = AssistanceDistribution::where('farmer_id', $farmer->id)
+            ->pluck('assistance_allocation_id');
+
+        $selected = AssistanceAllocationBeneficiary::query()
+            ->with('allocation')
+            ->where('farmer_id', $farmer->id)
+            ->whereNotIn('assistance_allocation_id', $handedOverBatchIds)
+            ->whereHas('allocation', fn ($a) => $a->where('status', '!=', 'cancelled'))
+            ->orderByDesc('created_at')
+            ->get();
+
         return view('farmer.assistance.index', [
             'farmer'        => $farmer,
             'distributions' => $distributions,
+            'selected'      => $selected,
 
             /* Drives the prompt at the top of the page. Nothing shouts at
                the farmer when there is nothing waiting on them.
@@ -87,7 +108,7 @@ class AssistanceController extends Controller
 
         if ($distribution->receipt_status !== 'pending_confirmation') {
             return back()->withErrors([
-                'receipt' => 'You have already answered this one. Please contact your association if it needs changing.',
+                'receipt' => 'You have already answered this one. Please contact the Municipal Agriculture Office if it needs changing.',
             ]);
         }
 
@@ -104,7 +125,7 @@ class AssistanceController extends Controller
         if (! in_array($distribution->distribution_status, ['distributed', 'completed'], true)) {
             return back()->withErrors([
                 'receipt' => 'This assistance has not been handed over yet, so there is nothing to confirm. '
-                    . 'Please ask your association about it.',
+                    . 'Please ask the Municipal Agriculture Office about it.',
             ]);
         }
 
@@ -147,7 +168,7 @@ class AssistanceController extends Controller
 
         return back()->with('status', $data['receipt_status'] === 'confirmed_received'
             ? 'Thank you. Your receipt has been recorded. Salamat po.'
-            : 'Recorded. Your association and the Municipal Agriculture Office can now follow this up.');
+            : 'Recorded. The Municipal Agriculture Office can now follow this up.');
     }
 
     /**

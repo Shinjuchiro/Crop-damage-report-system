@@ -992,9 +992,9 @@ class AssistanceAllocationController extends Controller
                 . 'Ang pamamahagi po ay sa ' . $this->whenWhere($allocation) . '.';
         }
 
-        return 'There is no collection date yet. Your Farmers\' Association will tell you when and '
-            . 'where to collect it, so please wait for them to contact you. '
-            . 'Wala pa pong takdang petsa. Ang inyong asosasyon po ang magsasabi kung kailan '
+        return 'There is no distribution date yet. The Municipal Agriculture Office will announce when and '
+            . 'where to collect it, so please wait for the announcement. '
+            . 'Wala pa pong takdang petsa. Ang Municipal Agriculture Office po ang magsasabi kung kailan '
             . 'at saan ito kukunin.';
     }
 

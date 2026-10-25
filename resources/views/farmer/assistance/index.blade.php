@@ -3,15 +3,16 @@
 @section('title', 'Assistance')
 @section('heading', 'Assistance Received')
 @section('heading-fil', 'Natanggap na Tulong')
-@section('subheading', 'Tulong na naitala ng inyong asosasyon para sa inyo.')
+@section('subheading', 'Tulong na itinalaga at ibinigay ng Municipal Agriculture Office para sa inyo.')
 
 @section('content')
 
 {{--
     Proposal section 65, plus the receipt confirmation that closes the chain.
 
-    Assistance moves MAO -> Association -> Farmer, so what appears here are
-    the distributions the association recorded against this farmer.
+    The MAO selects the farmers in a distribution batch and hands the
+    assistance over itself (Oct 2026). This page lists the batches the farmer
+    was SELECTED for, then the hand-overs recorded against them.
 
     The confirmation is the part that matters. The association saying "we gave
     this out" and the farmer saying "I received it" are two separate claims,
@@ -37,13 +38,51 @@
         </x-ui.alert>
     @else
         <x-ui.alert variant="info">
-            The Municipal Agriculture Office allocates assistance to your Farmers' Association, and the
-            association distributes it to members. What you see here is what was recorded as given to you.
+            The Municipal Agriculture Office selects the farmers who receive assistance and gives it out
+            itself. What you see here is the assistance you were selected for, and what was recorded as
+            given to you.
             <span class="mt-1 block">
-                Kung may hindi tugma, makipag-ugnayan po sa inyong asosasyon.
+                Kung may hindi tugma, makipag-ugnayan po sa Municipal Agriculture Office.
             </span>
         </x-ui.alert>
     @endif
+
+    {{-- ---------- SELECTED, NOT HANDED OVER YET ---------- --}}
+    @foreach ($selected as $selection)
+        @php $batch = $selection->allocation; @endphp
+        <x-ui.card>
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0 space-y-1.5">
+                    <p class="text-base font-semibold">{{ $batch?->display_name ?? 'Assistance' }}</p>
+
+                    <p class="text-sm text-muted-foreground">
+                        @if ($batch?->distribution_date)
+                            Distribution on {{ $batch->distribution_date->format('F d, Y') }}
+                            @if ($batch->venue) at {{ $batch->venue }} @endif
+                        @else
+                            The Municipal Agriculture Office will announce when and where to collect it.
+                        @endif
+                    </p>
+
+                    <p class="text-xs text-muted-foreground">
+                        AA-{{ str_pad((string) $selection->assistance_allocation_id, 3, '0', STR_PAD_LEFT) }}
+                        &middot; selected {{ $selection->created_at?->format('F d, Y') ?? '' }}
+                        @if ($selection->damageReport)
+                            &middot; for report {{ $selection->damageReport->reference }}
+                        @endif
+                    </p>
+
+                    @if ($batch?->details)
+                        <p class="text-sm leading-relaxed">{{ $batch->details }}</p>
+                    @endif
+                </div>
+
+                <div class="flex shrink-0 flex-wrap gap-2">
+                    <x-ui.badge variant="info" dot>Selected for assistance</x-ui.badge>
+                </div>
+            </div>
+        </x-ui.card>
+    @endforeach
 
     @forelse ($distributions as $distribution)
         @php
@@ -84,9 +123,7 @@
 
                     <p class="text-xs text-muted-foreground">
                         {{ $distribution->distributed_at?->format('F d, Y') ?? 'Date not recorded' }}
-                        @if ($distribution->allocation?->association)
-                            &middot; from {{ $distribution->allocation->association->name }}
-                        @endif
+                        &middot; from the Municipal Agriculture Office
                         @if ($distribution->damageReport)
                             &middot; for report {{ $distribution->damageReport->reference }}
                         @endif
@@ -126,7 +163,7 @@
                         <form method="POST"
                               action="{{ route('farmer.assistance.confirm', $distribution) }}"
                               class="flex-1"
-                              data-confirm="Please confirm that you have received this assistance. It is recorded with your name and the date, and your association and the office can both see it."
+                              data-confirm="Please confirm that you have received this assistance. It is recorded with your name and the date, and the Municipal Agriculture Office can see it."
                               data-confirm-title="Confirm you received this?"
                               data-confirm-action="Yes, I received it">
                             @csrf
@@ -152,7 +189,7 @@
                     <form method="POST" x-show="saying === 'no'" x-cloak
                           action="{{ route('farmer.assistance.confirm', $distribution) }}"
                           class="mt-3"
-                          data-confirm="The office and your association will be able to see this. Please make sure what you have written is correct."
+                          data-confirm="The Municipal Agriculture Office will be able to see this. Please make sure what you have written is correct."
                           data-confirm-title="Report that you did not receive this?"
                           data-confirm-action="Confirm"
                           data-confirm-tone="danger">
@@ -197,15 +234,17 @@
             @endif
         </x-ui.card>
     @empty
+        @if ($selected->isEmpty())
         <x-ui.card :padded="false">
             <x-ui.empty title="No assistance recorded yet"
                         icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21"
-                        message="Assistance appears here once your association records giving it to you.">
+                        message="Assistance appears here once the Municipal Agriculture Office selects you for it.">
                 <span class="text-xs text-muted-foreground">
-                    Lalabas po ito kapag naitala na ng inyong asosasyon.
+                    Lalabas po ito kapag napili na kayo ng Municipal Agriculture Office.
                 </span>
             </x-ui.empty>
         </x-ui.card>
+        @endif
     @endforelse
 
     @if ($distributions->hasPages())
