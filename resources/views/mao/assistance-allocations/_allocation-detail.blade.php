@@ -75,7 +75,7 @@
                 {{ $allocation->distribution_date ? 'Change Schedule' : 'Set Schedule' }}
             </p>
             <form method="POST" action="{{ route('mao.assistance-allocations.schedule', $allocation) }}"
-                  data-confirm="The designated farmers and their associations will be notified of this date and venue."
+                  data-confirm="The designated farmers will be notified of this date and venue."
                   data-confirm-title="Save this distribution schedule?"
                   data-confirm-action="Confirm & Notify"
                   class="space-y-2">

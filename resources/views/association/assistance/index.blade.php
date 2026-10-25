@@ -50,7 +50,7 @@
         @if ($allocations->isEmpty())
             <x-ui.empty title="Nothing allocated to you yet"
                         icon="M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21"
-                        message="When the Municipal Agriculture Office allocates assistance to your association's members, it appears here for you to follow.">
+                        message="Assistance the Municipal Agriculture Office gives to your members appears here so you can follow it.">
                 <span class="text-xs text-muted-foreground">Wala pa pong naitalagang tulong sa inyong asosasyon.</span>
             </x-ui.empty>
         @else

@@ -2,7 +2,7 @@
 
 @section('title', 'Assistance Disputes')
 @section('heading', 'Assistance Disputes')
-@section('subheading', 'Distributions a farmer marked as not received. Read-only - the association recorded handing it out, the farmer disagrees, and this is where the office can see that disagreement.')
+@section('subheading', 'Distributions a farmer marked as not received. Read-only - the office recorded handing it out, the farmer disagrees, and this is where the office can see that disagreement.')
 
 @section('header-actions')
     <a href="{{ route('mao.assistance-allocations.index') }}"
@@ -15,10 +15,10 @@
 <div>
 
     <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-        Distribution and receipt are two separate facts in this system: the association records handing
+        Distribution and receipt are two separate facts in this system: the office records handing
         something over, and the farmer separately confirms whether they actually received it. Neither ever
         overwrites the other, so when a farmer says "not received," it stays on record here until the
-        office follows it up directly with the association.
+        office follows it up with the farmer.
     </div>
 
     @php

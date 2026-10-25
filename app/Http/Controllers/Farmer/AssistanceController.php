@@ -168,7 +168,6 @@ class AssistanceController extends Controller
             ]);
         });
 
-        $this->notifyAssociationOfReceiptAnswer($distribution, $farmer, $data['receipt_status'], $data['receipt_note'] ?? null);
 
         if ($data['receipt_status'] === 'not_received') {
             $this->notifyMaoOfNonReceipt($distribution, $farmer, $data['receipt_note'] ?? null);
@@ -274,7 +273,6 @@ class AssistanceController extends Controller
             return back()->withErrors(['receipt' => 'You have already answered this one.']);
         }
 
-        $this->notifyAssociationOfReceiptAnswer($distribution, $farmer, $data['receipt_status'], $data['receipt_note'] ?? null);
 
         if (! $received) {
             $this->notifyMaoOfNonReceipt($distribution, $farmer, $data['receipt_note'] ?? null);
@@ -283,75 +281,6 @@ class AssistanceController extends Controller
         return back()->with('status', $received
             ? 'Thank you. Your receipt has been recorded. Salamat po.'
             : 'Recorded. The Municipal Agriculture Office can now follow this up.');
-    }
-
-    /**
-     * Proposal section 66: "member assistance confirmations/non-receipt
-     * reports" should reach the association either way - a confirmation
-     * closes the loop, a non-receipt report needs following up. Runs after
-     * the transaction above has already committed, and never throws - the
-     * farmer's answer must never appear to fail just because a notification
-     * could not be sent. Skipped when the distribution has no association on
-     * it, which should not normally happen (every allocation belongs to one).
-     *
-     * A confirmation is 'normal' priority (good news, informational); a
-     * non-receipt report is 'important' (in-app only - section 68 reserves
-     * SMS for urgent/critical matters) since something has gone wrong
-     * between the association and the farmer and needs following up.
-     * link_type/link_id let the bell open the allocation this distribution
-     * came from (NotificationBroadcast::linkUrl()).
-     */
-    private function notifyAssociationOfReceiptAnswer(
-        AssistanceDistribution $distribution,
-        Farmer $farmer,
-        string $receiptStatus,
-        ?string $note
-    ): void {
-        $distribution->loadMissing('allocation');
-        $allocationId  = $distribution->allocation?->id;
-        $associationId = $distribution->allocation?->association_id;
-
-        if (! $associationId) {
-            return;
-        }
-
-        // display_name is never null (it returns the one word), so the old
-        // in_kind_description fallback behind it was unreachable once the
-        // assistance item was removed in Oct 2026.
-        $what = $distribution->allocation?->display_name ?? 'Assistance';
-
-        [$title, $message, $priority] = $receiptStatus === 'confirmed_received'
-            ? [
-                'Member Confirmed Receipt',
-                $farmer->full_name . ' confirmed receiving ' . $what . '.',
-                'normal',
-            ]
-            : [
-                'Non-Receipt Reported',
-                $farmer->full_name . ' reported NOT receiving ' . $what
-                    . ($note ? ': ' . $note : '.') . ' Please follow this up.',
-                'important',
-            ];
-
-        try {
-            $alert = NotificationBroadcast::create([
-                'title'       => $title,
-                'message'     => $message,
-                'category'    => 'assistance',
-                'priority'    => $priority,
-                'target_type' => 'specific_association',
-                'target_id'   => $associationId,
-                'link_type'   => 'assistance_allocation',
-                'link_id'     => $allocationId,
-                'status'      => 'draft',
-                'created_by'  => Auth::id(),
-            ]);
-
-            $alert->dispatchToRecipients();
-        } catch (\Throwable $e) {
-            Log::warning('Could not notify association ' . $associationId . ' of receipt answer on '
-                . 'distribution ' . $distribution->id . ': ' . $e->getMessage());
-        }
     }
 
     /**

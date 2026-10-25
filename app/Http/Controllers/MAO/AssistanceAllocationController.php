@@ -902,7 +902,7 @@ class AssistanceAllocationController extends Controller
         $this->notifyDesignated($allocation->fresh(['beneficiaries.farmer.association', 'beneficiaries.allocation']));
 
         return redirect()->route('mao.assistance-allocations.show', $allocation)
-            ->with('status', 'Distribution batch finalized. The farmers and their associations have been notified.');
+            ->with('status', 'Distribution batch finalized. The selected farmers have been notified.');
     }
 
     /**
@@ -960,34 +960,6 @@ class AssistanceAllocationController extends Controller
                 'farmer ' . $beneficiary->farmer_id
             );
         }
-
-        /* One notice per association, listing its own members and nobody
-           else's. Grouping first is what keeps it to one: an officer whose
-           association has nine designated members should get one message
-           naming nine people, not nine messages. */
-        $byAssociation = $allocation->beneficiaries
-            ->filter(fn ($beneficiary) => $beneficiary->farmer?->association_id)
-            ->groupBy(fn ($beneficiary) => $beneficiary->farmer->association_id);
-
-        foreach ($byAssociation as $associationId => $members) {
-            $names = $members
-                ->map(fn ($beneficiary) => $beneficiary->farmer->full_name)
-                ->sort()
-                ->join(', ', ' and ');
-
-            $this->sendAlert(
-                'Your Members Have Been Selected for Assistance',
-                'The Municipal Agriculture Office has selected ' . $members->count() . ' of your '
-                    . ($members->count() === 1 ? 'members' : 'members') . ' to receive assistance ('
-                    . $reference . ($allocation->batch_name ? ', ' . $allocation->batch_name : '') . '): ' . $names . '. '
-                    . $this->associationScheduleText($allocation),
-                'important',
-                'specific_association',
-                (int) $associationId,
-                $allocation->id,
-                'association ' . $associationId
-            );
-        }
     }
 
     private function whenWhere(AssistanceAllocation $allocation): string
@@ -1007,13 +979,6 @@ class AssistanceAllocationController extends Controller
             . 'where to collect it, so please wait for the announcement. '
             . 'Wala pa pong takdang petsa. Ang Municipal Agriculture Office po ang magsasabi kung kailan '
             . 'at saan ito kukunin.';
-    }
-
-    private function associationScheduleText(AssistanceAllocation $allocation): string
-    {
-        return $allocation->distribution_date
-            ? 'Distribution is scheduled for ' . $this->whenWhere($allocation) . '. Please remind them.'
-            : 'There is no collection date set. Please tell them when and where to collect it.';
     }
 
     /**
@@ -1062,22 +1027,7 @@ class AssistanceAllocationController extends Controller
             );
         }
 
-        $fresh->beneficiaries
-            ->filter(fn ($b) => $b->farmer?->association_id)
-            ->groupBy(fn ($b) => $b->farmer->association_id)
-            ->each(function ($members, $associationId) use ($fresh) {
-                $this->sendAlert(
-                    'Distribution Schedule Set',
-                    ($fresh->batch_name ? $fresh->batch_name . ': ' : '') . $this->associationScheduleText($fresh),
-                    'important',
-                    'specific_association',
-                    (int) $associationId,
-                    $fresh->id,
-                    'association ' . $associationId
-                );
-            });
-
-        return back()->with('status', 'Distribution schedule saved. The farmers and their associations have been notified.');
+        return back()->with('status', 'Distribution schedule saved. The selected farmers have been notified.');
     }
 
     /**

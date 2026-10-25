@@ -103,7 +103,6 @@
                this role in line with the other three, which have always been
                four tabs plus More. */
             'more' => [
-                ['label' => 'My Profile',             'fil' => 'Aking Profile',           'route' => 'farmer.profile', 'icon' => $ico['people']],
                 ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong',     'route' => 'help',                     'icon' => $ico['help']],
             ],
         ],

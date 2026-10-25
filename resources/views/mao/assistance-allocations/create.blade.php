@@ -342,8 +342,8 @@
                 </div>
 
                 <p class="mt-4 text-sm text-muted-foreground">
-                    No amounts or budget are recorded on a batch. The selected farmers and their associations are
-                    notified when you finalize it.
+                    No amounts or budget are recorded on a batch. The selected farmers are notified when you
+                    finalize it.
                 </p>
             </section>
 
@@ -370,8 +370,7 @@
                 <p class="mb-5 text-sm text-muted-foreground">
                     <strong x-text="name"></strong> will be recorded for
                     <strong x-text="selected.length"></strong>
-                    <span x-text="selected.length === 1 ? 'farmer' : 'farmers'"></span>, and they and their associations
-                    will be notified right away.
+                    <span x-text="selected.length === 1 ? 'farmer' : 'farmers'"></span>, and they will be notified right away.
                 </p>
                 <div class="flex gap-3">
                     <button type="button" @click="confirming = false"

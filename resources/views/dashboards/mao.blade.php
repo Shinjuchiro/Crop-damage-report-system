@@ -270,7 +270,7 @@
                     boundaries.bringToBack();
                     map.fitBounds(boundaries.getBounds(), { padding: [16, 16] });
                     // Open a little closer than "all of Tanza just fits"; it can be dragged to the edges.
-                    map.setView(boundaries.getBounds().getCenter(), map.getZoom() + 0.5, { animate: false });
+                    map.setView(boundaries.getBounds().getCenter(), map.getZoom() + 1.25, { animate: false });
                     // Tanza only: the map cannot be dragged away from the municipality.
                     map.setMaxBounds(boundaries.getBounds().pad(0.15));
 

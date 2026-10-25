@@ -30,19 +30,6 @@
 
 <div class="space-y-4">
 
-    {{-- The one thing that should never be ignored --}}
-    @if ($summary['open_allocations'] > 0)
-        <x-ui.alert variant="warning" title="Assistance is waiting to be handed out">
-            The office has allocated assistance to {{ $association->name }} that has not been fully
-            distributed to members yet.
-            <span class="mt-2 block">
-                <x-ui.button size="sm" :href="route('association.assistance.index')">
-                    Open Assistance
-                </x-ui.button>
-            </span>
-        </x-ui.alert>
-    @endif
-
     {{-- ================= MEMBERSHIP ================= --}}
     {{-- Six cards in one grid: two across on a phone, three across from sm up,
          so the rows are always even (3 + 3) and no card is stretched wider. --}}
