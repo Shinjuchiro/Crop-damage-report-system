@@ -20,25 +20,11 @@ class DispatchScheduledAlerts extends Command
 
     public function handle(): int
     {
-        $due = NotificationBroadcast::query()
-            ->where('status', 'scheduled')
-            ->whereNotNull('scheduled_for')
-            ->where('scheduled_for', '<=', now())
-            ->get();
+        $count = NotificationBroadcast::dispatchDue();
 
-        if ($due->isEmpty()) {
-            $this->info('No scheduled alerts are due.');
-
-            return self::SUCCESS;
-        }
-
-        foreach ($due as $alert) {
-            $sent = $alert->dispatchToRecipients();
-
-            $sent === 0
-                ? $this->warn("Alert #{$alert->id} matched nobody and was marked failed.")
-                : $this->info("Alert #{$alert->id} sent to {$sent} recipients.");
-        }
+        $this->info($count === 0
+            ? 'No scheduled alerts are due.'
+            : "{$count} scheduled alert(s) processed.");
 
         return self::SUCCESS;
     }

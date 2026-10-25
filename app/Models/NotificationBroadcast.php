@@ -313,6 +313,43 @@ class NotificationBroadcast extends Model
     }
 
     /**
+     * Send every scheduled alert whose time has arrived. Returns how many
+     * alerts were processed.
+     *
+     * Called by the alerts:dispatch-scheduled command AND, throttled to once
+     * a minute, by the DispatchDueAlerts middleware. The middleware is what
+     * makes a scheduled alert actually go out on a host where nobody is
+     * running `php artisan schedule:work` or a cron job (Laragon, Railway).
+     * Each alert is claimed with a status update first, so two requests
+     * arriving together cannot send the same alert twice.
+     */
+    public static function dispatchDue(): int
+    {
+        $count = 0;
+
+        $due = static::query()
+            ->where('status', 'scheduled')
+            ->whereNotNull('scheduled_for')
+            ->where('scheduled_for', '<=', now())
+            ->get();
+
+        foreach ($due as $alert) {
+            $claimed = static::where('id', $alert->id)
+                ->where('status', 'scheduled')
+                ->update(['status' => 'draft']);
+
+            if (! $claimed) {
+                continue;
+            }
+
+            $alert->dispatchToRecipients();
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
      * Write one notification row per recipient and mark the alert sent.
      *
      * Urgent and Critical alerts also actually go out as SMS from here (see

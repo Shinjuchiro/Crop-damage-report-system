@@ -32,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // directly - only through Railway's own edge.
         $middleware->trustProxies(at: '*');
 
+        // Send scheduled alerts when their time comes, with no cron needed.
+        $middleware->appendToGroup('web', \App\Http\Middleware\DispatchDueAlerts::class);
+
         // This is the actual cause of the ERR_TOO_MANY_REDIRECTS reports -
         // it was never the service worker. Laravel's built-in "guest"
         // middleware (Illuminate\Auth\Middleware\RedirectIfAuthenticated),
