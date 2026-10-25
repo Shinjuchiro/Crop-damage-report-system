@@ -45,7 +45,9 @@ class SemaphoreSmsService
         }
 
         try {
-            $response = Http::asForm()->timeout(10)->post(self::ENDPOINT, [
+            $response = Http::asForm()->timeout(10)
+                ->withOptions(['verify' => is_file(resource_path('certs/cacert.pem')) ? resource_path('certs/cacert.pem') : true])
+                ->post(self::ENDPOINT, [
                 'apikey'     => config('services.semaphore.api_key'),
                 'number'     => $phoneNumber,
                 'message'    => $message,

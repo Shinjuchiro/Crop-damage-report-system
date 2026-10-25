@@ -90,10 +90,16 @@ class Weather
      */
     private function http(): \Illuminate\Http\Client\PendingRequest
     {
-        $bundle = storage_path('app/cacert.pem');
+        /* resources/certs/cacert.pem is tracked by git, so it reaches every
+           clone. storage/app/cacert.pem used to be the only copy, and
+           storage/app is git-ignored, so a second computer never got it and
+           the weather card silently disappeared there (cURL error 60). The
+           storage copy is still honoured as a fallback. */
+        $bundle = collect([resource_path('certs/cacert.pem'), storage_path('app/cacert.pem')])
+            ->first(fn ($path) => is_file($path));
 
         return Http::timeout(4)->withOptions([
-            'verify' => is_file($bundle) ? $bundle : true,
+            'verify' => $bundle ?: true,
         ]);
     }
 
