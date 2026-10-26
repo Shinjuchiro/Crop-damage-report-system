@@ -20,17 +20,26 @@
     forms carry data-confirm-review="auto", so pressing Update always shows
     exactly what is about to change before anything is saved.
 
-    Stacked in one column rather than two side by side: it sits under a
-    profile card, and the profile pages for Technician, Association and MAO
-    are a single narrow column.
+    The two cards sit side by side and wrap to one column on a narrow screen
+    (auto-fit), so a wide window is filled instead of leaving the right half
+    empty.
 --}}
+
+{{-- Both cards stretch to the same height and each card's button sits at its
+     bottom edge, so the shorter card has no empty strip under it. --}}
+<style>
+    .acct-card { display: flex; flex-direction: column; }
+    .acct-card > div:last-child { flex: 1 1 auto; display: flex; flex-direction: column; }
+    .acct-card form { flex: 1 1 auto; display: flex; flex-direction: column; }
+    .acct-card form > :last-child { margin-top: auto; align-self: flex-start; }
+</style>
 
 <section id="account-settings" class="scroll-mt-24 border-t border-border pt-8">
     <h2 class="text-lg font-semibold text-foreground">Account Settings</h2>
     <p class="mb-5 mt-1 text-sm text-muted-foreground">Manage your login email, phone number and password.</p>
 
-    <div class="grid gap-6">
-        <x-ui.card title="Account Details" description="Your login email and contact number. Everything else on your profile is set by the office and can't be changed here.">
+    <div class="grid gap-6" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));">
+        <x-ui.card class="acct-card" title="Account Details" description="Your login email and contact number. Everything else on your profile is set by the office and can't be changed here.">
             <form method="POST" action="{{ route($user->role . '.settings.update') }}"
                   data-confirm="Are you sure you want to update your account details?"
                   data-confirm-title="Review account details"
@@ -52,7 +61,7 @@
             </form>
         </x-ui.card>
 
-        <x-ui.card title="Change Password" description="Choose a password with at least 8 characters, including a letter and a number.">
+        <x-ui.card class="acct-card" title="Change Password" description="Choose a password with at least 8 characters, including a letter and a number.">
             <form method="POST" action="{{ route($user->role . '.settings.password') }}"
                   data-confirm="Are you sure you want to change your password?"
                   data-confirm-title="Confirm password change"
