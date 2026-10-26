@@ -70,47 +70,21 @@
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
     </div>
 
-    {{-- ----------------------------------------------------------------
-         Account standing. This sits at the top because it is the thing a
-         farmer is most likely to be worried about, and because Inactive
-         has a cause and a cure that should be stated plainly rather than
-         left as a red word.
-    ----------------------------------------------------------------- --}}
-    <x-ui.card class="mb-5">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex items-center gap-4">
-                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full
-                            bg-accent text-lg font-bold text-accent-foreground">
-                    {{ strtoupper(substr($farmer->first_name, 0, 1) . substr($farmer->last_name, 0, 1)) }}
-                </div>
-
-                <div class="min-w-0">
-                    <p class="truncate text-base font-semibold text-card-foreground">{{ $farmer->full_name }}</p>
-                    <p class="truncate text-sm text-muted-foreground">
-                        {{ $farmer->association?->name ?? 'No association' }}
-                        @if ($farmer->barangay) &middot; Brgy. {{ $farmer->barangay->name }} @endif
-                    </p>
-                </div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2">
-                <x-ui.status :value="$farmer->user->status === 'active' ? 'verified' : $farmer->user->status" />
-                <x-ui.status :value="$farmer->activity_status" />
-            </div>
-        </div>
-
-        @if ($farmer->activity_status !== 'active')
-            <x-ui.alert variant="warning" class="mt-4" title="Your account is marked inactive">
-                There has been no recorded farm activity for
-                {{ $farmer->months_inactive }}
-                {{ \Illuminate\Support\Str::plural('month', $farmer->months_inactive) }}.
-                Record a crop planting activity and your account returns to active straight away.
-                <span class="mt-1 block opacity-90">
-                    Magtala po ng bagong pagtatanim upang maging aktibo muli ang inyong account.
-                </span>
-            </x-ui.alert>
-        @endif
-    </x-ui.card>
+    {{-- The name / association / Verified / Active strip was here and is gone
+         (Oct 2026, client request): the header already shows the name, and My
+         Profile shows the status. Only the inactive warning stays, because it
+         has a cause and a cure the farmer should be told plainly. --}}
+    @if ($farmer->activity_status !== 'active')
+        <x-ui.alert variant="warning" class="mb-5" title="Your account is marked inactive">
+            There has been no recorded farm activity for
+            {{ $farmer->months_inactive }}
+            {{ \Illuminate\Support\Str::plural('month', $farmer->months_inactive) }}.
+            Record a crop planting activity and your account returns to active straight away.
+            <span class="mt-1 block opacity-90">
+                Magtala po ng bagong pagtatanim upang maging aktibo muli ang inyong account.
+            </span>
+        </x-ui.alert>
+    @endif
 
     <div class="grid gap-5 lg:grid-cols-2">
 
