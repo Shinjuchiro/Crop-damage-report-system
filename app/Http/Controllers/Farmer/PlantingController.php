@@ -10,6 +10,7 @@ use App\Models\Farmer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -45,6 +46,19 @@ class PlantingController extends Controller
      */
     public const MAX_CROPS = 5;
 
+    /*
+     | Photos of the planting (Oct 2026). Optional: a farmer with no camera, or
+     | a field already planted weeks ago, still has to be able to record it.
+     |
+     | They go to the PRIVATE disk and are read back only through
+     | AttachmentController::plantingPhoto(), the same as damage photos, so the
+     | MAO and the farmer's own association officer can see them and nobody
+     | else can.
+     */
+    public const MAX_PHOTOS = 5;
+    private const PHOTO_DISK = 'local';
+    private const PHOTO_DIR  = 'planting-photos';
+
     /**
      * List all planting records of the logged in farmer.
      */
@@ -67,7 +81,7 @@ class PlantingController extends Controller
          | string finds nothing instead of finding their record.
          */
         $selected = $request->filled('selected')
-            ? $farmer->plantingRecords()->with('crops.crop')->find($request->query('selected'))
+            ? $farmer->plantingRecords()->with('crops.crop', 'photos', 'farmer.association', 'farmer.barangay')->find($request->query('selected'))
             : null;
 
         return view('farmer.planting.index', [
@@ -89,7 +103,8 @@ class PlantingController extends Controller
             'crops'  => Crop::active()->inDisplayOrder()->get(),
 
             // So the form stops where the validation stops.
-            'maxCrops' => self::MAX_CROPS,
+            'maxCrops'  => self::MAX_CROPS,
+            'maxPhotos' => self::MAX_PHOTOS,
         ]);
     }
 
@@ -105,45 +120,59 @@ class PlantingController extends Controller
         $farmer = $this->farmer();
         $data   = $this->validated($request);
 
-        $record = DB::transaction(function () use ($farmer, $data) {
+        $stored = [];
 
-            // The parent row first, because the crops need its id.
-            $record = CropPlantingRecord::create([
-                'farmer_id'      => $farmer->id,
-                'date_submitted' => now()->toDateString(),
-            ]);
+        try {
+            $record = DB::transaction(function () use ($farmer, $data, $request, &$stored) {
 
-            // Then one child row per crop.
-            foreach ($data['crops'] as $crop) {
-                $record->crops()->create([
-                    'crop_id'      => $crop['crop_id'],
-
-                    // Only filled in when the crop is marked HVCC.
-                    // "HVCC" by itself does not tell the office anything,
-                    // so we ask which crop it actually is.
-                    'crop_specify' => $crop['crop_specify'] ?? null,
-
-                    'date_planted'  => $crop['date_planted'],
-                    'area_hectares' => $crop['area_hectares'],
+                // The parent row first, because the crops need its id.
+                $record = CropPlantingRecord::create([
+                    'farmer_id'      => $farmer->id,
+                    'date_submitted' => now()->toDateString(),
                 ]);
-            }
 
-            // Section 26: this is a qualifying activity, so the farmer goes
-            // back to Active and months inactive resets to 0.
-            $farmer->recordQualifyingActivity();
+                // Then one child row per crop.
+                foreach ($data['crops'] as $crop) {
+                    $record->crops()->create([
+                        'crop_id'      => $crop['crop_id'],
 
-            // Section 81: keep a history of important actions.
-            AuditLog::create([
-                'user_id'      => Auth::id(),
-                'action'       => 'Submitted crop planting record with '
-                                  . count($data['crops']) . ' crop(s)',
-                'target_table' => 'crop_planting_records',
-                'target_id'    => $record->id,
-                'created_at'   => now(),
-            ]);
+                        // Only filled in when the crop is marked HVCC.
+                        // "HVCC" by itself does not tell the office anything,
+                        // so we ask which crop it actually is.
+                        'crop_specify' => $crop['crop_specify'] ?? null,
 
-            return $record;
-        });
+                        'date_planted'  => $crop['date_planted'],
+                        'area_hectares' => $crop['area_hectares'],
+                    ]);
+                }
+
+                // Optional photos. Their paths are remembered so that, if anything
+                // below fails and the database rolls back, the files that were
+                // already written are removed too and nothing is left orphaned.
+                $stored = $this->storePhotos($request, $record);
+
+                // Section 26: this is a qualifying activity, so the farmer goes
+                // back to Active and months inactive resets to 0.
+                $farmer->recordQualifyingActivity();
+
+                // Section 81: keep a history of important actions.
+                AuditLog::create([
+                    'user_id'      => Auth::id(),
+                    'action'       => 'Submitted crop planting record with '
+                                      . count($data['crops']) . ' crop(s) and '
+                                      . count($stored) . ' photo(s)',
+                    'target_table' => 'crop_planting_records',
+                    'target_id'    => $record->id,
+                    'created_at'   => now(),
+                ]);
+
+                return $record;
+            });
+        } catch (\Throwable $e) {
+            Storage::disk(self::PHOTO_DISK)->delete($stored);
+
+            throw $e;
+        }
 
         return redirect()
             ->route('farmer.planting.show', $record)
@@ -174,12 +203,13 @@ class PlantingController extends Controller
         $this->authorizeOwnership($planting);
 
         return view('farmer.planting.edit', [
-            'record' => $planting->load('crops.crop'),
+            'record' => $planting->load('crops.crop', 'photos'),
             'farmer' => $this->farmer(),
             'crops'  => Crop::active()->inDisplayOrder()->get(),
 
             // So the form stops where the validation stops.
-            'maxCrops' => self::MAX_CROPS,
+            'maxCrops'  => self::MAX_CROPS,
+            'maxPhotos' => self::MAX_PHOTOS,
         ]);
     }
 
@@ -189,26 +219,68 @@ class PlantingController extends Controller
 
         $data = $this->validated($request);
 
-        DB::transaction(function () use ($planting, $data) {
-            $planting->crops()->delete();
+        /*
+         | Photos the farmer ticked off with the X on the edit form. Only ids
+         | that belong to THIS record are honoured, so a made-up id in the
+         | request cannot reach another farmer's photo.
+         */
+        $removeIds = collect((array) $request->input('remove_photos', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->all();
 
-            foreach ($data['crops'] as $crop) {
-                $planting->crops()->create([
-                    'crop_id'       => $crop['crop_id'],
-                    'crop_specify'  => $crop['crop_specify'] ?? null,
-                    'date_planted'  => $crop['date_planted'],
-                    'area_hectares' => $crop['area_hectares'],
-                ]);
-            }
+        $keepCount = $planting->photos()->whereNotIn('id', $removeIds)->count();
+        $incoming  = count($request->file('photos', []));
 
-            AuditLog::create([
-                'user_id'      => Auth::id(),
-                'action'       => 'Corrected own crop planting record #' . $planting->id,
-                'target_table' => 'crop_planting_records',
-                'target_id'    => $planting->id,
-                'created_at'   => now(),
+        if ($keepCount + $incoming > self::MAX_PHOTOS) {
+            throw ValidationException::withMessages([
+                'photos' => 'A planting record can hold up to ' . self::MAX_PHOTOS
+                    . ' photos. Please remove one before adding another.',
             ]);
-        });
+        }
+
+        $stored  = [];
+        $removed = [];
+
+        try {
+            DB::transaction(function () use ($planting, $data, $request, $removeIds, &$stored, &$removed) {
+                $planting->crops()->delete();
+
+                foreach ($data['crops'] as $crop) {
+                    $planting->crops()->create([
+                        'crop_id'       => $crop['crop_id'],
+                        'crop_specify'  => $crop['crop_specify'] ?? null,
+                        'date_planted'  => $crop['date_planted'],
+                        'area_hectares' => $crop['area_hectares'],
+                    ]);
+                }
+
+                // Rows go inside the transaction; the files go after it
+                // commits, so a rollback never leaves a row without its file.
+                foreach ($planting->photos()->whereIn('id', $removeIds)->get() as $photo) {
+                    $removed[] = $photo->file_path;
+                    $photo->delete();
+                }
+
+                $stored = $this->storePhotos($request, $planting);
+
+                AuditLog::create([
+                    'user_id'      => Auth::id(),
+                    'action'       => 'Corrected own crop planting record #' . $planting->id
+                                      . ' (' . count($stored) . ' photo(s) added, '
+                                      . count($removed) . ' removed)',
+                    'target_table' => 'crop_planting_records',
+                    'target_id'    => $planting->id,
+                    'created_at'   => now(),
+                ]);
+            });
+        } catch (\Throwable $e) {
+            Storage::disk(self::PHOTO_DISK)->delete($stored);
+
+            throw $e;
+        }
+
+        Storage::disk(self::PHOTO_DISK)->delete($removed);
 
         return redirect()->route('farmer.planting.show', $planting)
             ->with('status', 'Crop planting activity updated successfully.');
@@ -252,6 +324,10 @@ class PlantingController extends Controller
 
             // 0 hectares is not a real planting, so the minimum is 0.01.
             'crops.*.area_hectares' => ['required', 'numeric', 'min:0.01', 'max:9999'],
+
+            // Optional photos of the planting. 5120 KB = 5 MB each.
+            'photos'                => ['nullable', 'array', 'max:' . self::MAX_PHOTOS],
+            'photos.*'              => ['image', 'mimes:jpg,jpeg,png,webp,heic', 'max:5120'],
         ], [
             // Plain error messages, because farmers will be reading these.
             'crops.required'                       => 'Please add at least one crop.',
@@ -262,6 +338,11 @@ class PlantingController extends Controller
             'crops.*.date_planted.before_or_equal' => 'The planting date cannot be in the future.',
             'crops.*.area_hectares.required'       => 'Please give the area planted, in hectares.',
             'crops.*.area_hectares.min'            => 'The area planted must be more than zero.',
+            'photos.max'                           => 'Please upload no more than ' . self::MAX_PHOTOS . ' photos.',
+            'photos.*.image'                       => 'Each file must be a photo.',
+            'photos.*.mimes'                       => 'Photos must be JPG, PNG, WEBP or HEIC.',
+            'photos.*.max'                         => 'Each photo must be 5 MB or smaller.',
+            'photos.*.uploaded'                    => 'A photo could not be uploaded. Please try a smaller one.',
         ]);
 
         // Extra check that the normal rules cannot do: if the crop is a
@@ -276,6 +357,32 @@ class PlantingController extends Controller
         }
 
         return $validated;
+    }
+
+    /**
+     * Save the photos attached to the form and return their stored paths.
+     *
+     * Kept separate from the damage photos and the technician's inspection
+     * photos: this is the farmer's own record of what was planted. Each record
+     * gets its own folder so the disk does not become one huge directory.
+     *
+     * @return array<int, string>
+     */
+    private function storePhotos(Request $request, CropPlantingRecord $record): array
+    {
+        $paths = [];
+
+        foreach ($request->file('photos', []) as $photo) {
+            $path    = $photo->store(self::PHOTO_DIR . '/' . $record->id, self::PHOTO_DISK);
+            $paths[] = $path;
+
+            $record->photos()->create([
+                'file_path'   => $path,
+                'uploaded_at' => now(),
+            ]);
+        }
+
+        return $paths;
     }
 
     /**

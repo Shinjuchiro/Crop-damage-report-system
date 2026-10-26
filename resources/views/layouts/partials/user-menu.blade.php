@@ -44,24 +44,10 @@
         ];
     }
 
-    // Account Settings used to be a sidebar item for every role. Farmer,
-    // Technician and Association's version is only the small email/phone/
-    // password page (ManagesAccountSettings), so it moved here instead of
-    // taking a sidebar slot. MAO's "Settings" is the larger reference-data
-    // hub and keeps its sidebar item too - this is just a shortcut to it.
-    $settingsRoutes = [
-        'farmer'      => 'farmer.settings.index',
-        'technician'  => 'technician.settings.index',
-        'association' => 'association.settings.index',
-        'mao'         => 'mao.settings',
-    ];
-    if (isset($settingsRoutes[$user->role])) {
-        $items[] = [
-            'label' => 'Account Settings',
-            'url'   => route($settingsRoutes[$user->role]),
-            'icon'  => $settingsIcon,
-        ];
-    }
+    // There is no separate Account Settings item any more (Oct 2026): the
+    // login email, phone number and password section sits at the bottom of
+    // My Profile for every role. MAO's "Settings" in the sidebar is only the
+    // reference-data hub now.
 @endphp
 
 <div x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false"

@@ -39,35 +39,20 @@
     {{-- Farm Summary --}}
 @if ($data['show']['farm'] ?? true)
     <x-ui.card title="Farm Summary">
-        <div class="mb-5 grid gap-4 sm:grid-cols-2">
-            <x-stat-card label="Total Farms" :value="$data['farm']['total_farms']" />
-            <x-stat-card label="Total Farm Area" :value="number_format($data['farm']['total_farm_area'], 2)" suffix="hectares" />
-        </div>
+        <x-report.breakdown-grid>
+            {{-- The two figures are stacked so together they are about as tall
+                 as the Main Crops table beside them. --}}
+            <div class="grid gap-4" style="flex:1 1 19rem;min-width:0">
+                <x-stat-card label="Total Farms" :value="$data['farm']['total_farms']" />
+                <x-stat-card label="Total Farm Area" :value="number_format($data['farm']['total_farm_area'], 2)" suffix="hectares" />
+            </div>
 
-        <div class="grid gap-5 lg:grid-cols-2">
-            <div class="min-w-0">
-                <p class="mb-2 text-sm font-semibold text-foreground">Main Crops</p>
-                <x-ui.table>
-                    <x-slot:head><tr><th>Crop</th><th class="text-right">Farmers</th></tr></x-slot:head>
-                    @forelse ($data['farm']['main_crops'] as $row)
-                        <tr><td>{{ $row->name }}</td><td class="text-right tabular-nums">{{ $row->total }}</td></tr>
-                    @empty
-                        <tr><td colspan="2" class="py-4 text-center text-muted-foreground">No data</td></tr>
-                    @endforelse
-                </x-ui.table>
-            </div>
-            <div class="min-w-0">
-                <p class="mb-2 text-sm font-semibold text-foreground">Farms by Barangay</p>
-                <x-ui.table>
-                    <x-slot:head><tr><th>Barangay</th><th class="text-right">Farms</th></tr></x-slot:head>
-                    @forelse ($data['farm']['by_barangay'] as $row)
-                        <tr><td>{{ $row->name }}</td><td class="text-right tabular-nums">{{ $row->farmers_count }}</td></tr>
-                    @empty
-                        <tr><td colspan="2" class="py-4 text-center text-muted-foreground">No data</td></tr>
-                    @endforelse
-                </x-ui.table>
-            </div>
-        </div>
+            <x-report.breakdown title="Main Crops" :headers="['Crop', 'Farmers']"
+                :rows="collect($data['farm']['main_crops'])->map(fn ($r) => [$r->name, $r->total])" />
+
+            <x-report.breakdown title="Farms by Barangay" :headers="['Barangay', 'Farms']"
+                :rows="collect($data['farm']['by_barangay'])->map(fn ($r) => [$r->name, $r->farmers_count])" />
+        </x-report.breakdown-grid>
     </x-ui.card>
 @endif
 
@@ -107,81 +92,27 @@
             <x-stat-card label="Total Affected Area" :value="number_format($data['damage']['total_area'], 2)" suffix="hectares" />
         </div>
 
-        <div class="mb-5 grid gap-5 lg:grid-cols-2">
-            <div class="min-w-0">
-                <p class="mb-2 text-sm font-semibold text-foreground">By Barangay</p>
-                <x-ui.table>
-                    <x-slot:head><tr><th>Barangay</th><th class="text-right">Reports</th></tr></x-slot:head>
-                    @forelse ($data['damage']['by_barangay'] as $row)
-                        <tr><td>{{ $row->name }}</td><td class="text-right tabular-nums">{{ $row->total }}</td></tr>
-                    @empty
-                        <tr><td colspan="2" class="py-4 text-center text-muted-foreground">No data</td></tr>
-                    @endforelse
-                </x-ui.table>
-            </div>
-            <div class="min-w-0">
-                <p class="mb-2 text-sm font-semibold text-foreground">By Crop</p>
-                <x-ui.table>
-                    <x-slot:head><tr><th>Crop</th><th class="text-right">Reports</th><th class="text-right">Area (ha)</th></tr></x-slot:head>
-                    @forelse ($data['damage']['by_crop'] as $row)
-                        <tr>
-                            <td>{{ $row->name }}</td>
-                            <td class="text-right tabular-nums">{{ $row->reports }}</td>
-                            <td class="text-right tabular-nums">{{ number_format($row->area, 2) }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="3" class="py-4 text-center text-muted-foreground">No data</td></tr>
-                    @endforelse
-                </x-ui.table>
-            </div>
-        </div>
+        <x-report.breakdown-grid>
+            <x-report.breakdown title="By Crop" :headers="['Crop', 'Reports', 'Area (ha)']"
+                :rows="collect($data['damage']['by_crop'])->map(fn ($r) => [$r->name, $r->reports, number_format($r->area, 2)])" />
 
-        <div class="mb-5 grid gap-5 lg:grid-cols-2">
-            <div class="min-w-0">
-                <p class="mb-2 text-sm font-semibold text-foreground">By Cause of Damage</p>
-                <x-ui.table>
-                    <x-slot:head><tr><th>Cause</th><th class="text-right">Reports</th></tr></x-slot:head>
-                    @foreach ($data['damage']['by_cause'] as $row)
-                        <tr><td>{{ $row['label'] }}</td><td class="text-right tabular-nums">{{ $row['total'] }}</td></tr>
-                    @endforeach
-                </x-ui.table>
-            </div>
-            <div class="min-w-0">
-                <p class="mb-2 text-sm font-semibold text-foreground">By Declared Disaster Event</p>
-                <p class="mb-2 text-xs text-muted-foreground">
-                    Only reports linked to an event the office has declared. See Cause of Damage above for the complete picture.
-                </p>
-                <x-ui.table>
-                    <x-slot:head><tr><th>Event</th><th class="text-right">Reports</th></tr></x-slot:head>
-                    @forelse ($data['damage']['by_disaster'] as $row)
-                        <tr><td>{{ $row->name }}</td><td class="text-right tabular-nums">{{ $row->total }}</td></tr>
-                    @empty
-                        <tr><td colspan="2" class="py-4 text-center text-muted-foreground">No declared event linked this period</td></tr>
-                    @endforelse
-                </x-ui.table>
-            </div>
-        </div>
+            <x-report.breakdown title="By Cause of Damage" :headers="['Cause', 'Reports']"
+                :rows="collect($data['damage']['by_cause'])->map(fn ($r) => [$r['label'], $r['total']])" />
 
-        <div class="grid gap-5 lg:grid-cols-2">
-            <div class="min-w-0">
-                <p class="mb-2 text-sm font-semibold text-foreground">By Status</p>
-                <x-ui.table>
-                    <x-slot:head><tr><th>Status</th><th class="text-right">Reports</th></tr></x-slot:head>
-                    @foreach ($data['damage']['by_status'] as $status => $total)
-                        <tr><td class="capitalize">{{ str_replace('_', ' ', $status) }}</td><td class="text-right tabular-nums">{{ $total }}</td></tr>
-                    @endforeach
-                </x-ui.table>
-            </div>
-            <div class="min-w-0">
-                <p class="mb-2 text-sm font-semibold text-foreground">By Severity (Technician-Assessed)</p>
-                <x-ui.table>
-                    <x-slot:head><tr><th>Severity</th><th class="text-right">Reports</th></tr></x-slot:head>
-                    @foreach ($data['damage']['by_severity'] as $row)
-                        <tr><td>{{ $row['label'] }}</td><td class="text-right tabular-nums">{{ $row['total'] }}</td></tr>
-                    @endforeach
-                </x-ui.table>
-            </div>
-        </div>
+            <x-report.breakdown title="By Status" :headers="['Status', 'Reports']"
+                :rows="collect($data['damage']['by_status'])->map(fn ($total, $status) => [ucfirst(str_replace('_', ' ', $status)), $total])" />
+
+            <x-report.breakdown title="By Severity (Technician-Assessed)" :headers="['Severity', 'Reports']"
+                :rows="collect($data['damage']['by_severity'])->map(fn ($r) => [$r['label'], $r['total']])" />
+
+            <x-report.breakdown title="By Declared Disaster Event" :headers="['Event', 'Reports']"
+                note="Only reports linked to an event the office has declared. See Cause of Damage for the complete picture."
+                :rows="collect($data['damage']['by_disaster'])->map(fn ($r) => [$r->name, $r->total])"
+                empty="No declared event linked this period" />
+
+            <x-report.breakdown title="By Barangay" :headers="['Barangay', 'Reports']"
+                :rows="collect($data['damage']['by_barangay'])->map(fn ($r) => [$r->name, $r->total])" />
+        </x-report.breakdown-grid>
     </x-ui.card>
 @endif
 

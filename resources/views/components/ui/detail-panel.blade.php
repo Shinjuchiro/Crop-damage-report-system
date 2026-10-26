@@ -23,6 +23,18 @@
     width, the list stays put underneath, and nothing is reserved for it
     when it is closed.
 
+    ONE SHAPE FOR EVERY RECORD (Oct 2026)
+
+    The three monitoring pages used to ask for a wide modal and lay a whole
+    record out in cards, three and two across. The office wanted every record
+    to read the same way as a membership application: one centred column, an
+    ID and a name at the top, then sections that each have a small uppercase
+    heading and plain label-and-value rows, separated by thin rules. So there
+    is one width now, and `wide` does nothing.
+
+    The same change removed "Open full page". A record's modal holds all of
+    its details, so there is no second page to send anyone to.
+
     STILL SERVER RENDERED, STILL A URL
 
     Selection is ?selected=<id> on the page's own URL, exactly as before.
@@ -43,8 +55,8 @@
     'selected'  => null,
     'backUrl'   => null,
     'emptyText' => 'Select a record to view its details.',
-    // The three monitoring pages (Crop Planted, Crop Damage, Validation)
-    // show a whole record, so they ask for a wide modal.
+    // Accepted so older call sites do not break, and ignored: every record
+    // opens in the same one-column modal (see "ONE SHAPE" below).
     'wide'      => false,
 ])
 
@@ -94,7 +106,7 @@
              On a phone it stays a bottom sheet (items-end), which is where
              a thumb is. --}}
         <div {{ $attributes->class(
-                'relative flex max-h-[92vh] w-full ' . ($wide ? 'max-w-6xl' : 'max-w-2xl') . ' flex-col overflow-hidden '
+                'relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden '
                 . 'rounded-t-2xl border border-border bg-card shadow-2xl sm:max-h-[86vh] sm:rounded-2xl'
             ) }}>
 

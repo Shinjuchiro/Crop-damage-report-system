@@ -248,7 +248,7 @@
          Everything the four columns no longer carry. Only ever rendered for
          a record belonging to this association's own members, because that
          is the only thing the controller will find. --}}
-    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true"
+    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl"
                        empty-text="Select a record from the list to view its full details.">
         @if ($selected)
             @include('monitor._planting-modal', ['record' => $selected, 'relatedDamage' => $relatedDamage, 'role' => 'association'])

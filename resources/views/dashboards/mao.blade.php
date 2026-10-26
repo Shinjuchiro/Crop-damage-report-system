@@ -268,11 +268,51 @@
                     }).addTo(map);
 
                     boundaries.bringToBack();
-                    map.fitBounds(boundaries.getBounds(), { padding: [16, 16] });
-                    // Open a little closer than "all of Tanza just fits"; it can be dragged to the edges.
-                    map.setView(boundaries.getBounds().getCenter(), map.getZoom() + 1.25, { animate: false });
+
+                    /*
+                     * Always open at the same, close-up view of Tanza.
+                     *
+                     * This used to call fitBounds() once and then add 1.25 to
+                     * whatever zoom came out. fitBounds() works from the
+                     * size the map box has AT THAT MOMENT, and on this page
+                     * the box is still settling when the boundary file
+                     * arrives (cards above it, the scrollbar, web fonts), so a
+                     * too-small box produced a too-small zoom and the map
+                     * opened as a tiny Tanza floating in the middle.
+                     *
+                     * Now the framing is a function of the real box size: it
+                     * re-measures the box first, works the zoom out from that,
+                     * and runs again whenever the box changes size, until the
+                     * visitor touches the map. After that it leaves their
+                     * zoom and position alone.
+                     */
+                    const bounds = boundaries.getBounds();
+                    let touched = false;
+
+                    function frame() {
+                        if (touched) return;
+
+                        map.invalidateSize({ animate: false });
+
+                        // Open a little closer than "all of Tanza just fits";
+                        // it can be dragged to the edges.
+                        const zoom = map.getBoundsZoom(bounds, false, L.point(16, 16)) + 1.25;
+
+                        map.setView(bounds.getCenter(), zoom, { animate: false });
+                    }
+
+                    ['pointerdown', 'wheel', 'keydown', 'touchstart'].forEach(function (type) {
+                        el.addEventListener(type, function () { touched = true; }, { passive: true });
+                    });
+
+                    frame();
+                    window.addEventListener('load', frame);
+                    if (typeof ResizeObserver !== 'undefined') {
+                        new ResizeObserver(frame).observe(el);
+                    }
+
                     // Tanza only: the map cannot be dragged away from the municipality.
-                    map.setMaxBounds(boundaries.getBounds().pad(0.15));
+                    map.setMaxBounds(bounds.pad(0.15));
 
                     const centres = {};
                     geojson.features.forEach(function (feature) {

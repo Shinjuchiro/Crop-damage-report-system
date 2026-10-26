@@ -24,7 +24,7 @@
     and assistanceDistributions.allocation loaded.
 --}}
 
-@props(['farmer'])
+@props(['farmer', 'flat' => false])
 
 @php
     $events = collect();
@@ -117,6 +117,22 @@
     ];
 @endphp
 
+@if ($flat)
+    {{-- The modal's version: the same events as flat rows, no card. --}}
+    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">History ({{ $events->count() }})</p>
+    @forelse ($events as $event)
+        <div class="mb-2 border-b border-border/60 pb-2 last:mb-0 last:border-b-0 last:pb-0">
+            <div class="flex items-center justify-between gap-3">
+                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $tones[$event['tone']] ?? $tones['muted'] }}">{{ $event['kind'] }}</span>
+                <span class="text-xs text-muted-foreground">{{ $event['at']->format('M d, Y') }}</span>
+            </div>
+            <p class="mt-1 font-medium text-foreground">{{ $event['title'] }}</p>
+            <p class="text-xs text-muted-foreground">{{ $event['note'] }}</p>
+        </div>
+    @empty
+        <p class="text-muted-foreground">Nothing recorded yet.</p>
+    @endforelse
+@else
 <x-ui.card title="History" :description="$events->count() . ' recorded ' . \Illuminate\Support\Str::plural('event', $events->count())">
 
     @if ($events->isEmpty())
@@ -150,3 +166,4 @@
         </ol>
     @endif
 </x-ui.card>
+@endif

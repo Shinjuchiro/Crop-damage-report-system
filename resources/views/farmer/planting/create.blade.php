@@ -44,7 +44,7 @@
          'id'   => $crop->id,
          'name' => $crop->name,
          'hvcc' => (bool) $crop->is_hvcc,
-     ])->values()), @js($maxCrops))">
+     ])->values()), @js($maxCrops), @js($maxPhotos))">
 
     @if ($errors->any())
         <x-ui.alert variant="destructive" title="Please check the form" class="mb-5">
@@ -54,7 +54,7 @@
         </x-ui.alert>
     @endif
 
-    <form method="POST" action="{{ route('farmer.planting.store') }}"
+    <form method="POST" action="{{ route('farmer.planting.store') }}" enctype="multipart/form-data"
           data-confirm="Please check the crop, the planting date and the area before saving. Pakisuri po muna bago i-save."
           data-confirm-title="Confirm crop planting activity?"
           data-confirm-action="Confirm &amp; Submit"
@@ -186,6 +186,8 @@
                     <span>Total area planted &middot; Kabuuang laki</span>
                     <span x-text="totalArea().toFixed(2) + ' ha'"></span>
                 </div>
+
+                @include('farmer.planting._photos')
             </div>
 
             <x-slot:footer>
@@ -203,8 +205,11 @@
 
 @push('scripts')
 <script>
-    function plantingForm(crops, maxCrops) {
+    function plantingForm(crops, maxCrops, maxPhotos) {
         return {
+            // photoLimit, previews, onPhotos()... live in farmer/planting/_photos
+            ...plantingPhotos(maxPhotos),
+
             crops,
 
             /* The ceiling on one planting record, handed down from
@@ -272,6 +277,7 @@
                 });
 
                 rows.push({ label: 'Total area', value: this.totalArea().toFixed(2) + ' ha' });
+                rows.push({ label: 'Photos attached', value: String(this.files.length) });
 
                 return JSON.stringify(rows);
             },

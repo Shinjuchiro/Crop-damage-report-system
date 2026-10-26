@@ -575,7 +575,7 @@ class AssistanceAllocationController extends Controller
         // "View" loads the distribution inline via ?selected=<id> instead
         // of jumping straight to the allocation's own show page.
         $selected = $request->filled('selected')
-            ? AssistanceDistribution::with(['farmer.association', 'allocation', 'distributedBy'])
+            ? AssistanceDistribution::with(['farmer.association', 'allocation', 'damageReport', 'distributedBy'])
                 ->find($request->selected)
             : null;
 

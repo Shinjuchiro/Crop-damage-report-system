@@ -137,71 +137,54 @@
         <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-5 lg:mt-0"
                             empty-text="Select a dispute from the list to view its details.">
             @if ($selected)
-                <div class="mb-4 flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            DIST-{{ str_pad($selected->id, 3, '0', STR_PAD_LEFT) }}
-                        </p>
-                        <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $selected->farmer?->full_name ?? 'Unknown farmer' }}</h3>
-                        <p class="text-sm text-muted-foreground">
-                            {{ $selected->farmer?->association?->name ?? 'No association' }}
-                        </p>
+                @php
+                    $row = fn ($label, $value) => '<div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">'
+                        . e($label) . '</dt><dd class="min-w-0 break-words text-right font-medium text-foreground">' . e($value ?: '-') . '</dd></div>';
+                @endphp
+
+                <div class="mb-4">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        DIST-{{ str_pad($selected->id, 3, '0', STR_PAD_LEFT) }}
+                    </p>
+                    <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $selected->farmer?->full_name ?? 'Unknown farmer' }}</h3>
+                    <p class="text-sm text-muted-foreground">
+                        {{ $selected->farmer?->association?->name ?? 'No association' }}
+                    </p>
+                    <div class="mt-2">
+                        <span class="inline-flex rounded px-2.5 py-1 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                            Not Received
+                        </span>
                     </div>
                 </div>
 
-                <span class="inline-flex rounded px-3 py-1 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
-                    Not Received
-                </span>
+                <div class="space-y-4 border-t border-border pt-4 text-sm">
+                    <div>
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Distribution</p>
+                        <dl class="space-y-1.5">
+                            {!! $row('Assistance', $selected->allocation?->display_name ?? 'Assistance') !!}
+                            @if ($selected->allocation)
+                                {!! $row('Allocation', 'AA-' . str_pad((string) $selected->allocation->id, 3, '0', STR_PAD_LEFT)) !!}
+                            @endif
+                            @if ($selected->damageReport)
+                                {!! $row('Damage Report', $selected->damageReport->full_reference) !!}
+                            @endif
+                            {!! $row('Distributed', $selected->distributed_at?->format('M d, Y')) !!}
+                            {!! $row('Distributed By', $selected->distributedBy?->display_name) !!}
+                        </dl>
+                    </div>
 
-                <div class="border-t border-border pt-4">
-                    <dl class="space-y-3 text-sm">
-                        <div>
-                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assistance</dt>
-                            <dd class="mt-0.5 font-medium text-foreground">
-                                {{ $selected->allocation?->display_name ?? 'Assistance' }}
-                            </dd>
-                        </div>
-                        {{-- The Quantity row was here. Every figure went in
-                             Oct 2026 (client decision): how much a named
-                             farmer received is a financial detail about an
-                             identifiable person. A dispute is about whether
-                             they received anything at all, which this page
-                             still shows in full. --}}
-                        <div>
-                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Distributed</dt>
-                            <dd class="mt-0.5 font-medium text-foreground">
-                                {{ $selected->distributed_at?->format('M d, Y') }}
-                                <span class="block text-xs font-normal text-muted-foreground">
-                                    by {{ $selected->distributedBy?->display_name ?? '-' }}
-                                </span>
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Reported not received</dt>
-                            <dd class="mt-0.5 font-medium text-foreground">
-                                {{ $selected->receipt_confirmed_at?->format('M d, Y g:i A') ?? '-' }}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Farmer's note</dt>
-                            <dd class="mt-0.5 text-foreground">{{ $selected->receipt_note ?? 'No note left.' }}</dd>
-                        </div>
-                    </dl>
-                </div>
-
-                <div class="mt-5 flex flex-col gap-2 border-t border-border pt-4">
-                    @if ($selected->allocation)
-                        <a href="{{ route('mao.assistance-allocations.show', $selected->allocation) }}"
-                           class="block w-full rounded-lg border border-input px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-muted/60">
-                            View Full Allocation
-                        </a>
-                    @endif
-                    @if ($selected->damageReport)
-                        <a href="{{ route('mao.damage-reports.show', $selected->damageReport) }}"
-                           class="block w-full rounded-lg border border-input px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-muted/60">
-                            View Damage Report
-                        </a>
-                    @endif
+                    {{-- The Quantity row was here. Every figure went in Oct
+                         2026 (client decision): how much a named farmer
+                         received is a financial detail about an identifiable
+                         person. A dispute is about whether they received
+                         anything at all. --}}
+                    <div class="border-t border-border pt-4">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farmer's Report</p>
+                        <dl class="space-y-1.5">
+                            {!! $row('Reported Not Received', $selected->receipt_confirmed_at?->format('M d, Y g:i A')) !!}
+                            {!! $row("Farmer's Note", $selected->receipt_note ?? 'No note left.') !!}
+                        </dl>
+                    </div>
                 </div>
             @endif
         </x-ui.detail-panel>

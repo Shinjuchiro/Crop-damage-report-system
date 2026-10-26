@@ -168,7 +168,6 @@
                     <div class="mt-2"><x-ui.status :value="$appStatus" /></div>
                     <p class="mt-2 text-xs text-muted-foreground">{{ MembershipApplication::means($appStatus) }}</p>
 
-                    <x-ui.open-full-page :href="route('mao.membership-applications.show', $farmer)" />
                 </div>
 
                 {{-- Our own remarks, while the application is back with the

@@ -30,7 +30,6 @@
             {{ ucfirst($allocation->status) }}
         </span>
     </div>
-    <x-ui.open-full-page :href="route('mao.assistance-allocations.show', $allocation)" />
 </div>
 
 <div class="space-y-4 border-t border-border pt-4 text-sm">
@@ -102,8 +101,7 @@
                         {{ $beneficiary->farmer?->barangay?->name ?? '-' }}
                         @if ($beneficiary->damageReport)
                             &middot;
-                            <a href="{{ route('mao.damage-reports.show', $beneficiary->damageReport) }}"
-                               class="text-sky-700 underline hover:text-sky-900">{{ $beneficiary->damageReport->full_reference }}</a>
+                            {{ $beneficiary->damageReport->full_reference }}
                         @endif
                     </p>
                 </div>

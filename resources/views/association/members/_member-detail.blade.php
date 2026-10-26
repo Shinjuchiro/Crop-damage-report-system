@@ -3,12 +3,8 @@
 
     IN THE PANEL (the modal on the members list, $inPanel true)
 
-    A summary and nothing more: who they are, whether they are active, and
-    how many records they have. That is the "Andrea Santos / Tanza Farmers
-    Association / 5 Reports / View Profile" card of revision section 6. The
-    list answers "which member", the profile answers "what about them", and
-    this modal is the handshake between the two. It used to carry every
-    table in full, which turned a quick look at one row into a long scroll.
+    The whole record, in the flat one-column modal style every other record
+    modal uses (x-member.panel). It no longer links to a full page.
 
     ON THE PROFILE PAGE (association/members/show.blade.php, $inPanel false)
 
@@ -34,113 +30,9 @@
 
 @if ($inPanel)
 
-    <x-ui.open-full-page class="!mt-0"
-                         label="View full profile"
-                         :href="route('association.members.show', $member)" />
-
-        {{-- Status strip --}}
-        <x-ui.card>
-            <div class="flex flex-wrap items-center gap-2">
-                <x-ui.status :value="$member->activity_status" />
-
-                <span class="text-xs text-muted-foreground">
-                    @if ($member->has_filed_planting_report)
-                        Last planting report {{ $member->last_activity_date->format('F d, Y') }}
-                    @else
-                        No planting report yet
-                    @endif
-                </span>
-
-                @if ($member->activity_status === 'inactive')
-                    <span class="text-xs text-muted-foreground">
-                        &middot; {{ $member->months_inactive }} months inactive
-                    </span>
-                @endif
-            </div>
-
-            <p class="mt-2 text-xs text-muted-foreground">
-                A member goes inactive after {{ \App\Models\Farmer::INACTIVITY_MONTHS }} months with no crop planting activity. Logging in and browsing
-                do not count, and having no damage report does not make anybody inactive.
-            </p>
-        </x-ui.card>
-
-        {{-- Personal and farm --}}
-        <x-ui.card title="Member details">
-            @php
-                $details = [
-                    'Contact'    => $member->user?->phone_number ?: 'Not provided',
-                    'Email'      => $member->user?->email ?: 'Not provided',
-                    'Barangay'   => $member->barangay?->name ?? 'Not set',
-                    'Sex'        => ucfirst($member->sex ?? '-'),
-                    'Ownership'  => $member->ownership_type === 'tenant' ? 'Tenant' : 'Land Owner',
-                    'Farm Size'  => $member->farm_size_hectares
-                                        ? number_format($member->farm_size_hectares, 2) . ' ha' : 'Not set',
-                ];
-            @endphp
-
-            <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                @foreach ($details as $label => $value)
-                    <div class="min-w-0">
-                        <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ $label }}</dt>
-                        <dd class="mt-1 break-words text-sm font-medium">{{ $value }}</dd>
-                    </div>
-                @endforeach
-            </dl>
-
-            <div class="mt-5 border-t border-border pt-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Address</p>
-                <p class="mt-1 text-sm leading-relaxed">{{ $member->address }}</p>
-            </div>
-
-            @if ($member->ownership_type === 'tenant' && $member->landowner_name)
-                <div class="mt-4 rounded-lg bg-muted px-4 py-3">
-                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Land owner</p>
-                    <p class="mt-1 text-sm font-medium">{{ $member->landowner_name }}</p>
-                    <p class="text-xs text-muted-foreground">
-                        {{ $member->landowner_contact ?: 'No contact' }}
-                        @if ($member->landowner_location) &middot; {{ $member->landowner_location }} @endif
-                    </p>
-                </div>
-            @endif
-
-            <x-farmer.supporting-documents :farmer="$member" class="mt-4" />
-
-            @if ($member->mainCrops->isNotEmpty())
-                <div class="mt-4">
-                    <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Main crops</p>
-                    <div class="flex flex-wrap gap-1.5">
-                        @foreach ($member->mainCrops as $main)
-                            <x-ui.badge variant="primary">
-                                {{ $main->crop_specify ?: $main->crop?->name }}
-                            </x-ui.badge>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-        </x-ui.card>
-
-    {{-- The counts the list row promised, and the reason to open the
-         profile. Numbers only: the records themselves live behind the
-         button above, not in a modal. --}}
-    <x-ui.card title="Records">
-        @php
-            $tally = [
-                'Crop planted' => $member->plantingRecords->count(),
-                'Crop damage'  => $member->damageReports->count(),
-                'Inspections'  => $member->damageReports->filter(fn ($report) => $report->validation?->validated_at)->count(),
-                'Assistance'   => $member->assistanceDistributions->count(),
-            ];
-        @endphp
-
-        <dl class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            @foreach ($tally as $label => $total)
-                <div>
-                    <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ $label }}</dt>
-                    <dd class="mt-0.5 text-2xl font-bold tabular-nums text-card-foreground">{{ $total }}</dd>
-                </div>
-            @endforeach
-        </dl>
-    </x-ui.card>
+    {{-- One flat column with every section the profile page has (Oct 2026):
+         the modal is the whole record now, so there is no full page to open. --}}
+    <x-member.panel :farmer="$member" />
 
 @else
 

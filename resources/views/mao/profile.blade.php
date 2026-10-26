@@ -2,7 +2,7 @@
 
 @section('title', 'My Profile')
 @section('heading', 'My Profile')
-@section('subheading', 'Your account photo and basic details.')
+@section('subheading', 'Your account photo, basic details and account settings.')
 
 @section('content')
 <div class="max-w-2xl space-y-4">
@@ -26,9 +26,6 @@
         </div>
     </x-ui.card>
 
-    <x-ui.alert variant="info" title="Looking for something else?">
-        Your login email, phone number and password are managed on the
-        <a href="{{ route('mao.settings') }}" class="font-semibold underline">Account Settings</a> page.
-    </x-ui.alert>
+    @include('settings.account', ['user' => $user])
 </div>
 @endsection

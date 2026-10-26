@@ -132,11 +132,14 @@
                         </div>
                     @endif
                 </dl>
-
-                <x-farmer.supporting-documents :farmer="$farmer" class="mt-5" />
             </div>
 
-            <div class="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm">
+            {{-- Right column: Farm Information is short, and the tenant's papers
+                 can be several rows tall. Stacking them here keeps the two
+                 columns about the same height instead of leaving Farm
+                 Information with a hollow half beside a long Ownership card. --}}
+            <div class="min-w-0 space-y-6">
+            <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-green-800">Farm Information</h3>
                 <dl class="grid gap-4 text-sm sm:grid-cols-2">
                     <div class="flex justify-between gap-3">
@@ -156,6 +159,13 @@
                         </dd>
                     </div>
                 </dl>
+            </div>
+
+            @if ($farmer->ownership_type === 'tenant')
+                <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <x-farmer.supporting-documents :farmer="$farmer" />
+                </div>
+            @endif
             </div>
         </div>
     @endif

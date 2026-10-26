@@ -243,7 +243,7 @@
          The member's submission and the technician's findings, side by side
          and never merged (section 9.4). Only ever rendered for a report
          belonging to this association's own members. --}}
-    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true"
+    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl"
                        empty-text="Select a report from the list to view its full details.">
         @if ($selected)
             @include('monitor._damage-modal', ['report' => $selected, 'role' => 'association'])

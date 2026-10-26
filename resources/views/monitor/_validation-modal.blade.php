@@ -55,7 +55,7 @@
                 @if ($isMao)
                     <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
                 @else
-                    <a href="{{ route('association.members.show', $farmer) }}" class="hover:underline">{{ $farmer->full_name }}</a>
+                    <a href="{{ route('association.members.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
                 @endif
             </h3>
             <p class="text-sm text-muted-foreground">{{ $farmer->association?->name ?? '-' }} &middot; {{ $farmer->barangay?->name ?? '-' }}</p>
@@ -72,10 +72,10 @@
 
     <x-monitor.farmer-farm :farmer="$farmer" :contact="$isMao" />
 
-    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+    <div class="mt-4 space-y-4">
 
         {{-- A. WHAT THE FARMER REPORTED --}}
-        <div class="space-y-4 rounded-xl border border-border p-4 text-sm">
+        <div class="space-y-4 border-t border-border pt-4 text-sm">
             <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Crop Damage Report</p>
 
             <dl class="space-y-1.5">
@@ -121,7 +121,7 @@
         </div>
 
         {{-- C. WHAT THE TECHNICIAN FOUND --}}
-        <div class="space-y-4 rounded-xl border border-border p-4 text-sm">
+        <div class="space-y-4 border-t border-border pt-4 text-sm">
             <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Technician Validation Assessment</p>
 
             @if ($submitted)
@@ -176,7 +176,7 @@
     </div>
 
     {{-- B. CROP PLANTED REPORT vs. REPORTED CROP DAMAGE --}}
-    <div class="mt-4 rounded-xl border border-border p-4">
+    <div class="mt-4 border-t border-border pt-4">
         <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Crop Planted Report vs. Reported Crop Damage</p>
             <x-monitor.badge kind="match" :value="$match" />
@@ -204,7 +204,7 @@
                     <p class="text-xs font-semibold text-foreground">{{ $line->crop?->name ?? '-' }}@if ($line->crop_specify) ({{ $line->crop_specify }})@endif</p>
                     <x-monitor.badge kind="match" :value="$row['state']" />
                 </div>
-                <div class="grid divide-y divide-border text-xs sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                <div class="grid divide-y divide-border text-xs">
                     <div class="px-3 py-2">
                         <p class="mb-1 font-medium text-muted-foreground">Crop Planted report</p>
                         @if ($planted)
@@ -249,7 +249,7 @@
     </div>
 
     {{-- THE OFFICE'S REVIEW --}}
-    <div class="mt-4 rounded-xl border border-border p-4">
+    <div class="mt-4 border-t border-border pt-4">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">MAO Review of the Assessment</p>
 
         <div class="flex flex-wrap items-center gap-3">

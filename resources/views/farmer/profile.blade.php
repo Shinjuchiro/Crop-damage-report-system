@@ -216,5 +216,10 @@
             Makipag-ugnayan po sa tanggapan ng MAO upang maitama ang inyong impormasyon.
         </span>
     </x-ui.alert>
+
+    {{-- Account Settings (login email, phone number, password), at the very
+         bottom of the page. This page has no $user of its own: it is built
+         around $farmer. --}}
+    @include('settings.account', ['user' => auth()->user()])
 </div>
 @endsection

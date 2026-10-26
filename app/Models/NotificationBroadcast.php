@@ -25,6 +25,44 @@ class NotificationBroadcast extends Model
     ];
 
     /**
+     * The hazards an advisory can warn about (Oct 2026).
+     *
+     * The ten climate-related hazards named for farming in the Climate Risk
+     * and Vulnerability Assessment (CRVA) of Cavite, Laguna, Batangas and
+     * Rizal, Region 4A (2024), by the Department of Agriculture Regional
+     * Field Office IV-A and Cavite State University. Picking one on the
+     * Announcements form fills in the title, a plain-language message built
+     * from the description below, and the alert type, so an officer can send
+     * a risk warning in a few clicks. Everything it fills is editable and
+     * nothing is stored apart from the alert itself: the hazard is in its
+     * title, so no column or migration is needed.
+     *
+     * key => [label, description, category]
+     */
+    public const HAZARDS = [
+        'typhoon' => ['Typhoon',
+            'Strong winds and heavy rainfall that may damage crops and farmland.', 'disaster_alert'],
+        'flood' => ['Flood',
+            'Excess water covering agricultural land and damaging planted crops.', 'disaster_alert'],
+        'drought' => ['Drought',
+            'A long period with little or no rainfall that causes water shortages for crops.', 'disaster_alert'],
+        'storm_surge' => ['Storm Surge',
+            'Seawater pushed inland by a storm that may flood coastal farmland.', 'disaster_alert'],
+        'soil_erosion' => ['Soil Erosion',
+            'The removal of topsoil by water or wind, which can reduce soil quality and affect crop growth.', 'agricultural_alert'],
+        'landslide' => ['Landslide',
+            'Soil and rocks moving downhill that may bury or damage agricultural land.', 'disaster_alert'],
+        'saltwater_intrusion' => ['Saltwater Intrusion',
+            'Saltwater entering freshwater sources or agricultural soil, making it difficult to grow crops.', 'agricultural_alert'],
+        'sea_level_rise' => ['Sea Level Rise',
+            'A long-term rise in sea level that may increase coastal flooding and saltwater intrusion.', 'disaster_alert'],
+        'extreme_heat' => ['Extreme Heat',
+            'Unusually high temperatures that may cause crop stress, wilting, and reduced yield.', 'agricultural_alert'],
+        'pest_disease' => ['Pest and Disease Outbreak',
+            'Insects or plant diseases that damage crops and reduce agricultural production.', 'agricultural_alert'],
+    ];
+
+    /**
      * Priority decides how an alert is delivered.
      * Normal and Important are in-app only. Urgent and Critical are also queued
      * for SMS, because those are the ones a farmer must see today.

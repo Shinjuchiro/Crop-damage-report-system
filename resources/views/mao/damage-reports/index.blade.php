@@ -329,7 +329,7 @@
         </div>
 
         {{-- DETAIL --}}
-        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true" class="mt-5 lg:mt-0"
+        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-5 lg:mt-0"
                             empty-text="Select a report from the list to view its full details.">
             @if ($selected)
                 {{-- The same wide modal the association sees (monitor/_damage-modal).

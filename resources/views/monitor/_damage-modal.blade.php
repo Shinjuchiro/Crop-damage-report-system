@@ -62,7 +62,7 @@
                 @if ($isMao)
                     <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
                 @else
-                    <a href="{{ route('association.members.show', $farmer) }}" class="hover:underline">{{ $farmer->full_name }}</a>
+                    <a href="{{ route('association.members.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
                 @endif
             </h3>
             <p class="text-sm text-muted-foreground">{{ $farmer->association?->name ?? '-' }} &middot; {{ $farmer->barangay?->name ?? '-' }}</p>
@@ -75,10 +75,10 @@
 
     <x-monitor.farmer-farm :farmer="$farmer" :contact="$isMao" />
 
-    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+    <div class="mt-4 space-y-4">
 
         {{-- LEFT: the report the farmer filed --}}
-        <div class="space-y-4 rounded-xl border border-border p-4 text-sm">
+        <div class="space-y-4 border-t border-border pt-4 text-sm">
             <div>
                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Crop Damage Report</p>
                 <dl class="space-y-1.5">
@@ -187,13 +187,13 @@
                             <x-monitor.badge kind="match" :value="$row['state']" />
                         </div>
 
-                        <dl class="mt-1.5 grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                            <div><dt class="text-muted-foreground">Planting date (given by the farmer)</dt><dd class="font-medium text-foreground">{{ $line->date_planted?->format('M d, Y') ?? '-' }}</dd></div>
-                            <div><dt class="text-muted-foreground">Estimated damage</dt><dd class="font-medium text-foreground">{{ $line->estimated_damage_percent !== null ? (float) $line->estimated_damage_percent . '%' : '-' }}</dd></div>
-                            <div><dt class="text-muted-foreground">Severity (from the farmer's estimate)</dt><dd class="font-medium text-foreground">{{ $percentSeverity($line->estimated_damage_percent) }}</dd></div>
-                            <div><dt class="text-muted-foreground">Production cost</dt><dd class="font-medium text-foreground">{{ $money($line->production_cost) }}</dd></div>
-                            <div><dt class="text-muted-foreground">Farmgate price per kg</dt><dd class="font-medium text-foreground">{{ $money($line->farmgate_price_per_kg) }}</dd></div>
-                            <div><dt class="text-muted-foreground">Damage cost</dt><dd class="font-medium text-foreground">{{ $money($line->total_damage_cost) }}</dd></div>
+                        <dl class="mt-2 space-y-1">
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Planting date (given by the farmer)</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $line->date_planted?->format('M d, Y') ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Estimated damage</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $line->estimated_damage_percent !== null ? (float) $line->estimated_damage_percent . '%' : '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Severity (from the farmer's estimate)</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $percentSeverity($line->estimated_damage_percent) }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Production cost</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $money($line->production_cost) }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Farmgate price per kg</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $money($line->farmgate_price_per_kg) }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Damage cost</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $money($line->total_damage_cost) }}</dd></div>
                         </dl>
 
                         <p class="mt-2 text-muted-foreground">
@@ -229,7 +229,7 @@
 
         {{-- RIGHT: evidence, location, technician --}}
         <div class="space-y-4 text-sm">
-            <div class="rounded-xl border border-border p-4">
+            <div class="border-t border-border pt-4">
                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Submitted Photos</p>
                 @if ($report->photos->isNotEmpty())
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -244,7 +244,7 @@
                 @endif
             </div>
 
-            <div class="rounded-xl border border-border p-4">
+            <div class="border-t border-border pt-4">
                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farm / Damage Location</p>
                 <p class="text-xs text-foreground">{{ $report->farm_location_description ?: 'No location description provided.' }}</p>
                 <p class="mt-1 text-xs text-muted-foreground">{{ $locationName }}</p>
@@ -258,7 +258,7 @@
                 @endif
             </div>
 
-            <div class="rounded-xl border border-border p-4">
+            <div class="border-t border-border pt-4">
                 <div class="mb-2 flex items-center justify-between gap-2">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Technician Assignment</p>
                     <x-monitor.badge kind="assignment" :value="$report->is_assigned ? 'assigned' : 'unassigned'" />

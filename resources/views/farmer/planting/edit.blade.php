@@ -27,7 +27,12 @@
              'date_planted'  => optional($c->date_planted)->toDateString(),
              'area_hectares' => (string) $c->area_hectares,
          ])->values()),
-         @js($maxCrops)
+         @js($maxCrops),
+         @js($maxPhotos),
+         @js($record->photos->map(fn ($photo) => [
+             'id'  => $photo->id,
+             'url' => $photo->url,
+         ])->values())
      )">
 
     @if ($errors->any())
@@ -38,7 +43,7 @@
         </x-ui.alert>
     @endif
 
-    <form method="POST" action="{{ route('farmer.planting.update', $record) }}"
+    <form method="POST" action="{{ route('farmer.planting.update', $record) }}" enctype="multipart/form-data"
           data-confirm="Please check the crop, the planting date and the area before saving. Pakisuri po muna bago i-save."
           data-confirm-title="Save these changes?"
           data-confirm-action="Confirm &amp; Save"
@@ -167,6 +172,8 @@
                     <span>Total area planted &middot; Kabuuang laki</span>
                     <span x-text="totalArea().toFixed(2) + ' ha'"></span>
                 </div>
+
+                @include('farmer.planting._photos')
             </div>
 
             <x-slot:footer>
@@ -184,8 +191,11 @@
 
 @push('scripts')
 <script>
-    function plantingForm(crops, initialRows, maxCrops) {
+    function plantingForm(crops, initialRows, maxCrops, maxPhotos, existingPhotos) {
         return {
+            // photoLimit, previews, onPhotos()... live in farmer/planting/_photos
+            ...plantingPhotos(maxPhotos, existingPhotos),
+
             crops,
 
             /* The ceiling on one planting record, handed down from
@@ -246,6 +256,11 @@
                 });
 
                 rows.push({ label: 'Total area', value: this.totalArea().toFixed(2) + ' ha' });
+                rows.push({
+                    label: 'Photos',
+                    value: String(this.keptExisting() + this.files.length)
+                        + (this.removedIds.length ? ' (' + this.removedIds.length + ' removed)' : ''),
+                });
 
                 return JSON.stringify(rows);
             },

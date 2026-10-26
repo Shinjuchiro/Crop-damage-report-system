@@ -48,6 +48,24 @@
         </x-ui.table>
     </x-ui.card>
 
+    <x-ui.card title="Photos">
+        @if ($record->photos->isNotEmpty())
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                @foreach ($record->photos as $photo)
+                    <a href="{{ $photo->url }}" target="_blank" rel="noopener"
+                       class="block overflow-hidden rounded-lg border border-border">
+                        <img src="{{ $photo->url }}" alt="Planting photo"
+                             class="h-32 w-full object-cover transition hover:scale-105">
+                    </a>
+                @endforeach
+            </div>
+        @else
+            <p class="text-sm text-muted-foreground">
+                No photos were attached. You can add some with Edit above. Walang nakalakip na larawan.
+            </p>
+        @endif
+    </x-ui.card>
+
     <x-ui.card title="Farmer">
         <dl class="flex flex-wrap gap-x-10 gap-y-4">
             @php

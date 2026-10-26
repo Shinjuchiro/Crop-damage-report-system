@@ -7,6 +7,11 @@
 @php
     $broadcast = \App\Models\NotificationBroadcast::class;
 
+    // The hazard shortcut's data for the composer script at the bottom of the page.
+    $hazardList = collect($broadcast::HAZARDS)->map(fn ($h) => [
+        'label' => $h[0], 'description' => $h[1], 'category' => $h[2],
+    ])->all();
+
     $categoryStyles = [
         'disaster_alert'     => ['bg-red-100', 'text-red-700', 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-200 ring-red-200'],
         'agricultural_alert' => ['bg-green-100', 'text-green-700', 'bg-accent text-green-800 ring-green-200'],
@@ -250,6 +255,31 @@
                 {{-- ---------- Compose ---------- --}}
                 <div x-show="step === 'compose'" class="space-y-5 px-6 py-5">
 
+                    {{-- A shortcut, not a field: nothing here is submitted. Choosing a
+                         hazard fills the alert type, title and message below, which stay
+                         fully editable. --}}
+                    <div class="rounded-lg border border-border bg-muted/40 p-4">
+                        <label class="mb-1.5 block text-sm font-medium text-foreground">
+                            Risk or hazard <span class="font-normal text-muted-foreground">(optional)</span>
+                        </label>
+                        <select x-model="hazard" @change="applyHazard()"
+                                class="w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
+                            <option value="">Write my own announcement</option>
+                            @foreach ($broadcast::HAZARDS as $key => $hazard)
+                                <option value="{{ $key }}">{{ $hazard[0] }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1.5 text-xs text-muted-foreground" x-show="! hazard">
+                            Pick a risk to fill in the title and message, then change anything you like.
+                        </p>
+                        <p class="mt-1.5 text-xs text-muted-foreground" x-show="hazard" x-cloak
+                           x-text="hazards[hazard] ? hazards[hazard].description : ''"></p>
+                        <p class="mt-1.5 text-[11px] text-muted-foreground">
+                            Hazards follow the Climate Risk and Vulnerability Assessment of Region 4A (2024),
+                            Department of Agriculture RFO IV-A and Cavite State University.
+                        </p>
+                    </div>
+
                     <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                         <div>
                             <label class="mb-1.5 block text-sm font-medium text-foreground">
@@ -481,6 +511,13 @@
                 sms:        @json(collect(\App\Models\NotificationBroadcast::PRIORITIES)->map(fn ($p) => $p['sms'])),
             },
 
+            /* The hazard shortcut. `hazard` is the picked key; `filled` remembers
+               what was written for the last pick so that switching hazards
+               replaces the text we wrote, but never text the officer typed. */
+            hazard: '',
+            filled: { title: '', message: '' },
+            hazards: @json($hazardList),
+
             f: {
                 category: 'disaster_alert',
                 priority: 'normal',
@@ -489,6 +526,30 @@
                 target_type: 'all_farmers',
                 target_id: '',
                 scheduled_for: '',
+            },
+
+            applyHazard() {
+                const h = this.hazards[this.hazard];
+
+                if (! h) {
+                    return;
+                }
+
+                const title = h.label + ' Advisory';
+                const message = h.label + ': ' + h.description
+                    + ' Please check your farm and crops, take precautions where you can, and report any'
+                    + ' crop damage through the system so the Municipal Agriculture Office can respond.';
+
+                // Only write over empty fields or text this shortcut wrote itself.
+                if (this.f.title.trim() === '' || this.f.title === this.filled.title) {
+                    this.f.title = title;
+                }
+                if (this.f.message.trim() === '' || this.f.message === this.filled.message) {
+                    this.f.message = message;
+                }
+
+                this.filled = { title: this.f.title, message: this.f.message };
+                this.f.category = h.category;
             },
 
             open() {

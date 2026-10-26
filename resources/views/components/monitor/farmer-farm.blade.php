@@ -18,8 +18,8 @@
     $mainCrops = $farmer->mainCrops->map(fn ($m) => $m->crop?->name)->filter()->implode(', ');
 @endphp
 
-<div class="grid gap-4 md:grid-cols-3">
-    <div class="rounded-xl border border-border p-4">
+<div class="space-y-4">
+    <div class="border-t border-border pt-4">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farmer Information</p>
         <dl class="space-y-1.5 text-sm">
             {!! $row('Name', $farmer->full_name) !!}
@@ -31,7 +31,7 @@
         </dl>
     </div>
 
-    <div class="rounded-xl border border-border p-4">
+    <div class="border-t border-border pt-4">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farm Ownership</p>
         <dl class="space-y-1.5 text-sm">
             {!! $row('Farmer Type', $tenant ? 'Tenant' : 'Land Owner') !!}
@@ -43,7 +43,7 @@
         </dl>
     </div>
 
-    <div class="rounded-xl border border-border p-4">
+    <div class="border-t border-border pt-4">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farm Information</p>
         <dl class="space-y-1.5 text-sm">
             {!! $row('Farm Size', $farmer->farm_size_hectares !== null ? number_format((float) $farmer->farm_size_hectares, 2) . ' ha' : null) !!}

@@ -98,7 +98,7 @@ class DamageReportController extends Controller
         $selected = $request->filled('selected')
             ? $farmer->damageReports()
                 ->with('crops.crop', 'disasters', 'photos', 'assignedTechnician',
-                       'validation.photos', 'reportedBarangay')
+                       'validation.photos', 'validation.technician', 'reportedBarangay')
                 ->find($request->query('selected'))
             : null;
 

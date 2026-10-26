@@ -35,7 +35,7 @@
             @if ($isMao)
                 <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
             @else
-                <a href="{{ route('association.members.show', $farmer) }}" class="hover:underline">{{ $farmer->full_name }}</a>
+                <a href="{{ route('association.members.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
             @endif
         </h3>
         <p class="text-sm text-muted-foreground">
@@ -47,30 +47,30 @@
     @endif
 </div>
 
-<div class="grid gap-4 lg:grid-cols-3">
+<div class="space-y-4">
 
     {{-- LEFT: the report itself --}}
-    <div class="space-y-4 lg:col-span-2">
-        <div class="rounded-xl border border-border p-4 text-sm">
+    <div class="space-y-4">
+        <div class="border-t border-border pt-4 text-sm">
             <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Planting Report</p>
-            <dl class="grid gap-x-6 gap-y-2 sm:grid-cols-2">
-                <div><dt class="text-xs text-muted-foreground">Planting Report ID</dt><dd class="font-medium text-foreground">{{ $reportId }}</dd></div>
-                <div><dt class="text-xs text-muted-foreground">Date Submitted</dt><dd class="font-medium text-foreground">{{ $record->date_submitted?->format('F d, Y') ?? '-' }}</dd></div>
-                <div><dt class="text-xs text-muted-foreground">Farmer</dt><dd class="font-medium text-foreground">{{ $farmer->full_name }}</dd></div>
-                <div><dt class="text-xs text-muted-foreground">Farmers' Association</dt><dd class="font-medium text-foreground">{{ $farmer->association?->name ?? '-' }}</dd></div>
-                <div class="sm:col-span-2"><dt class="text-xs text-muted-foreground">Farm Location</dt><dd class="font-medium text-foreground">{{ $location ?: '-' }}</dd></div>
-                <div><dt class="text-xs text-muted-foreground">Total Planted Area</dt><dd class="font-medium text-foreground">{{ number_format($totalArea, 2) }} ha</dd></div>
+            <dl class="space-y-1.5">
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Planting Report ID</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $reportId }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date Submitted</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $record->date_submitted?->format('F d, Y') ?? '-' }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Farmer</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $farmer->full_name }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Farmers' Association</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $farmer->association?->name ?? '-' }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Farm Location</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $location ?: '-' }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Total Planted Area</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ number_format($totalArea, 2) }} ha</dd></div>
                 {{-- A planting report has no state of its own; the status the list shows
                      for it is the farmer's Active/Inactive standing, so that is what is shown. --}}
-                <div><dt class="text-xs text-muted-foreground">Status</dt>
-                    <dd class="font-medium text-foreground">
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Status</dt>
+                    <dd class="min-w-0 text-right font-medium text-foreground">
                         {{ $record->archived_at ? 'Archived ' . $record->archived_at->format('M d, Y') : ucfirst((string) ($farmer->activity_status ?: '-')) }}
                     </dd>
                 </div>
             </dl>
         </div>
 
-        <div class="rounded-xl border border-border p-4">
+        <div class="border-t border-border pt-4">
             <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Crops Planted</p>
 
             <div class="space-y-2">
@@ -86,12 +86,12 @@
                                 <span class="rounded bg-lime-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-lime-800">HVCC</span>
                             @endif
                         </p>
-                        <dl class="mt-1.5 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-3">
-                            <div><dt class="text-muted-foreground">Planting date</dt><dd class="font-medium text-foreground">{{ $recordCrop->date_planted?->format('M d, Y') ?? '-' }}</dd></div>
-                            <div><dt class="text-muted-foreground">Planted area</dt><dd class="font-medium text-foreground">{{ number_format((float) $recordCrop->area_hectares, 2) }} ha</dd></div>
-                            <div>
-                                <dt class="text-muted-foreground">Expected harvest (estimate)</dt>
-                                <dd class="font-medium text-foreground">
+                        <dl class="mt-2 space-y-1 text-xs">
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Planting date</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $recordCrop->date_planted?->format('M d, Y') ?? '-' }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Planted area</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ number_format((float) $recordCrop->area_hectares, 2) }} ha</dd></div>
+                            <div class="flex justify-between gap-3">
+                                <dt class="shrink-0 text-muted-foreground">Expected harvest (estimate)</dt>
+                                <dd class="min-w-0 text-right font-medium text-foreground">
                                     @if ($harvest)
                                         {{ $harvest->format('M d, Y') }}
                                     @else
@@ -119,7 +119,7 @@
     </div>
 
     {{-- RIGHT: the photographs the farmer attached --}}
-    <div class="rounded-xl border border-border p-4">
+    <div class="border-t border-border pt-4">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Photos</p>
         @if ($record->photos->isNotEmpty())
             <div class="grid grid-cols-2 gap-2">

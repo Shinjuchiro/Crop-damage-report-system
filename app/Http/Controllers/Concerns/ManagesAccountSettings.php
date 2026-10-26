@@ -27,11 +27,15 @@ use Illuminate\Validation\Rules\Password;
  */
 trait ManagesAccountSettings
 {
+    /**
+     * Account Settings is the last section of My Profile now (Oct 2026), so
+     * the old settings URL, which may still be bookmarked or linked from an
+     * old notification, goes there. MAO's own SettingsController overrides
+     * this with the reference-data hub.
+     */
     public function index()
     {
-        return view($this->settingsView('index'), [
-            'user' => Auth::user(),
-        ]);
+        return redirect()->to(route(Auth::user()->role . '.profile') . '#account-settings');
     }
 
     /**
@@ -59,7 +63,7 @@ trait ManagesAccountSettings
             'created_at'   => now(),
         ]);
 
-        return back()->with('status', 'Account details updated successfully.');
+        return back()->with('status', 'Account details updated successfully.')->withFragment('account-settings');
     }
 
     /**
@@ -86,7 +90,7 @@ trait ManagesAccountSettings
             'created_at'   => now(),
         ]);
 
-        return back()->with('status', 'Password updated successfully.');
+        return back()->with('status', 'Password updated successfully.')->withFragment('account-settings');
     }
 
     /**
