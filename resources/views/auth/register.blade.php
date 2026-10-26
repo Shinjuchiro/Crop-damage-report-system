@@ -378,40 +378,92 @@
                             <h3 class="text-lg font-semibold text-primary">Location</h3>
                         </div>
 
-                        <div class="grid gap-x-8 gap-y-5 sm:grid-cols-2">
-                            <div class="sm:col-span-2 xl:col-span-3">
-                                <label class="{{ $labelClass }}">Complete Address <span class="text-red-500">*</span></label>
-                                <textarea name="address" x-model="f.address" rows="2" required
-                                          placeholder="Purok / Street, Barangay" class="{{ $inputClass('address') }}"></textarea>
-                                @error('address')
+                        {{-- ORDER (Oct 2026): Association, Barangay, Address,
+                             Municipality, Province. The barangay depends on the
+                             association, so it comes second and stays disabled
+                             until one is chosen. --}}
+                        <div class="space-y-5">
+                            <div>
+                                <label class="{{ $labelClass }}">Farmers' Association <span class="text-red-500">*</span></label>
+                                <select name="association_id" x-model="f.association_id" required class="{{ $inputClass('association_id') }}">
+                                    <option value="">Select Farmers' Association</option>
+                                    @foreach ($associations as $association)
+                                        <option value="{{ $association->id }}">{{ $association->name }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1.5 text-xs text-muted-foreground">Choose the farmers' association you belong to.</p>
+                                @error('association_id')
                                     <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
                                 @enderror
                             </div>
 
                             <div>
                                 <label class="{{ $labelClass }}">Barangay <span class="text-red-500">*</span></label>
-                                <select name="barangay_id" x-model="f.barangay_id" required class="{{ $inputClass('barangay_id') }}">
+                                {{-- Options come from the association chosen above
+                                     (barangayOptions), never from every barangay in
+                                     Tanza. x-ref lets the script re-apply the saved
+                                     choice after the list is rebuilt. --}}
+                                <select name="barangay_id" x-ref="barangaySelect" x-model="f.barangay_id" required
+                                        :disabled="!f.association_id || barangayOptions().length === 0"
+                                        class="{{ $inputClass('barangay_id') }} disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground">
                                     <option value="">Select Barangay</option>
-                                    @foreach ($barangays as $barangay)
-                                        <option value="{{ $barangay->id }}">{{ $barangay->name }}</option>
-                                    @endforeach
+                                    <template x-for="barangay in barangayOptions()" :key="barangay.id">
+                                        <option :value="barangay.id" x-text="barangay.name"></option>
+                                    </template>
                                 </select>
+                                <p class="mt-1.5 text-xs text-muted-foreground"
+                                   x-show="!f.association_id || barangayOptions().length > 0">
+                                    Only barangays covered by the selected association will be shown.
+                                </p>
+                                <p class="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-500" x-cloak
+                                   x-show="f.association_id && barangayOptions().length === 0">
+                                    No barangays have been set up for this association yet. Please contact the
+                                    Municipal Agriculture Office.
+                                </p>
                                 @error('barangay_id')
                                     <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
                                 @enderror
                             </div>
 
                             <div>
-                                <label class="{{ $labelClass }}">Farmers' Association <span class="text-red-500">*</span></label>
-                                <select name="association_id" x-model="f.association_id" required class="{{ $inputClass('association_id') }}">
-                                    <option value="">Select Association</option>
-                                    @foreach ($associations as $association)
-                                        <option value="{{ $association->id }}">{{ $association->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('association_id')
+                                <label class="{{ $labelClass }}">Complete Address <span class="text-red-500">*</span></label>
+                                <textarea name="address" x-model="f.address" rows="2" required
+                                          placeholder="House No. / Street / Sitio / Purok" class="{{ $inputClass('address') }}"></textarea>
+                                <p class="mt-1.5 text-xs text-muted-foreground">
+                                    Enter your full residential address (e.g., House No., Street, Sitio/Purok).
+                                    Do not include the barangay; you chose it above.
+                                </p>
+                                @error('address')
                                     <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
                                 @enderror
+                            </div>
+
+                            {{-- Fixed values. readonly and left out of the submission:
+                                 every farmer on this system is in Tanza, Cavite, so
+                                 there is nothing for the server to store or trust. --}}
+                            <div class="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+                                <div>
+                                    <label class="{{ $labelClass }}">Municipality <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <input type="text" value="Tanza" readonly tabindex="-1" aria-readonly="true"
+                                               class="{{ $inputClass() }} cursor-not-allowed bg-muted pr-10 text-muted-foreground">
+                                        <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                            <rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 118 0v3"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="{{ $labelClass }}">Province <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <input type="text" value="Cavite" readonly tabindex="-1" aria-readonly="true"
+                                               class="{{ $inputClass() }} cursor-not-allowed bg-muted pr-10 text-muted-foreground">
+                                        <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                                            <rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 118 0v3"/>
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -511,8 +563,19 @@
                             </div>
                             <div>
                                 <label class="{{ $labelClass }}">Land Owner Contact Number</label>
-                                <input type="text" name="landowner_contact" x-model="f.landowner_contact"
+                                {{-- Numbers only, at most 11 digits, and exactly 11 when filled
+                                     in: the same rule as the farmer's own mobile number.
+                                     The @input strips anything that is not a digit as it is
+                                     typed (so a letter never appears, and a paste is cleaned),
+                                     and slice() makes a 12th digit impossible. The pattern
+                                     applies only when the box is not empty, so it stays
+                                     optional. The server enforces it again. --}}
+                                <input type="tel" name="landowner_contact" x-model="f.landowner_contact"
+                                       inputmode="numeric" maxlength="11" pattern="[0-9]{11}"
+                                       title="Enter the 11 digits of the land owner's mobile number, for example 09171234567."
+                                       @input="f.landowner_contact = f.landowner_contact.replace(/\D/g, '').slice(0, 11)"
                                        placeholder="09XXXXXXXXX" class="{{ $inputClass('landowner_contact') }}">
+                                <p class="mt-1.5 text-xs text-muted-foreground">Optional. 11 digits, numbers only.</p>
                                 @error('landowner_contact')
                                     <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
                                 @enderror
@@ -525,6 +588,53 @@
                                 @error('landowner_location')
                                     <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
                                 @enderror
+                            </div>
+
+                            {{-- Supporting Documents (Oct 2026). Tenants only: a land owner
+                                 has the Barangay Certificate above instead. Up to five
+                                 files; the real <input> is hidden inside the upload box
+                                 like the certificate's, and the script keeps its file
+                                 list in step with the list shown below the box so a single
+                                 file can be removed without choosing the rest again. --}}
+                            <div class="sm:col-span-2">
+                                <label class="{{ $labelClass }}">Supporting Documents <span class="text-red-500">*</span></label>
+                                <label data-upload-box
+                                       class="flex h-28 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-input bg-secondary px-4 text-center transition hover:border-primary hover:bg-accent/40 sm:max-w-sm">
+                                    <span class="text-xs text-muted-foreground"
+                                          x-text="supportMeta.length ? supportMeta.length + ' of 5 files chosen. Tap to add more' : 'Upload Supporting Documents'"></span>
+                                    <span class="mt-1 text-2xl leading-none text-muted-foreground">+</span>
+                                    <input type="file" name="supporting_documents[]" x-ref="supportInput" class="hidden" multiple
+                                           accept=".jpg,.jpeg,.png,.pdf"
+                                           @change="pickSupportingDocuments($event)">
+                                </label>
+                                <p class="mt-1.5 text-xs text-muted-foreground">
+                                    A tenancy agreement, an authorization letter from the land owner, or another document
+                                    showing your arrangement. Up to 5 files. JPG, PNG or PDF, max 5MB each.
+                                </p>
+
+                                <ul class="mt-3 space-y-2 sm:max-w-sm" x-show="supportMeta.length" x-cloak>
+                                    <template x-for="(doc, index) in supportMeta" :key="doc.name + index">
+                                        <li class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+                                            <span class="min-w-0 truncate font-medium text-foreground" x-text="doc.name"></span>
+                                            <span class="flex shrink-0 items-center gap-3">
+                                                <span class="text-muted-foreground" x-text="doc.size"></span>
+                                                <button type="button" @click="removeSupportingDocument(index)"
+                                                        class="font-medium text-red-600 hover:underline">Remove</button>
+                                            </span>
+                                        </li>
+                                    </template>
+                                </ul>
+
+                                @if ($errors->any() && old('ownership_type') === 'tenant')
+                                    <p class="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-500">
+                                        @if ($errors->has('supporting_documents') || $errors->has('supporting_documents.*'))
+                                            {{ $errors->first('supporting_documents') ?: $errors->first('supporting_documents.*') }}
+                                        @else
+                                            Something else on this form needed fixing, so your files were cleared when the
+                                            page reloaded. Please choose your Supporting Documents again before submitting.
+                                        @endif
+                                    </p>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -544,10 +654,10 @@
                         <p class="mb-4 text-sm text-muted-foreground">You can still update these details later.</p>
 
                         <div class="mb-6 sm:max-w-xs">
-                            <label class="{{ $labelClass }}">Farm size (ha)</label>
+                            <label class="{{ $labelClass }}">Cultivated Farm Size (ha)</label>
                             <input type="number" step="0.01" min="0" name="farm_size_hectares"
                                    x-model="f.farm_size_hectares"
-                                   placeholder="Enter farm size" class="{{ $inputClass('farm_size_hectares') }}">
+                                   placeholder="Enter cultivated farm size" class="{{ $inputClass('farm_size_hectares') }}">
                             @error('farm_size_hectares')
                                 <p class="mt-1.5 text-xs font-medium text-destructive">{{ $message }}</p>
                             @enderror
@@ -642,16 +752,20 @@
                                 <button type="button" @click="goTo(3)" class="text-xs font-medium text-primary hover:underline">Edit</button>
                             </div>
                             <dl class="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-                                <div class="sm:col-span-2 xl:col-span-3"><dt class="text-xs text-muted-foreground">Complete Address</dt>
-                                     <dd class="text-sm font-medium text-foreground" x-text="f.address || '-'"></dd></div>
+                                <div class="sm:col-span-2"><dt class="text-xs text-muted-foreground">Farmers' Association</dt>
+                                     <dd class="text-sm font-medium text-foreground" x-text="label('associations', f.association_id)"></dd></div>
                                 <div><dt class="text-xs text-muted-foreground">Barangay</dt>
                                      <dd class="text-sm font-medium text-foreground" x-text="label('barangays', f.barangay_id)"></dd></div>
-                                <div><dt class="text-xs text-muted-foreground">Farmers' Association</dt>
-                                     <dd class="text-sm font-medium text-foreground" x-text="label('associations', f.association_id)"></dd></div>
+                                <div><dt class="text-xs text-muted-foreground">Complete Address</dt>
+                                     <dd class="text-sm font-medium text-foreground" x-text="f.address || '-'"></dd></div>
+                                <div><dt class="text-xs text-muted-foreground">Municipality</dt>
+                                     <dd class="text-sm font-medium text-foreground">Tanza</dd></div>
+                                <div><dt class="text-xs text-muted-foreground">Province</dt>
+                                     <dd class="text-sm font-medium text-foreground">Cavite</dd></div>
                                 <div><dt class="text-xs text-muted-foreground">Farm Ownership</dt>
                                      <dd class="text-sm font-medium text-foreground"
                                          x-text="f.ownership_type === 'tenant' ? 'Tenant' : 'Land Owner'"></dd></div>
-                                <div><dt class="text-xs text-muted-foreground">Farm Size</dt>
+                                <div><dt class="text-xs text-muted-foreground">Cultivated Farm Size</dt>
                                      <dd class="text-sm font-medium text-foreground"
                                          x-text="f.farm_size_hectares ? f.farm_size_hectares + ' ha' : 'Not provided'"></dd></div>
 
@@ -665,6 +779,26 @@
                                     <div><dt class="text-xs text-muted-foreground">Land Owner</dt>
                                          <dd class="text-sm font-medium text-foreground"
                                              x-text="(f.landowner_name || '-') + (f.landowner_location ? ' of ' + f.landowner_location : '')"></dd></div>
+                                </template>
+
+                                <template x-if="f.ownership_type === 'tenant'">
+                                    <div><dt class="text-xs text-muted-foreground">Land Owner Contact Number</dt>
+                                         <dd class="text-sm font-medium text-foreground" x-text="f.landowner_contact || 'Not provided'"></dd></div>
+                                </template>
+
+                                {{-- The files the farmer chose, by name, so the review
+                                     shows the uploaded documents rather than leaving
+                                     them out of sight. --}}
+                                <template x-if="f.ownership_type === 'tenant'">
+                                    <div class="sm:col-span-2 xl:col-span-3"><dt class="text-xs text-muted-foreground">Supporting Documents</dt>
+                                         <dd class="text-sm font-medium text-foreground">
+                                             <template x-if="supportMeta.length === 0"><span>No file selected</span></template>
+                                             <ul class="space-y-0.5">
+                                                 <template x-for="doc in supportMeta" :key="doc.name">
+                                                     <li x-text="doc.name + (doc.size ? ' (' + doc.size + ')' : '')"></li>
+                                                 </template>
+                                             </ul>
+                                         </dd></div>
                                 </template>
 
                                 <div class="sm:col-span-2 xl:col-span-3"><dt class="text-xs text-muted-foreground">Main Crops</dt>
@@ -777,6 +911,9 @@
                    script. It is cleared the moment the form submits. */
                 this.restoreDraft();
 
+                this.$watch('f.association_id', () => this.syncBarangay());
+                this.$nextTick(() => this.syncBarangay());
+
                 this.$watch('f', () => this.saveDraft(), { deep: true });
                 this.$watch('crops', () => this.saveDraft(), { deep: true });
                 this.$watch('documentName', () => this.saveDraft());
@@ -840,6 +977,13 @@
             agreed: false,
             documentName: '',
 
+            // Supporting documents (tenants). supportFiles holds the actual File
+            // objects the form will submit; supportMeta holds the name and size
+            // the page draws for each one. They are always changed together,
+            // by syncSupportingDocuments().
+            supportMeta: [],
+            supportFiles: [],
+
             // True while the server is being asked whether a username or an
             // email is still free. The Continue button is disabled and says so,
             // because a second tap would fire a second request and let the
@@ -853,6 +997,9 @@
                 crops:        @json($crops->pluck('name', 'id')),
                 hvcc:         @json($crops->where('is_hvcc', true)->pluck('id')->values()),
             },
+
+            // Barangays covered by each association, keyed by association id
+            coverage: @json($coverage),
 
             // Step captions for the mobile "Step X of 4" progress bar (keys
             // are step numbers, matching $steps in the Blade @php block above).
@@ -883,6 +1030,34 @@
             },
 
             crops: @json($oldCrops),
+
+            /* ---------- association -> barangay ---------- */
+
+            /** The barangays the chosen association covers, and nothing else. */
+            barangayOptions() {
+                return this.coverage[this.f.association_id] || [];
+            },
+
+            /**
+             * Called when the association changes, and once at start-up.
+             * Drops a barangay that the new association does not cover, and
+             * re-applies a valid one after the option list has been rebuilt:
+             * a select cannot hold a value whose option is not there yet, so
+             * a restored or old() value would otherwise show as blank.
+             */
+            syncBarangay() {
+                const options = this.barangayOptions();
+
+                if (this.f.barangay_id && !options.some(b => String(b.id) === String(this.f.barangay_id))) {
+                    this.f.barangay_id = '';
+                }
+
+                this.$nextTick(() => {
+                    if (this.$refs.barangaySelect) {
+                        this.$refs.barangaySelect.value = this.f.barangay_id || '';
+                    }
+                });
+            },
 
             /* ---------- crop repeater ---------- */
             isHvcc(cropId) {
@@ -1045,6 +1220,29 @@
                         return false;
                     }
 
+                    // The land owner's contact number is optional, but a number
+                    // that is there has to be a whole one. The input already
+                    // strips non-digits and stops at 11, so this is a length check.
+                    if (this.f.ownership_type === 'tenant'
+                        && this.f.landowner_contact
+                        && !/^[0-9]{11}$/.test(this.f.landowner_contact)) {
+                        return this.markInvalid(
+                            container?.querySelector('[name="landowner_contact"]'),
+                            'The land owner\'s contact number must be exactly 11 digits, numbers only.');
+                    }
+
+                    // Tenants must send at least one supporting document. Like the
+                    // certificate, the real input is hidden, so judge by our own
+                    // list and redden the visible box.
+                    if (this.f.ownership_type === 'tenant' && this.supportFiles.length === 0) {
+                        const box = container?.querySelector('[name="supporting_documents[]"]')?.closest('[data-upload-box]');
+                        box?.classList.add('field-invalid');
+                        box?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+                        this.stepError = 'Please upload at least one supporting document, such as a tenancy agreement or an authorization letter.';
+                        return false;
+                    }
+
                     if (!this.crops.some(crop => crop.crop_id)) {
                         return this.markInvalid(
                             container?.querySelector('[name^="crops"], select'),
@@ -1059,7 +1257,7 @@
                         if (isNaN(size) || size < 0 || size > 999999) {
                             return this.markInvalid(
                                 container?.querySelector('[name="farm_size_hectares"]'),
-                                'Farm size must be a number between 0 and 999999 hectares.');
+                                'Cultivated farm size must be a number between 0 and 999999 hectares.');
                         }
                     }
                 }
@@ -1104,6 +1302,64 @@
 
                 this.stepError = '';
                 this.documentName = file.name;
+            },
+
+            /**
+             * Supporting documents, judged the moment they are chosen.
+             *
+             * Same rules as the server: JPG, PNG or PDF, 5MB each, five at most.
+             * Files are ADDED to what is already chosen, and the input's own
+             * list is rebuilt to match so the form submits exactly the files
+             * shown. A file that breaks a rule is skipped and named; the rest
+             * are kept.
+             */
+            pickSupportingDocuments(event) {
+                const input = event.target;
+                const problems = [];
+
+                for (const file of Array.from(input.files)) {
+                    const lower = file.name.toLowerCase();
+
+                    if (!['.jpg', '.jpeg', '.png', '.pdf'].some(ext => lower.endsWith(ext))) {
+                        problems.push(file.name + ' is not a JPG, PNG or PDF file.');
+                    } else if (file.size > 5 * 1024 * 1024) {
+                        problems.push(file.name + ' is larger than 5MB.');
+                    } else if (this.supportFiles.length >= 5) {
+                        problems.push('You can upload up to 5 supporting documents; ' + file.name + ' was not added.');
+                    } else if (this.supportFiles.some(kept => kept.name === file.name && kept.size === file.size)) {
+                        // the same file chosen twice: quietly ignore
+                    } else {
+                        this.supportFiles.push(file);
+                    }
+                }
+
+                this.stepError = problems.join(' ');
+                this.syncSupportingDocuments();
+            },
+
+            removeSupportingDocument(index) {
+                this.supportFiles.splice(index, 1);
+                this.stepError = '';
+                this.syncSupportingDocuments();
+            },
+
+            /** Make the hidden input, and the list on screen, say what supportFiles says. */
+            syncSupportingDocuments() {
+                const transfer = new DataTransfer();
+                this.supportFiles.forEach(file => transfer.items.add(file));
+
+                if (this.$refs.supportInput) {
+                    this.$refs.supportInput.files = transfer.files;
+                }
+
+                this.supportMeta = this.supportFiles.map(file => ({
+                    name: file.name,
+                    size: file.size >= 1048576
+                        ? (file.size / 1048576).toFixed(1) + ' MB'
+                        : Math.max(1, Math.round(file.size / 1024)) + ' KB',
+                }));
+
+                this.$refs.supportInput?.closest('[data-upload-box]')?.classList.remove('field-invalid');
             },
 
             /**

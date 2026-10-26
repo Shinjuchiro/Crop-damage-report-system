@@ -8,8 +8,9 @@ use Illuminate\Validation\Rules\Password;
 
 /**
  * All farmer registration validation lives here, kept out of the controller.
- * Note the conditional rules: tenant fields are required ONLY for tenants,
- * and the barangay certificate is required ONLY for land owners.
+ * Note the conditional rules: tenant fields and supporting documents are
+ * required ONLY for tenants, and the barangay certificate is required ONLY
+ * for land owners.
  */
 class FarmerRegistrationRequest extends FormRequest
 {
@@ -42,7 +43,20 @@ class FarmerRegistrationRequest extends FormRequest
              */
             'phone_number'  => ['required', 'digits:11'],
             'address'       => ['required', 'string', 'max:1000'],
-            'barangay_id'   => ['required', 'exists:barangays,id'],
+            /*
+             | The barangay has to be one the chosen association covers (Oct
+             | 2026). The form only offers those, but the form is a
+             | convenience: this line is what stops a farmer posting a
+             | barangay outside their association's area. association_id is
+             | checked on its own line below; if it is missing or wrong this
+             | fails too, which is the right answer for a barangay that cannot
+             | be matched to anything.
+             */
+            'barangay_id'   => [
+                'required',
+                Rule::exists('association_barangay', 'barangay_id')
+                    ->where('association_id', $this->input('association_id')),
+            ],
             'association_id'=> ['required', Rule::exists('associations', 'id')->whereNull('archived_at')],
 
             // --- Account information ---
@@ -55,7 +69,13 @@ class FarmerRegistrationRequest extends FormRequest
 
             // Tenant-only (required when tenant)
             'landowner_name'     => ['required_if:ownership_type,tenant', 'nullable', 'string', 'max:255'],
-            'landowner_contact'  => ['nullable', 'string', 'max:20'],
+            /*
+             | Digits only and exactly 11 (09XXXXXXXXX), the same rule as the
+             | farmer's own mobile number. Optional: an empty box is fine,
+             | a half-typed one is not. digits:11 rejects letters, spaces,
+             | dashes and a leading plus in one rule.
+             */
+            'landowner_contact'  => ['nullable', 'digits:11'],
             'landowner_location' => ['required_if:ownership_type,tenant', 'nullable', 'string', 'max:255'],
 
             // Land owner-only: the Barangay Certificate proving the farmer owns the land.
@@ -67,6 +87,17 @@ class FarmerRegistrationRequest extends FormRequest
                 'mimes:jpg,jpeg,png,pdf',
                 'max:5120', // 5MB
             ],
+
+            /*
+             | Tenant-only: the papers that describe the arrangement, such as
+             | a tenancy agreement or an authorization letter from the land
+             | owner. One to five files, each a JPG, PNG or PDF of at most 5MB,
+             | the same file rules as the barangay certificate. Land owners
+             | have their certificate instead, and anything a land owner posts
+             | here is ignored by the controller.
+             */
+            'supporting_documents'   => ['required_if:ownership_type,tenant', 'nullable', 'array', 'max:5'],
+            'supporting_documents.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
 
             // --- Farm information ---
             'farm_size_hectares' => ['nullable', 'numeric', 'min:0', 'max:999999'],
@@ -85,6 +116,14 @@ class FarmerRegistrationRequest extends FormRequest
             'landowner_location.required_if'   => 'Please enter the land owner\'s location.',
             'barangay_certificate.required_if' => 'Land owners must upload a Barangay Certificate proving they own the land.',
             'crops.required'                   => 'Please add at least one main crop.',
+
+            'barangay_id.exists'               => 'That barangay is not covered by the Farmers\' Association you selected. Please choose one from the list.',
+            'landowner_contact.digits'         => 'The land owner\'s contact number must be exactly 11 digits, numbers only, for example 09171234567.',
+            'supporting_documents.required_if' => 'Tenants must upload at least one supporting document, such as a tenancy agreement or an authorization letter.',
+            'supporting_documents.max'         => 'You can upload up to 5 supporting documents.',
+            'supporting_documents.*.mimes'     => 'Each supporting document must be a JPG, PNG or PDF file.',
+            'supporting_documents.*.max'       => 'Each supporting document must be 5MB or smaller.',
+            'supporting_documents.*.file'      => 'One of the supporting documents could not be uploaded. Please choose it again.',
 
             // "must be 11 digits" is what the farmer needs to read, not
             // Laravel's default phrasing about the field being a number.

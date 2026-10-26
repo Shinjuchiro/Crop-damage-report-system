@@ -103,7 +103,7 @@
                     </svg>
                 </span>
                 <div class="min-w-0">
-                    <h2 class="text-2xl font-bold text-[#0d3d1b] dark:text-foreground">Welcome Back!</h2>
+                    <h2 class="text-2xl font-bold text-[#0d3d1b] dark:text-foreground">Welcome!</h2>
                     <p class="text-sm text-muted-foreground">Login to continue to your account</p>
                 </div>
             </div>
@@ -248,7 +248,7 @@
 
         <div class="rounded-2xl bg-card px-12 pb-10 pt-14 shadow-2xl">
 
-            <h2 class="text-center text-3xl font-bold text-[#0d3d1b] dark:text-foreground">Welcome Back!</h2>
+            <h2 class="text-center text-3xl font-bold text-[#0d3d1b] dark:text-foreground">Welcome!</h2>
             <p class="mt-1 text-center text-sm text-muted-foreground">
                 Please enter your credentials to access the system.
             </p>

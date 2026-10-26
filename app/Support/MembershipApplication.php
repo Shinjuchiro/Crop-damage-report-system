@@ -44,6 +44,12 @@ class MembershipApplication
     public const FORWARDED               = 'forwarded_to_mao';
     public const RETURNED                = 'returned_for_correction';
 
+    /* The office sent it back to the ASSOCIATION, not to the farmer. The
+       association reads the office's remarks and is the one that returns it
+       to the farmer (stage RETURNED), so the farmer only ever hears from
+       their own association. */
+    public const RETURNED_TO_ASSOCIATION = 'returned_to_association';
+
     /* The outcomes. Display values, resolved from the account's status,
        never written to the stage column. */
     public const APPROVED                = 'approved';
@@ -83,6 +89,11 @@ class MembershipApplication
                 'label'      => 'Forwarded to MAO',
                 'means'      => 'The association vouched for this member and sent it to the office.',
                 'waiting_on' => 'mao',
+            ],
+            self::RETURNED_TO_ASSOCIATION => [
+                'label'      => 'Returned to Association',
+                'means'      => 'The Municipal Agriculture Office sent this back to the association with remarks. The association passes it on to the farmer to correct.',
+                'waiting_on' => 'association',
             ],
             self::RETURNED => [
                 'label'      => 'Returned for Correction',
@@ -204,6 +215,27 @@ class MembershipApplication
            too rather than relying on that.
 
            A guard fails closed. Caught by the workflow harness. */
+        if ($farmer === null) {
+            return false;
+        }
+
+        return in_array(self::forFarmer($farmer), [
+            self::SUBMITTED, self::UNDER_REVIEW, self::RETURNED_TO_ASSOCIATION,
+        ], true);
+    }
+
+    /**
+     * May the association verify and forward this application?
+     *
+     * Narrower than isAssociationsTurn() on purpose. An application the
+     * office sent back to the association can only be returned to the
+     * farmer for correction: forwarding it again unchanged would just put
+     * the same application back in front of the office with nothing fixed.
+     * The same applies to Start Review, which only makes sense before the
+     * association has handed anything over.
+     */
+    public static function canForward(?Farmer $farmer): bool
+    {
         if ($farmer === null) {
             return false;
         }

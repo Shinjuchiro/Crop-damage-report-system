@@ -73,6 +73,7 @@ class Farmer extends Model
             'association_review_started_at' => 'datetime',
             'forwarded_at' => 'datetime',
             'returned_at' => 'datetime',
+            'mao_returned_at' => 'datetime',
             /* Added with the column (migration 2024_01_23_000001). Not
                optional: every screen that shows a decision calls
                ->format() on this, and without the cast it is a plain
@@ -99,6 +100,12 @@ class Farmer extends Model
     public function mainCrops()
     {
         return $this->hasMany(FarmerMainCrop::class);
+    }
+
+    /** Files a tenant uploaded with their registration (agreement, authorization letter...). */
+    public function supportingDocuments()
+    {
+        return $this->hasMany(FarmerSupportingDocument::class)->orderBy('id');
     }
 
     public function plantingRecords()
@@ -216,6 +223,12 @@ class Farmer extends Model
         return $this->belongsTo(User::class, 'returned_by');
     }
 
+    /** The MAO officer who sent this back to the association. */
+    public function maoReturnedBy()
+    {
+        return $this->belongsTo(User::class, 'mao_returned_by');
+    }
+
     /**
      * The MAO officer who approved or rejected this application.
      *
@@ -281,6 +294,25 @@ class Farmer extends Model
             'decided_by'    => $byUserId,
             'decided_at'    => now(),
             'decision_note' => $note,
+        ])->save();
+    }
+
+    /**
+     * The office sent it back to the ASSOCIATION with remarks.
+     *
+     * The remarks are stored in their own columns, apart from return_note,
+     * which is what the farmer reads and which the association may reword
+     * when it passes the correction on. The office's own wording stays as
+     * written. The account stays pending and nothing the farmer entered is
+     * touched.
+     */
+    public function returnToAssociation(int $byUserId, string $note): void
+    {
+        $this->forceFill([
+            'membership_stage' => MembershipApplication::RETURNED_TO_ASSOCIATION,
+            'mao_returned_by'  => $byUserId,
+            'mao_returned_at'  => now(),
+            'mao_return_note'  => $note,
         ])->save();
     }
 

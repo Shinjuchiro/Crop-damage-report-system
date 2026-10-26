@@ -49,7 +49,8 @@
 
         {{-- LIST --}}
         <div>
-            <x-ui.card title="Farmers Directory" description="Every approved farmer in the system and everything attached to them.">
+            <x-ui.card title="Farmers Directory"
+                       :description="$association ? 'Members of ' . $association->name . ' and everything attached to them.' : 'Every approved farmer in the system and everything attached to them.'">
                 <x-slot:actions>
                     <x-ui.button :href="route('mao.associations.index')" size="sm">
                         Manage Associations
@@ -59,8 +60,16 @@
                 {{-- Filters. No visible Search button - Enter in the field, or
                      choosing a dropdown option, submits the form. --}}
                 <form method="GET" class="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
-                                 :options="$associations->pluck('name', 'id')" :selected="request('association_id')" class="sm:w-48" />
+                    {{-- Opened from one association: the page is already
+                         that association's, so there is no dropdown to
+                         choose from. The id travels in a hidden field so a
+                         filter or a search keeps the scope. --}}
+                    @if ($association)
+                        <input type="hidden" name="association_id" value="{{ $association->id }}">
+                    @else
+                        <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
+                                     :options="$associations->pluck('name', 'id')" :selected="request('association_id')" class="sm:w-48" />
+                    @endif
 
                     <x-ui.select name="barangay_id" placeholder="All Barangays" onchange="this.form.submit()"
                                  :options="$barangays->pluck('name', 'id')" :selected="request('barangay_id')" class="sm:w-48" />
@@ -72,8 +81,9 @@
                     <x-ui.input type="text" name="search" value="{{ request('search') }}" placeholder="Search farmer"
                                 class="sm:min-w-[14rem] sm:flex-1" />
 
-                    @if (request()->hasAny(['search', 'association_id', 'barangay_id', 'activity_status']))
-                        <a href="{{ route('mao.farmers.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
+                    @if (request()->hasAny($association ? ['search', 'barangay_id', 'activity_status'] : ['search', 'association_id', 'barangay_id', 'activity_status']))
+                        <a href="{{ route('mao.farmers.index', $association ? ['association_id' => $association->id] : []) }}"
+                           class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
                     @endif
                 </form>
 

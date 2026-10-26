@@ -29,6 +29,18 @@
       noun     singular noun for the count, pluralised here
       colspan  number of columns in the host table
       href     their profile, or null for no link
+      toggle   true to make the row open and close that farmer's records
+               (Oct 2026). The host must be inside an Alpine scope holding
+               `open`, the id of the farmer whose block is open, and give
+               each of that farmer's rows x-show="open === <groupId>".
+      groupId  that farmer's id, the value `open` is compared with
+
+    OPEN AND CLOSE
+
+    On the three Crop Management Report tabs a farmer is one row and their
+    records stay folded away until the row is opened, so a page holds a
+    handful of farmers and does not need scrolling. One block is open at a
+    time: opening another closes the first.
 --}}
 
 @props([
@@ -38,13 +50,29 @@
     'noun'    => 'record',
     'colspan' => 4,
     'href'    => null,
+    'toggle'  => false,
+    'groupId' => 0,
 ])
 
-<tr class="bg-muted/60">
+<tr class="bg-muted/60 {{ $toggle ? 'cursor-pointer select-none hover:bg-muted' : '' }}"
+    @if ($toggle)
+        @click="open = open === {{ (int) $groupId }} ? null : {{ (int) $groupId }}"
+        @keydown.enter.prevent="open = open === {{ (int) $groupId }} ? null : {{ (int) $groupId }}"
+        tabindex="0" role="button"
+        :aria-expanded="(open === {{ (int) $groupId }}).toString()"
+    @endif>
     <td colspan="{{ $colspan }}" class="px-3 py-2.5 sm:px-4">
         <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
 
-            <div class="min-w-0">
+            <div class="flex min-w-0 items-center gap-2">
+                @if ($toggle)
+                    <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform"
+                         :class="open === {{ (int) $groupId }} ? 'rotate-90' : ''"
+                         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                         stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9 6l6 6-6 6"/>
+                    </svg>
+                @endif
                 <span class="text-sm font-bold text-card-foreground">
                     {{ $farmer?->full_name ?? 'Unknown member' }}
                 </span>
@@ -68,7 +96,8 @@
                 </span>
 
                 @if ($href)
-                    <a href="{{ $href }}" class="text-xs font-semibold text-primary hover:underline">
+                    <a href="{{ $href }}" @if ($toggle) @click.stop @endif
+                       class="text-xs font-semibold text-primary hover:underline">
                         View profile
                     </a>
                 @endif

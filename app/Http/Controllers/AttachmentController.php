@@ -8,6 +8,7 @@ use App\Models\AssociationOfficer;
 use App\Models\CropPlantingPhoto;
 use App\Models\DamageReportPhoto;
 use App\Models\Farmer;
+use App\Models\FarmerSupportingDocument;
 use App\Models\ValidationPhoto;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -86,6 +87,23 @@ class AttachmentController extends Controller
         $this->assertMaySeeFarmersFile($farmer);
 
         return $this->serve($farmer->barangay_certificate_path);
+    }
+
+    /**
+     * A supporting document a tenant uploaded with their registration: the
+     * tenancy agreement, an authorization letter, and similar.
+     *
+     * Same readers as the barangay certificate (the farmer, their own
+     * association's officers, the office) and for the same reason: it is a
+     * paper about a named person's land. No technician is ever listed.
+     * Images and PDFs are sent inline, so the link opens them in the browser's
+     * own viewer in a new tab and the page the reviewer was on is untouched.
+     */
+    public function supportingDocument(FarmerSupportingDocument $document)
+    {
+        $this->assertMaySeeFarmersFile($document->farmer);
+
+        return $this->serve($document->file_path, $document->file_name);
     }
 
     /**

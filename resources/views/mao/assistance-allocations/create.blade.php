@@ -34,7 +34,14 @@
 @endphp
 
 @section('content')
-<x-ui.back-link :href="route('mao.assistance-allocations.index')" label="Assistance Allocation" />
+{{-- A solid green button rather than the small text link, which was easy
+     to miss. Same destination as before. --}}
+<a href="{{ route('mao.assistance-allocations.index') }}"
+   class="mb-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-ring">
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+         stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+    Back to Assistance Allocation
+</a>
 
 @if ($errors->any())
     <x-ui.alert variant="destructive" title="Please check the form" class="mb-5">

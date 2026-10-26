@@ -103,6 +103,8 @@
                 </div>
             @endif
 
+            <x-farmer.supporting-documents :farmer="$member" class="mt-4" />
+
             @if ($member->mainCrops->isNotEmpty())
                 <div class="mt-4">
                     <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Main crops</p>
@@ -210,6 +212,8 @@
                         </p>
                     </div>
                 @endif
+
+                <x-farmer.supporting-documents :farmer="$member" class="mt-4" />
 
                 @if ($member->mainCrops->isNotEmpty())
                     <div class="mt-4">

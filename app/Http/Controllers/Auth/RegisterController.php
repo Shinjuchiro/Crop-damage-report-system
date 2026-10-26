@@ -10,11 +10,13 @@ use App\Models\Barangay;
 use App\Models\Crop;
 use App\Models\Farmer;
 use App\Models\FarmerMainCrop;
+use App\Models\FarmerSupportingDocument;
 use App\Models\NotificationBroadcast;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * ONLY farmers self-register. Technicians and Association officers are
@@ -24,11 +26,26 @@ class RegisterController extends Controller
 {
     public function show()
     {
+        // A brand new farmer should never be offered an association or a
+        // crop the office has archived out of circulation.
+        $associations = Association::active()->with('coverage:barangays.id,barangays.name')->orderBy('name')->get();
+
         return view('auth.register', [
             'barangays'    => Barangay::orderBy('name')->get(),
-            // A brand new farmer should never be offered an association or a
-            // crop the office has archived out of circulation.
-            'associations' => Association::active()->orderBy('name')->get(),
+            'associations' => $associations,
+            /* The barangays each association covers, keyed by association id,
+               for the dependent Barangay dropdown (Oct 2026). The form
+               offers only these once an association is chosen, and
+               FarmerRegistrationRequest rejects anything else. An association
+               with no coverage recorded maps to an empty list, which the form
+               reports rather than falling back to every barangay. */
+            'coverage'     => $associations->mapWithKeys(fn ($association) => [
+                $association->id => $association->coverage
+                    ->sortBy('name')
+                    ->map(fn ($barangay) => ['id' => (string) $barangay->id, 'name' => $barangay->name])
+                    ->values()
+                    ->all(),
+            ]),
             'crops'        => Crop::active()->inDisplayOrder()->get(),
         ]);
     }
@@ -85,7 +102,50 @@ class RegisterController extends Controller
                 ->store('barangay-certificates', 'local');
         }
 
-        $farmer = DB::transaction(function () use ($data, $certificatePath) {
+        /* A tenant's supporting documents, stored the same way and for the
+           same reason as the certificate: private disk, outside the
+           transaction. Only tenants have them; a land owner's request may
+           carry the field but it is ignored. */
+        $documents = [];
+        if ($data['ownership_type'] === 'tenant') {
+            foreach ($request->file('supporting_documents', []) as $file) {
+                $documents[] = [
+                    'file_path' => $file->store('supporting-documents', 'local'),
+                    'file_name' => mb_substr($file->getClientOriginalName(), 0, 255),
+                    'mime_type' => $file->getMimeType(),
+                    'file_size' => $file->getSize(),
+                ];
+            }
+        }
+
+        try {
+            $farmer = $this->createFarmer($data, $certificatePath, $documents);
+        } catch (\Throwable $e) {
+            // The rows were rolled back; do not leave their files behind.
+            foreach (array_filter([$certificatePath, ...array_column($documents, 'file_path')]) as $orphan) {
+                Storage::disk('local')->delete($orphan);
+            }
+
+            throw $e;
+        }
+
+        $this->notifyAssociationOfNewApplication($farmer);
+
+        return redirect()->route('login')->with('status',
+            'Registration submitted successfully. Your application has been sent to your '
+            . 'Farmers\' Association for review, and will then be verified by the Municipal '
+            . 'Agriculture Office.'
+        );
+    }
+
+    /**
+     * The registration's database work, in one transaction: the account, the
+     * farmer, their main crops, their supporting documents and the audit row
+     * all exist or none of them do.
+     */
+    private function createFarmer(array $data, ?string $certificatePath, array $documents): Farmer
+    {
+        return DB::transaction(function () use ($data, $certificatePath, $documents) {
             $user = new User([
                 'username'           => $data['username'],
                 'email'              => $data['email'],
@@ -143,6 +203,10 @@ class RegisterController extends Controller
                 ]);
             }
 
+            foreach ($documents as $document) {
+                FarmerSupportingDocument::create($document + ['farmer_id' => $farmer->id]);
+            }
+
             AuditLog::create([
                 'user_id'      => $user->id,
                 'action'       => 'Submitted farmer registration',
@@ -153,14 +217,6 @@ class RegisterController extends Controller
 
             return $farmer;
         });
-
-        $this->notifyAssociationOfNewApplication($farmer);
-
-        return redirect()->route('login')->with('status',
-            'Registration submitted successfully. Your application has been sent to your '
-            . 'Farmers\' Association for review, and will then be verified by the Municipal '
-            . 'Agriculture Office.'
-        );
     }
 
     /**

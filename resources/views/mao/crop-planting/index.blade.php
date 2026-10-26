@@ -10,35 +10,20 @@
 
 @section('content')
 
+@php $flash = \App\Support\MonitorStats::planting(); @endphp
 <x-crop-management.header tab="planting">
-    {{-- This page's own figures, rendered above the tabs. --}}
-    <div class="grid gap-4 sm:grid-cols-3">
-        <x-ui.stat label="Submitted This Month" :value="number_format($summary['this_month'])"
-                   icon="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0119 21H5a1.5 1.5 0 01-1.5-1.5v-13A1.5 1.5 0 015 5z" />
-        <x-ui.stat label="Farmers Reporting" :value="number_format($summary['farmers'])"
-                     hint="Farmers with at least one record"
-                     icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
-        {{-- "Area Planted", with the hint, not "Total Area Planted" (Oct 2026).
-
-             The figure sums area_hectares across every crop row of every
-             planting record ever filed. A farmer who plants the same half
-             hectare in the dry season and again in the wet season adds a
-             whole hectare to it, which is a true statement about planting
-             and a false one about farmland.
-
-             Read as land, this number tells the office Tanza has more
-             hectares under cultivation than it does, and the longer the
-             system runs the further out it goes. Revision section 14:
-             "Avoid adding repeated historical farm areas in ways that
-             incorrectly represent unique farmland", and final rule 16: do
-             not misrepresent affected areas.
-
-             The sum is not wrong and is not changed: cumulative planted
-             area is a reasonable thing for an agricultural office to track.
-             What was wrong was a label that read as acreage. The hint says
-             which of the two this is. --}}
-        <x-ui.stat label="Area Planted" :value="number_format($summary['area_planted'], 2)" suffix="ha"
-                   hint="Across all records; a field planted twice counts twice"
+    {{-- This tab's figures (Oct 2026), live queries from
+         App\Support\MonitorStats, the same definitions the Association's
+         own tab uses for its members. Total Crop Planted counts planting
+         reports, not the crops inside them; Total Area Planted adds each
+         planted crop row once. Archived and deleted records are left out,
+         exactly like the list below. --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <x-ui.stat label="Total Crop Planted" :value="number_format($flash['total'])"
+                   hint="Crop Planted reports recorded"
+                   icon="M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14zM4 21h16" />
+        <x-ui.stat label="Total Area Planted" :value="number_format($flash['area'], 2)" suffix="ha"
+                   hint="Hectares across all planted crops"
                    icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
 </x-crop-management.header>
@@ -69,6 +54,13 @@
                 $grouped  = ($view ?? 'grouped') !== 'flat';
                 $rows     = $plantings->getCollection();
                 $perGroup = $rows->groupBy(fn ($row) => $row->plantingRecord?->farmer?->id)->map->count();
+
+                // Which farmer's block starts open: the one whose planting is
+                // open in the modal, or the only one when a search narrows
+                // the list to a single farmer. Otherwise every block is folded.
+                $openId = $grouped
+                    ? ($selected?->farmer_id ?? ($plantings->total() === 1 ? $rows->first()?->plantingRecord?->farmer_id : null))
+                    : null;
 
                 $seq = [];
                 $running = [];
@@ -139,7 +131,7 @@
                 {{-- Table --}}
                 {{-- ---------- PHONE: one card per planting ----------
                      Archive stays on the table and the detail panel. --}}
-                <ul class="space-y-3 lg:hidden">
+                <ul class="space-y-3 lg:hidden" @if ($grouped) x-data="{ open: {{ $openId ?? 'null' }} }" @endif>
                     @php $phoneLast = null; @endphp
 
                     @forelse ($plantings as $planting)
@@ -147,16 +139,28 @@
 
                         @if ($grouped && $cardFarmer?->id !== $phoneLast)
                             @php $phoneLast = $cardFarmer?->id; @endphp
-                            <li class="flex flex-wrap items-center justify-between gap-2 pt-2 first:pt-0">
-                                <span class="text-sm font-bold">{{ $cardFarmer?->full_name ?? 'Unknown' }}</span>
-                                <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
-                                    {{ $perGroup[$cardFarmer?->id] ?? 1 }}
-                                    {{ \Illuminate\Support\Str::plural('record', $perGroup[$cardFarmer?->id] ?? 1) }}
+                            {{-- One row per farmer; tap to open their plantings. --}}
+                            <li class="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2.5"
+                                @click="open = open === {{ (int) $cardFarmer?->id }} ? null : {{ (int) $cardFarmer?->id }}"
+                                role="button" tabindex="0">
+                                <span class="flex items-center gap-2 text-sm font-bold">
+                                    {{ $cardFarmer?->full_name ?? 'Unknown' }}
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
+                                        {{ $perGroup[$cardFarmer?->id] ?? 1 }}
+                                        {{ \Illuminate\Support\Str::plural('record', $perGroup[$cardFarmer?->id] ?? 1) }}
+                                    </span>
+                                    <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform"
+                                         :class="open === {{ (int) $cardFarmer?->id }} ? 'rotate-90' : ''"
+                                         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                         stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                                 </span>
                             </li>
                         @endif
 
-                        <li class="{{ $grouped ? 'ml-3' : '' }}">
+                        <li class="{{ $grouped ? 'ml-3' : '' }}"
+                            @if ($grouped) x-show="open === {{ (int) $cardFarmer?->id }}" x-cloak @endif>
                             <x-ui.record-card :href="$viewUrl($planting->crop_planting_record_id)"
                                               :eyebrow="$grouped
                                                   ? 'RECORD ' . $seq[$planting->id]
@@ -181,6 +185,69 @@
                      group heading rows and a hover state keyed to the open
                      record, neither of which the shared component knows
                      about. --}}
+                @if ($grouped)
+                    {{-- GROUPED (Oct 2026): one folded row per farmer, FARMER ID |
+                         FARMER | ASSOCIATION | NUMBER OF RECORDS. A farmer's planting records,
+                         with their own heading, are only on the page while that
+                         farmer is open. --}}
+                    <div class="hidden overflow-hidden rounded-xl border border-border lg:block">
+                        <table class="w-full text-left">
+                            <thead class="bg-muted/70">
+                                <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    <th class="px-4 py-3">Farmer ID</th>
+                                    <th class="px-4 py-3">Farmer</th>
+                                    <th class="px-4 py-3">Association</th>
+                                    <th class="px-4 py-3 text-center">Number of Records</th>
+                                <th class="w-12 px-4 py-3"><span class="sr-only">Open</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
+                                @forelse ($plantings->getCollection()->groupBy(fn ($row) => (int) $row->plantingRecord?->farmer_id) as $farmerId => $group)
+                                    @php $farmer = $group->first()->plantingRecord?->farmer; @endphp
+                                    <x-record.farmer-block :farmer="$farmer"
+                                                           :count="$group->count()"
+                                                           :group-id="$farmerId"
+                                                           :href="$farmer ? route('mao.farmers.show', $farmer) : null"
+                                                           :headers="[['Record'], ['Crop'], ['Status', 'text-center'], ['Action', 'text-right']]">
+                                        @foreach ($group as $planting)
+                                            <tr class="hover:bg-muted/60 {{ $selected?->id === $planting->crop_planting_record_id ? 'bg-muted/60' : '' }}">
+                                                <td class="px-4 py-4 text-muted-foreground">Record {{ $seq[$planting->id] }}</td>
+                                                <td class="px-4 py-4 font-medium text-foreground">
+                                                    {{ $planting->crop_specify ?: $planting->crop?->name ?? '-' }}
+                                                </td>
+                                                <td class="px-4 py-4 text-center">
+                                                    <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $farmer?->activity_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' }}">
+                                                        {{ $farmer?->activity_status === 'active' ? 'Active' : 'In-Active' }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-4">
+                                                    <div class="flex justify-end gap-2">
+                                                        <x-ui.button :href="$viewUrl($planting->crop_planting_record_id)" variant="view" size="sm">View</x-ui.button>
+
+                                                        <button type="button"
+                                                                @click="archiving = { id: {{ $planting->crop_planting_record_id }}, name: @js($farmer?->full_name ?? 'this record') }"
+                                                                class="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">
+                                                            Archive
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </x-record.farmer-block>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-14 text-center">
+                                            <p class="text-sm font-medium text-muted-foreground">No planting records yet</p>
+                                            <p class="mt-1 text-xs text-muted-foreground">
+                                                Records appear here once farmers submit their crop planting activity.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @else
                 <div class="hidden overflow-hidden rounded-xl border border-border lg:block">
                     <table class="w-full text-left">
                         <thead class="bg-muted/70">
@@ -200,37 +267,16 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border text-sm">
-                            @php $lastFarmer = null; @endphp
 
                             @forelse ($plantings as $planting)
                                 @php $farmer = $planting->plantingRecord?->farmer; @endphp
 
-                                @if ($grouped && $farmer?->id !== $lastFarmer)
-                                    @php $lastFarmer = $farmer?->id; @endphp
-                                    <x-record.group-head :farmer="$farmer"
-                                                         :count="$perGroup[$farmer?->id] ?? 1"
-                                                         :total="$farmerTotals[$farmer?->id] ?? null"
-                                                         noun="planting record"
-                                                         :colspan="4"
-                                                         :href="$farmer ? route('mao.farmers.show', $farmer) : null" />
-                                @endif
-
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $planting->crop_planting_record_id ? 'bg-muted/60' : '' }}">
                                     <td class="px-4 py-4 text-foreground">
-                                        @if ($grouped)
-                                            <span class="pl-3 text-muted-foreground">Record {{ $seq[$planting->id] }}</span>
-                                        @else
-                                            {{ $farmer ? 'FARM-' . str_pad($farmer->id, 3, '0', STR_PAD_LEFT) : '-' }}
-                                        @endif
+                                        {{ $farmer ? 'FARM-' . str_pad($farmer->id, 3, '0', STR_PAD_LEFT) : '-' }}
                                     </td>
                                     <td class="px-4 py-4 font-bold text-foreground">
-                                        @if ($grouped)
-                                            <span class="font-medium text-muted-foreground">
-                                                {{ $planting->crop_specify ?: $planting->crop?->name ?? '-' }}
-                                            </span>
-                                        @else
-                                            {{ $farmer?->full_name ?? 'Unknown' }}
-                                        @endif
+                                        {{ $farmer?->full_name ?? 'Unknown' }}
                                     </td>
                                     <td class="px-4 py-4 text-center">
                                         <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $farmer?->activity_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' }}">
@@ -262,6 +308,7 @@
                         </tbody>
                     </table>
                 </div>
+                @endif
 
                 {{-- "Showing 1 to 3 of 3 entries" on the left, the pages on
                      the right, as the design draws it. firstItem() is null on
@@ -269,12 +316,18 @@
                      than assumed. --}}
                 <div class="mt-6 flex flex-col gap-3 border-t border-border pt-5
                             sm:flex-row sm:items-center sm:justify-between">
+                    @php
+                        [$from, $to, $total] = $grouped
+                            ? \App\Support\FarmerGroups::range($plantings)
+                            : [$plantings->firstItem(), $plantings->lastItem(), $plantings->total()];
+                        $noun = $grouped ? 'farmer' : 'entry';
+                    @endphp
                     <p class="text-sm text-muted-foreground">
-                        @if ($plantings->total() > 0)
-                            Showing {{ number_format($plantings->firstItem()) }}
-                            to {{ number_format($plantings->lastItem()) }}
-                            of {{ number_format($plantings->total()) }}
-                            {{ \Illuminate\Support\Str::plural('entry', $plantings->total()) }}
+                        @if ($total > 0)
+                            Showing {{ number_format($from) }}
+                            to {{ number_format($to) }}
+                            of {{ number_format($total) }}
+                            {{ \Illuminate\Support\Str::plural($noun, $total) }}
                         @else
                             No entries
                         @endif

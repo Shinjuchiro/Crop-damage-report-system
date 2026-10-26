@@ -61,48 +61,6 @@ class MonitoringController extends Controller
 {
     use ResolvesAssociation;
 
-    /**
-     * How a record list is ordered, which is the whole of the difference
-     * between the two views (revision sections 10 to 12).
-     *
-     * Grouped puts a member's records together, so the page can print the
-     * name once above them. Flat is newest first, which is what the office
-     * and an officer want when the question is "what came in today" rather
-     * than "what has this member filed".
-     *
-     * Grouped used to be alphabetical. It is now ordered by who filed last,
-     * because an officer opening this page is asking what is new, and
-     * alphabetical order buried this morning's report behind every member
-     * whose surname begins with A.
-     *
-     * The subquery returns one value per member, so all of a member's rows
-     * sort to the same place and their block stays in one piece. The
-     * farmer_id after it is a tie-breaker, and it matters: date_submitted
-     * on a planting record is a date, not a timestamp, so two members
-     * filing on the same day is ordinary. Without it their rows would
-     * interleave and both blocks would come apart.
-     *
-     * Ordering only. No filter, no scope and no column changes: the same
-     * rows come back either way, in a different order.
-     */
-    private function ordered($query, string $view, string $dateColumn, string $foreignTable)
-    {
-        if ($view === 'flat') {
-            return $query->orderByDesc($dateColumn);
-        }
-
-        $memberLastFiled = DB::table($foreignTable . ' as latest_of_member')
-            ->selectRaw('MAX(latest_of_member.' . $dateColumn . ')')
-            ->whereColumn('latest_of_member.farmer_id', $foreignTable . '.farmer_id')
-            ->whereNull('latest_of_member.deleted_at')
-            ->whereNull('latest_of_member.archived_at');
-
-        return $query
-            ->orderByDesc($memberLastFiled)
-            ->orderBy($foreignTable . '.farmer_id')
-            ->orderByDesc($dateColumn);
-    }
-
     private function view(Request $request): string
     {
         return $request->query('view') === 'flat' ? 'flat' : 'grouped';
@@ -154,23 +112,26 @@ class MonitoringController extends Controller
             return $this->exportPlanting($request, $association);
         }
 
-        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
-
-        $records = $this->ordered(
-                $this->filteredPlanting($request, $association)
-                    ->when($limited, fn ($q) => $q->whereRaw(
-                        '(SELECT COUNT(*) FROM crop_planting_records p2 WHERE p2.farmer_id = crop_planting_records.farmer_id
-                            AND p2.deleted_at IS NULL AND p2.archived_at IS NULL
-                            AND (p2.date_submitted > crop_planting_records.date_submitted
-                                 OR (p2.date_submitted = crop_planting_records.date_submitted AND p2.id > crop_planting_records.id))) < ?',
-                        [\App\Support\LatestPerFarmer::LIMIT]
-                    )),
-                $view,
-                'date_submitted',
-                'crop_planting_records'
+        /* Grouped: a handful of MEMBERS a page, each with every record they
+           have filed (App\Support\FarmerGroups), so a member's row can open
+           to their whole history. Flat: newest first, fifteen a page.
+           Replaces the old "latest three per member" cap. */
+        $records = $view === 'grouped'
+            ? \App\Support\FarmerGroups::paginate(
+                $this->filteredPlanting($request, $association),
+                fn ($q) => $q->select('crop_planting_records.farmer_id')
+                    ->groupBy('crop_planting_records.farmer_id')
+                    ->orderByRaw('MAX(crop_planting_records.date_submitted) DESC')
+                    ->orderBy('crop_planting_records.farmer_id'),
+                fn ($q, $ids) => $q->whereIn('crop_planting_records.farmer_id', $ids)
+                    ->orderByDesc('date_submitted')
+                    ->orderByDesc('crop_planting_records.id'),
+                fn ($record) => $record->farmer_id
             )
-            ->paginate(15)
-            ->withQueryString();
+            : $this->filteredPlanting($request, $association)
+                ->orderByDesc('date_submitted')
+                ->paginate(15)
+                ->withQueryString();
 
         /* The same two figures, defined the same way, as the office's
            dashboard (App\Support\MonitorStats), limited to this
@@ -187,7 +148,7 @@ class MonitoringController extends Controller
             'summary'     => $summary,
             'selected'    => $selected,
             'relatedDamage' => $selected ? PlantingMatch::damageFor($selected) : collect(),
-            'farmerTotals' => $limited ? DB::table('crop_planting_records')->whereNull('deleted_at')->whereNull('archived_at')->whereIn('farmer_id', $this->memberIds($association))->select('farmer_id', DB::raw('COUNT(*) as total'))->groupBy('farmer_id')->pluck('total', 'farmer_id') : collect(),
+            'farmerTotals' => collect(),
             'filters'     => $request->only(['q', 'month', 'year']),
         ]);
     }
@@ -295,6 +256,26 @@ class MonitoringController extends Controller
     }
 
     /**
+     * Damage reports (or inspected ones) paged by MEMBER, most recent filer
+     * first, each page carrying every report its members have filed. One
+     * helper for both tabs because the only difference between them is the
+     * query handed in. See App\Support\FarmerGroups.
+     */
+    private function groupedDamage($query)
+    {
+        return \App\Support\FarmerGroups::paginate(
+            $query,
+            fn ($q) => $q->select('damage_reports.farmer_id')
+                ->groupBy('damage_reports.farmer_id')
+                ->orderByRaw('MAX(damage_reports.created_at) DESC')
+                ->orderBy('damage_reports.farmer_id'),
+            fn ($q, $ids) => $q->whereIn('damage_reports.farmer_id', $ids)
+                ->latest()->orderByDesc('damage_reports.id'),
+            fn ($report) => $report->farmer_id
+        );
+    }
+
+    /**
      * Damage reports filed by members, with where each one has got to.
      */
     public function damageReports(Request $request)
@@ -306,17 +287,9 @@ class MonitoringController extends Controller
             return $this->exportDamage($request, $association);
         }
 
-        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
-
-        $reports = $this->ordered(
-                $this->filteredDamage($request, $association)
-                    ->when($limited, fn ($q) => \App\Support\LatestPerFarmer::damageReports($q)),
-                $view,
-                'created_at',
-                'damage_reports'
-            )
-            ->paginate(15)
-            ->withQueryString();
+        $reports = $view === 'grouped'
+            ? $this->groupedDamage($this->filteredDamage($request, $association))
+            : $this->filteredDamage($request, $association)->orderByDesc('created_at')->paginate(15)->withQueryString();
 
         PlantingMatch::annotate($reports->getCollection());
 
@@ -332,7 +305,7 @@ class MonitoringController extends Controller
             'view'        => $view,
             'summary'     => $summary,
             'selected'    => $selected,
-            'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::damageTotals(false, $association->id) : collect(),
+            'farmerTotals' => collect(),
             'filters'     => $request->only(['assignment', 'planting_match', 'cause', 'q']),
             'causes'      => DamageReport::CAUSES,
         ]);
@@ -347,18 +320,12 @@ class MonitoringController extends Controller
         $association = $this->association();
         $view        = $this->view($request);
 
-        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
+        $inspected = $this->filteredDamage($request, $association)
+            ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'));
 
-        $reports = $this->ordered(
-                $this->filteredDamage($request, $association)
-                    ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
-                    ->when($limited, fn ($q) => \App\Support\LatestPerFarmer::damageReports($q, true)),
-                $view,
-                'created_at',
-                'damage_reports'
-            )
-            ->paginate(15)
-            ->withQueryString();
+        $reports = $view === 'grouped'
+            ? $this->groupedDamage($inspected)
+            : $inspected->orderByDesc('created_at')->paginate(15)->withQueryString();
 
         PlantingMatch::annotate($reports->getCollection());
 
@@ -376,9 +343,7 @@ class MonitoringController extends Controller
             'view'         => $view,
             'summary'      => $summary,
             'selected'     => $selected,
-            'farmerTotals' => $limited
-                ? \App\Support\LatestPerFarmer::damageTotals(true, $association->id)
-                : collect(),
+            'farmerTotals' => collect(),
             'filters'      => $request->only(['status', 'planting_match', 'q']),
         ]);
     }

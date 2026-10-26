@@ -56,6 +56,9 @@
         'under_association_review' => ['neutral', 'Under Association Review'],
         'forwarded_to_mao'         => ['neutral', 'Forwarded to MAO'],
         'returned_for_correction'  => ['danger',  'Returned for Correction'],
+        // The office sent it back to the association. Amber: the association
+        // has to act, and nobody else is being asked to.
+        'returned_to_association'  => ['warning', 'Returned to Association'],
 
         // Damage reports. Assigned and Under Verification are work in
         // progress, so they take the filled grey.

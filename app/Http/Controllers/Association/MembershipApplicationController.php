@@ -102,7 +102,7 @@ class MembershipApplicationController extends Controller
            and the reason there is no separate ownership check to forget. */
         $selected = $request->filled('selected')
             ? $this->scoped()
-                ->with(['user', 'barangay', 'mainCrops.crop', 'returnedBy', 'associationReviewer', 'forwardedBy'])
+                ->with(['user', 'barangay', 'mainCrops.crop', 'returnedBy', 'associationReviewer', 'forwardedBy', 'maoReturnedBy'])
                 ->find($request->selected)
             : null;
 
@@ -132,8 +132,10 @@ class MembershipApplicationController extends Controller
     {
         $farmer = $this->findOrFail($farmer->id);
 
-        abort_unless(MembershipApplication::isAssociationsTurn($farmer), 403,
-            'This application is no longer with your association.');
+        // canForward(), not isAssociationsTurn(): an application the office
+        // sent back is not "started" again, it is returned to the farmer.
+        abort_unless(MembershipApplication::canForward($farmer), 403,
+            'This application is no longer waiting for you to start a review.');
 
         if (MembershipApplication::forFarmer($farmer) === MembershipApplication::UNDER_REVIEW) {
             return back()->with('status', 'This application is already under review.');
@@ -183,8 +185,12 @@ class MembershipApplicationController extends Controller
     {
         $farmer = $this->findOrFail($farmer->id);
 
-        abort_unless(MembershipApplication::isAssociationsTurn($farmer), 403,
-            'This application is no longer with your association.');
+        /* Not isAssociationsTurn(): an application the office returned to
+           this association can only go back to the farmer. Forwarding it
+           again unchanged would put the same application back in front of
+           the office with nothing corrected. */
+        abort_unless(MembershipApplication::canForward($farmer), 403,
+            'This application can no longer be forwarded. If the office returned it, return it to the farmer for correction instead.');
 
         $data = $request->validate([
             'forward_note' => ['nullable', 'string', 'max:1000'],
@@ -238,6 +244,12 @@ class MembershipApplicationController extends Controller
 
         $from = MembershipApplication::forFarmer($farmer);
 
+        // Did the office send this back to us? That changes what the farmer
+        // is told: the request ultimately came from the office, and the
+        // farmer should know the correction is not only the association's
+        // opinion.
+        $fromOffice = $from === MembershipApplication::RETURNED_TO_ASSOCIATION;
+
         DB::transaction(function () use ($farmer, $data, $from) {
             $farmer->returnForCorrection(Auth::id(), 'association', $data['return_note']);
 
@@ -259,8 +271,11 @@ class MembershipApplicationController extends Controller
         $this->notifyFarmer(
             $farmer,
             'Your Application Needs Correction',
-            'Your Farmers\' Association has asked you to correct something in your registration before '
-                . 'it can be forwarded to the Municipal Agriculture Office. What needs fixing: '
+            ($fromOffice
+                ? 'Your Farmers\' Association, following a review by the Municipal Agriculture Office, has asked '
+                    . 'you to correct something in your registration before it can be decided. What needs fixing: '
+                : 'Your Farmers\' Association has asked you to correct something in your registration before '
+                    . 'it can be forwarded to the Municipal Agriculture Office. What needs fixing: ')
                 . $data['return_note']
         );
 
@@ -312,7 +327,11 @@ class MembershipApplicationController extends Controller
     private function awaitingUsCount(): int
     {
         return $this->scoped()
-            ->whereIn('membership_stage', [MembershipApplication::SUBMITTED, MembershipApplication::UNDER_REVIEW])
+            ->whereIn('membership_stage', [
+                MembershipApplication::RETURNED_TO_ASSOCIATION,
+                MembershipApplication::SUBMITTED,
+                MembershipApplication::UNDER_REVIEW,
+            ])
             ->whereHas('user', fn ($user) => $user->where('status', 'pending'))
             ->count();
     }
@@ -320,8 +339,9 @@ class MembershipApplicationController extends Controller
     /**
      * The queue order: what the officer has to act on, first.
      *
-     * Submitted and Under Association Review are theirs, so those come up
-     * top; then the ones waiting on the farmer; then the ones already with
+     * Applications the office sent back come first (the office is waiting
+     * on them), then Submitted and Under Association Review, which are
+     * theirs too; then the ones waiting on the farmer; then the ones already with
      * the office, which they can see but not touch. Written as FIELD()
      * rather than sorted in PHP because the list is paginated, and a page of
      * twelve sorted after it was fetched would put the wrong twelve on page
@@ -329,7 +349,8 @@ class MembershipApplicationController extends Controller
      */
     private function queueOrder(): string
     {
-        return "FIELD(membership_stage, '" . MembershipApplication::SUBMITTED . "', '"
+        return "FIELD(membership_stage, '" . MembershipApplication::RETURNED_TO_ASSOCIATION . "', '"
+            . MembershipApplication::SUBMITTED . "', '"
             . MembershipApplication::UNDER_REVIEW . "', '"
             . MembershipApplication::RETURNED . "', '"
             . MembershipApplication::FORWARDED . "')";

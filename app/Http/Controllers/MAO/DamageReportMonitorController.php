@@ -68,16 +68,22 @@ class DamageReportMonitorController extends Controller
             return $this->export($request);
         }
 
-        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
-
-        $reports = $this->baseQuery($request)
-            ->when($limited, fn ($query) => \App\Support\LatestPerFarmer::damageReports($query))
-            ->when($view === 'grouped', fn ($query) => $query
-                ->orderByDesc(self::farmerLatestReport())
-                ->orderBy('damage_reports.farmer_id'))
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
+        /* Grouped: one page is a handful of FARMERS and carries every report
+           each of them has (App\Support\FarmerGroups), so a farmer's row can
+           open to their whole history. Flat: newest first, fifteen a page,
+           exactly as before. */
+        $reports = $view === 'grouped'
+            ? \App\Support\FarmerGroups::paginate(
+                $this->baseQuery($request),
+                fn ($q) => $q->select('damage_reports.farmer_id')
+                    ->groupBy('damage_reports.farmer_id')
+                    ->orderByRaw('MAX(damage_reports.created_at) DESC')
+                    ->orderBy('damage_reports.farmer_id'),
+                fn ($q, $ids) => $q->whereIn('damage_reports.farmer_id', $ids)
+                    ->latest()->orderByDesc('damage_reports.id'),
+                fn ($report) => $report->farmer_id
+            )
+            : $this->baseQuery($request)->latest()->paginate(15)->withQueryString();
 
         // The planting-match result for every row on this page, in one query.
         \App\Support\PlantingMatch::annotate($reports->getCollection());
@@ -138,7 +144,7 @@ class DamageReportMonitorController extends Controller
         return view('mao.damage-reports.index', [
             'view'    => $view,
             'reports'      => $reports,
-            'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::damageTotals() : collect(),
+            'farmerTotals' => collect(),
             'selected'     => $selected,
             'history'      => $selected ? $this->farmerHistory($selected) : collect(),
             'availableDisasters' => $selected ? Disaster::active()->orderByDesc('date_start')->orderBy('name')->get() : collect(),

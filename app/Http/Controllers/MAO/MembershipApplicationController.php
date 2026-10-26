@@ -112,7 +112,7 @@ class MembershipApplicationController extends Controller
         $selected = $request->filled('selected')
             ? Farmer::query()->notDeleted()
                 ->with(['user', 'association', 'barangay', 'mainCrops.crop',
-                        'returnedBy', 'forwardedBy', 'associationReviewer', 'decidedBy'])
+                        'returnedBy', 'forwardedBy', 'associationReviewer', 'decidedBy', 'maoReturnedBy'])
                 ->find($request->selected)
             : null;
 
@@ -478,26 +478,24 @@ class MembershipApplicationController extends Controller
     }
 
     /**
-     * Send a forwarded application back to the farmer to fix (revision
-     * step 6).
+     * Send a forwarded application back to the ASSOCIATION to be corrected.
      *
-     * The office can return as well as the association, which was the
-     * developer's decision when this was specified. The reason is that the
-     * two readers are looking for different things: the association
-     * confirms the applicant is one of its members, and the office checks
-     * the registration itself, so the office is the one that will notice a
-     * barangay certificate for the wrong person or a birth date that cannot
-     * be right. Without this, the only thing the office could do with a
-     * fixable application was reject it, which ends it.
+     * THE OFFICE DOES NOT WRITE TO THE FARMER (changed Oct 2026)
      *
-     * Returning is not rejecting and must not be read as a soft rejection.
-     * It leaves the account pending, keeps every detail the farmer entered,
-     * and asks for one thing to be changed.
+     * This used to return the application straight to the farmer. It now
+     * goes to the farmers' association first, with the office's remarks, and
+     * the association is the one that returns it to the farmer. The farmer
+     * only ever hears from their own association, and the association sees
+     * what the office found before anything reaches the farmer.
      *
-     * The corrected application comes back to the ASSOCIATION, not here.
-     * That is the one path back in: an officer is never handed an
-     * application whose corrections they have not seen, and the office
-     * never re-reads a version the association has not vouched for.
+     * The remarks are required, the same as a rejection, because an
+     * association handed an application with no reason has nothing to pass
+     * on. Returning is not rejecting and must not be read as a soft
+     * rejection: the account stays pending and every detail the farmer
+     * entered is kept.
+     *
+     * The route is still the office's "return" action and still takes
+     * return_note; only where it lands has changed.
      */
     public function returnForCorrection(Request $request, Farmer $farmer)
     {
@@ -505,21 +503,26 @@ class MembershipApplicationController extends Controller
 
         $data = $request->validate([
             'return_note' => ['required', 'string', 'min:10', 'max:1000'],
-        ], [], ['return_note' => 'correction note']);
+        ], [], ['return_note' => 'return remarks']);
 
         $from = MembershipApplication::forFarmer($farmer);
 
-        DB::transaction(function () use ($farmer, $data, $from) {
-            $farmer->returnForCorrection(Auth::id(), 'mao', $data['return_note']);
+        DB::transaction(function () use ($farmer, $data, &$from) {
+            // Same lock and re-check as approve() and reject(): two officers
+            // acting on one application cannot both succeed.
+            $fresh = $this->lockForDecision($farmer);
+
+            $from = MembershipApplication::forFarmer($fresh);
+
+            $fresh->returnToAssociation(Auth::id(), $data['return_note']);
 
             // Remarks in their own column, not concatenated into the action
-            // text; that column was a VARCHAR(255) and this note runs to
-            // 1000. Migration 2024_01_23_000001.
+            // text (migration 2024_01_23_000001).
             $this->log(
-                'Returned membership application for correction: ' . $farmer->full_name,
-                $farmer->id,
+                'Returned membership application to the association: ' . $fresh->full_name,
+                $fresh->id,
                 $from,
-                MembershipApplication::RETURNED,
+                MembershipApplication::RETURNED_TO_ASSOCIATION,
                 $data['return_note']
             );
         });
@@ -527,42 +530,21 @@ class MembershipApplicationController extends Controller
         $this->notifyReturned($farmer, $data['return_note']);
 
         return redirect()->route('mao.membership-applications.index')
-            ->with('status', 'Application returned to the farmer for correction.');
+            ->with('status', 'Application returned to the association with your remarks.');
     }
 
     /**
-     * Both the farmer and their association are told.
+     * Tell the association, and only the association.
      *
-     * The farmer because they are the one who has to act, word for word so
-     * that nothing is lost in paraphrase. The association because the
-     * corrected application lands back on their desk, and an officer who
-     * was not told will see it reappear in their queue with no explanation.
-     *
-     * In-app only ('normal' priority): section 68 reserves SMS for urgent
-     * and critical matters, and a correction request is neither. Never
-     * throws - the application has already been returned by the time this
-     * runs.
+     * The farmer is deliberately not told here: the association passes the
+     * correction on in its own words, and a farmer who got a message from
+     * the office and then another from their association would be told the
+     * same thing twice. 'important' priority because an officer has to act
+     * on it; section 68 keeps SMS for urgent and critical matters, and this
+     * is neither. Never throws, because the application has already moved.
      */
     private function notifyReturned(Farmer $farmer, string $note): void
     {
-        try {
-            NotificationBroadcast::create([
-                'title'       => 'Your Application Needs Correction',
-                'message'     => 'The Municipal Agriculture Office has asked you to correct something in '
-                    . 'your registration. What needs fixing: ' . $note,
-                'category'    => 'system',
-                'priority'    => 'normal',
-                'target_type' => 'specific_farmer',
-                'target_id'   => $farmer->id,
-                'link_type'   => 'membership_application',
-                'link_id'     => $farmer->id,
-                'status'      => 'draft',
-                'created_by'  => Auth::id(),
-            ])->dispatchToRecipients();
-        } catch (\Throwable $e) {
-            Log::warning('Could not notify farmer ' . $farmer->id . ' of a returned application: ' . $e->getMessage());
-        }
-
         if (! $farmer->association_id) {
             return;
         }
@@ -570,11 +552,11 @@ class MembershipApplicationController extends Controller
         try {
             NotificationBroadcast::create([
                 'title'       => 'Application Returned by the Office',
-                'message'     => $farmer->full_name . '\'s application has been returned to them for '
-                    . 'correction by the Municipal Agriculture Office. It will come back to your '
-                    . 'association for review once they have corrected it. Reason given: ' . $note,
+                'message'     => 'The Municipal Agriculture Office returned ' . $farmer->full_name
+                    . '\'s membership application to your association. Please review the office\'s remarks '
+                    . 'and return it to the farmer for correction. Remarks: ' . $note,
                 'category'    => 'system',
-                'priority'    => 'normal',
+                'priority'    => 'important',
                 'target_type' => 'specific_association',
                 'target_id'   => $farmer->association_id,
                 'link_type'   => 'membership_application',

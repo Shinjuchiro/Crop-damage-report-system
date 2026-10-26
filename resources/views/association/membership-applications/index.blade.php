@@ -147,6 +147,26 @@
                 <p class="mt-2 text-xs text-muted-foreground">{{ MembershipApplication::means($status) }}</p>
             </div>
 
+            {{-- The office's remarks, while the application is back on this
+                 association's desk. Shown first and in amber because it is
+                 the thing the officer has to act on: the office is waiting
+                 for the farmer to be told. --}}
+            @if ($status === MembershipApplication::RETURNED_TO_ASSOCIATION)
+                <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm dark:border-amber-800 dark:bg-amber-950/50">
+                    <p class="font-semibold text-amber-900 dark:text-amber-200">
+                        Returned to your association by the Municipal Agriculture Office
+                        @if ($farmer->mao_returned_at)
+                            on {{ $farmer->mao_returned_at->format('M d, Y') }}
+                        @endif
+                    </p>
+                    <p class="mt-1 text-amber-900 dark:text-amber-100">{{ $farmer->mao_return_note }}</p>
+                    <p class="mt-1.5 text-xs text-amber-800 dark:text-amber-300">
+                        Review these remarks, then return the application to the farmer for correction.
+                        It comes back to you once they have fixed it.
+                    </p>
+                </div>
+            @endif
+
             {{-- The return note, when there is one. Kept visible after a
                  resubmission on purpose: an officer judging whether the fix
                  answers the question needs to see what was asked. --}}
@@ -207,6 +227,7 @@
                             </div>
                         @endif
                     </dl>
+                    <x-farmer.supporting-documents :farmer="$farmer" class="mt-3" />
                 </div>
 
                 <div class="border-t border-border pt-4">
@@ -289,6 +310,20 @@
                             Starting the review records that you are looking at this application, so the
                             office can see it is being handled.
                         </p>
+                    @elseif ($status === MembershipApplication::RETURNED_TO_ASSOCIATION)
+                        {{-- The office sent it back, so the only move is to
+                             pass the correction on to the farmer. Forward is
+                             not offered: it would put the same application
+                             back in front of the office with nothing fixed.
+                             The controller refuses it too. --}}
+                        <button type="button" @click="acting = 'return'"
+                                class="w-full rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800">
+                            Return to Farmer
+                        </button>
+                        <p class="text-xs text-muted-foreground">
+                            The office's remarks are filled in for you. Reword them if the farmer needs
+                            it said more simply.
+                        </p>
                     @else
                         {{-- "Verify and forward" rather than "Forward": the
                              revision names the officer's action that way, and
@@ -303,7 +338,7 @@
                         </button>
                         <button type="button" @click="acting = 'return'"
                                 class="w-full rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/50">
-                            Return for Correction
+                            Return to Farmer
                         </button>
                     @endif
                 </div>
@@ -416,10 +451,13 @@
             <div x-show="acting === 'return'" x-cloak
                  class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
                 <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-                    <h3 class="mb-2 text-lg font-semibold text-foreground">Return this application?</h3>
+                    <h3 class="mb-2 text-lg font-semibold text-foreground">Return this application to the farmer?</h3>
                     <p class="mb-4 text-sm text-muted-foreground">
                         {{ $farmer->full_name }} will be asked to correct their registration and submit it
                         again. Tell them what needs fixing; they see this note word for word.
+                        @if ($status === MembershipApplication::RETURNED_TO_ASSOCIATION)
+                            The office's remarks are filled in below.
+                        @endif
                     </p>
                     <form method="POST"
                           action="{{ route('association.membership-applications.return', $farmer) }}">
@@ -429,7 +467,7 @@
                         </label>
                         <textarea id="return_note" name="return_note" rows="4" required minlength="10" maxlength="1000"
                                   placeholder="For example: the barangay certificate is for a different person, please upload your own."
-                                  class="mb-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
+                                  class="mb-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary">{{ old('return_note', $status === MembershipApplication::RETURNED_TO_ASSOCIATION ? $farmer->mao_return_note : '') }}</textarea>
                         <p class="mb-4 text-xs text-muted-foreground">At least 10 characters.</p>
                         <div class="flex gap-3">
                             <button type="button" @click="acting = null"
@@ -438,7 +476,7 @@
                             </button>
                             <button type="submit"
                                     class="flex-1 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">
-                                Confirm &amp; Return
+                                Confirm &amp; Return to Farmer
                             </button>
                         </div>
                     </form>

@@ -35,41 +35,10 @@ class CropPlantingMonitorController extends Controller
         // ?activity_status= filter below runs against it.
         Farmer::sweepInactive();
 
-        /* By farmer, or flat (revision section 10). Ordering only: the same
-           rows come back either way. Grouped puts a farmer's crops together
-           so the page can print the name once above them; flat is newest
-           first, which is what the office wants when the question is "what
-           was filed this week".
-
-           The farmer is two tables away from this row - a crop belongs to a
-           planting record, which belongs to a farmer - so anything about the
-           farmer is a correlated subquery rather than a column.
-
-           Grouped used to be alphabetical, which buried this morning's
-           record behind every member whose surname begins with A. The
-           blocks are now ordered by who filed last. $farmerLastFiled returns
-           one value per farmer, so every row of theirs sorts to the same
-           place and their block stays in one piece.
-
-           $farmerOfRow is the tie-breaker, and it is not optional here:
-           date_submitted is a date, not a timestamp, so several farmers
-           filing on the same day is the normal case rather than a freak
-           one. Without something that is the same for all of one farmer's
-           rows and different between farmers, those rows would interleave
-           and every block on the page would come apart. */
+        /* By farmer, or flat (revision section 10). Grouped pages by FARMER,
+           most recent filer first, and carries every crop each of them has
+           planted; flat is newest first. See App\Support\FarmerGroups. */
         $view = $request->query('view') === 'flat' ? 'flat' : 'grouped';
-
-        $farmerLastFiled = DB::table('crop_planting_records as owner')
-            ->selectRaw('MAX(mine.date_submitted)')
-            ->join('crop_planting_records as mine', 'mine.farmer_id', '=', 'owner.farmer_id')
-            ->whereColumn('owner.id', 'crop_planting_record_crops.crop_planting_record_id')
-            ->whereNull('mine.deleted_at')
-            ->whereNull('mine.archived_at');
-
-        $farmerOfRow = DB::table('crop_planting_records as owner_of_row')
-            ->select('owner_of_row.farmer_id')
-            ->whereColumn('owner_of_row.id', 'crop_planting_record_crops.crop_planting_record_id')
-            ->limit(1);
 
         // Export Report. Taken before the page is built, from the same
         // filtered query, so the file and the screen can never disagree.
@@ -77,17 +46,29 @@ class CropPlantingMonitorController extends Controller
             return $this->export($request);
         }
 
-        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
-
-        $plantings = $this->filtered($request)
-            ->when($limited, fn ($query) => \App\Support\LatestPerFarmer::plantings($query))
-            ->when($view === 'grouped', fn ($query) => $query
-                ->orderByDesc($farmerLastFiled)
-                ->orderBy($farmerOfRow))
-            ->orderByDesc('date_planted')
-            ->orderByDesc('crop_planting_record_crops.id')
-            ->paginate(15)
-            ->withQueryString();
+        /* Grouped: a handful of farmers a page, each with every crop they
+           have planted (App\Support\FarmerGroups), so a farmer's row can open
+           to their whole history. Flat: newest first, fifteen a page. */
+        $plantings = $view === 'grouped'
+            ? \App\Support\FarmerGroups::paginate(
+                $this->filtered($request),
+                fn ($q) => $q
+                    ->join('crop_planting_records as grp_r', 'grp_r.id', '=', 'crop_planting_record_crops.crop_planting_record_id')
+                    ->select('grp_r.farmer_id')
+                    ->groupBy('grp_r.farmer_id')
+                    ->orderByRaw('MAX(grp_r.date_submitted) DESC')
+                    ->orderBy('grp_r.farmer_id'),
+                fn ($q, $ids) => $q
+                    ->whereHas('plantingRecord', fn ($record) => $record->whereIn('farmer_id', $ids))
+                    ->orderByDesc('date_planted')
+                    ->orderByDesc('crop_planting_record_crops.id'),
+                fn ($planting) => $planting->plantingRecord?->farmer_id
+            )
+            : $this->filtered($request)
+                ->orderByDesc('date_planted')
+                ->orderByDesc('crop_planting_record_crops.id')
+                ->paginate(15)
+                ->withQueryString();
 
         $monthStart = Carbon::now()->startOfMonth();
 
@@ -115,7 +96,7 @@ class CropPlantingMonitorController extends Controller
 
         return view('mao.crop-planting.index', [
             'plantings'    => $plantings,
-            'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::plantingTotals() : collect(),
+            'farmerTotals' => collect(),
             'view'         => $view,
             'selected'     => $selected,
             'relatedDamage' => $selected ? \App\Support\PlantingMatch::damageFor($selected) : collect(),

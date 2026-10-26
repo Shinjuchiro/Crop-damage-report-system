@@ -20,47 +20,23 @@
 
 @section('content')
 
+@php $flash = \App\Support\MonitorStats::damage(); @endphp
 <x-crop-management.header tab="damage">
-    {{-- This page's own figures, rendered above the tabs.
-
-         THREE CARDS, IN THE SAME GRID AS THE OTHER TWO TABS (section 5)
-
-         This was four cards in `sm:grid-cols-2 xl:grid-cols-4`, while Crop
-         Planted and Validation Monitoring both had three in
-         `sm:grid-cols-3`. So the row of figures changed shape as you moved
-         between tabs - four boxes on one, three on the next, and a different
-         number of columns at every breakpoint. Revision section 5 asks for
-         the opposite: "Keep the three summary cards in consistent positions
-         across tabs."
-
-         WHICH CARD WENT, AND WHY THAT ONE
-
-         Total Affected Area. The other three are the pipeline this screen
-         exists to move - what has not been assigned, what a technician is
-         working on, what has come back verified - and Pending is the one
-         that needs somebody to act. Dropping any of them would take a stage
-         of the workflow off the screen that manages it.
-
-         The area total also has a problem of its own, which is the better
-         reason. It is a sum of affected hectares over every damage report on
-         this list, all time, so the same field reported in two separate
-         typhoons is counted twice. Section 14 names that exact fault:
-         "Avoid adding repeated historical farm areas in ways that
-         incorrectly represent unique farmland." It read as "this much
-         farmland in Tanza is damaged" and it was not that number.
-
-         Affected area is still reported, per period and without the
-         double-count, in Reports & Analytics, which is where a total
-         belongs. Nothing else on this page read the figure, so the query
-         behind it came out of the controller too rather than being left to
-         run unread on every page load. --}}
-    <div class="grid gap-4 sm:grid-cols-3">
-        <x-ui.stat label="Not Assigned" :value="number_format($summary['unassigned'])" hint="Waiting for a technician"
-                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2" />
-        <x-ui.stat label="Assigned" :value="number_format($summary['assigned'])" hint="Given to a technician"
+    {{-- This tab's figures (Oct 2026), live queries from
+         App\Support\MonitorStats. Total Assigned Reports counts reports
+         that have a technician RIGHT NOW (the current assignment on the
+         report), so a report reassigned three times is still one and a
+         report with no technician is not counted. Total Area Damaged adds
+         the area the farmers reported for each damaged crop once. --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <x-ui.stat label="Total Damage Reports" :value="number_format($flash['total'])"
+                   hint="Crop Damage reports recorded"
+                   icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
+        <x-ui.stat label="Total Assigned Reports" :value="number_format($flash['assigned'])"
+                   hint="Currently have a technician"
                    icon="M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15zM21 21l-5.2-5.2" />
-        <x-ui.stat label="Without a Planting Match" :value="number_format($summary['no_planting'])"
-                   hint="No matching or no planting record; the technician checks in the field"
+        <x-ui.stat label="Total Area Damaged" :value="number_format($flash['area'], 2)" suffix="ha"
+                   hint="Hectares as reported by farmers"
                    icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z" />
     </div>
 </x-crop-management.header>
@@ -88,6 +64,14 @@
                 $grouped  = ($view ?? 'grouped') !== 'flat';
                 $rows     = $reports->getCollection();
                 $perGroup = $rows->groupBy(fn ($row) => $row->farmer?->id)->map->count();
+
+                // Which farmer's block starts open: the one whose report is
+                // open in the modal (so the highlighted row is visible when
+                // it closes), or the only one when a search narrows the
+                // list to a single farmer. Otherwise every block is folded.
+                $openId = $grouped
+                    ? ($selected?->farmer_id ?? ($reports->total() === 1 ? $rows->first()?->farmer_id : null))
+                    : null;
             @endphp
 
             <x-record.view-toggle :view="$grouped ? 'grouped' : 'flat'" class="mb-4" />
@@ -156,29 +140,41 @@
                      and the tap that opens it - since the disaster, the date
                      and the inspection state moved into View with the rest
                      (revision section 3.1). --}}
-                <ul class="space-y-3 lg:hidden">
+                <ul class="space-y-3 lg:hidden" @if ($grouped) x-data="{ open: {{ $openId ?? 'null' }} }" @endif>
                     @php $phoneLast = null; @endphp
 
                     @forelse ($reports as $report)
                         @if ($grouped && $report->farmer?->id !== $phoneLast)
                             @php $phoneLast = $report->farmer?->id; @endphp
-                            <li class="flex flex-wrap items-center justify-between gap-2 pt-2 first:pt-0">
-                                <span class="text-sm font-bold">{{ $report->farmer?->full_name ?? 'Unknown' }}</span>
-                                <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
-                                    {{ $perGroup[$report->farmer?->id] ?? 1 }}
-                                    {{ \Illuminate\Support\Str::plural('report', $perGroup[$report->farmer?->id] ?? 1) }}
+                            {{-- One row per farmer; tap to open their reports. --}}
+                            <li class="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2.5"
+                                @click="open = open === {{ (int) $report->farmer?->id }} ? null : {{ (int) $report->farmer?->id }}"
+                                role="button" tabindex="0">
+                                <span class="flex items-center gap-2 text-sm font-bold">
+                                    {{ $report->farmer?->full_name ?? 'Unknown' }}
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
+                                        {{ $perGroup[$report->farmer?->id] ?? 1 }}
+                                        {{ \Illuminate\Support\Str::plural('report', $perGroup[$report->farmer?->id] ?? 1) }}
+                                    </span>
+                                    <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform"
+                                         :class="open === {{ (int) $report->farmer?->id }} ? 'rotate-90' : ''"
+                                         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                         stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                                 </span>
                             </li>
                         @endif
 
-                        <li class="{{ $grouped ? 'ml-3' : '' }}">
+                        <li class="{{ $grouped ? 'ml-3' : '' }}"
+                            @if ($grouped) x-show="open === {{ (int) $report->farmer?->id }}" x-cloak @endif>
                             <x-ui.record-card :href="$viewUrl($report->id)"
                                               :eyebrow="$grouped ? null : $report->full_reference"
                                               :title="$grouped
                                                   ? $report->reference
                                                   : ($report->farmer?->full_name ?? 'Unknown')"
                                               :badge="$report->assignment_label"
-                                              :fields="['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
+                                              :fields="$grouped ? [] : ['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -195,6 +191,59 @@
                      rule, and its labels are small caps - the same treatment
                      x-ui.table gives every other table in the system, and
                      what the design draws. --}}
+                @if ($grouped)
+                    {{-- GROUPED (Oct 2026): one folded row per farmer, FARMER ID |
+                         FARMER | ASSOCIATION | NUMBER OF REPORTS. A farmer's reports, with their
+                         own heading, are only on the page while that farmer is
+                         open. The planting comparison is in View. --}}
+                    <div class="hidden overflow-x-auto rounded-xl border border-border lg:block">
+                        <table class="w-full text-left">
+                            <thead class="bg-muted/70">
+                                <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    <th class="px-4 py-3">Farmer ID</th>
+                                    <th class="px-4 py-3">Farmer</th>
+                                    <th class="px-4 py-3">Association</th>
+                                    <th class="px-4 py-3 text-center">Number of Reports</th>
+                                <th class="w-12 px-4 py-3"><span class="sr-only">Open</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
+                                @forelse ($reports->getCollection()->groupBy(fn ($row) => (int) $row->farmer_id) as $farmerId => $group)
+                                    @php $farmer = $group->first()->farmer; @endphp
+                                    <x-record.farmer-block :farmer="$farmer"
+                                                           :count="$group->count()"
+                                                           :group-id="$farmerId"
+                                                           :href="$farmer ? route('mao.farmers.show', $farmer) : null"
+                                                           :headers="[['Report ID'], ['Farmer'], ['Assignment', 'text-center'], ['Action', 'text-right']]">
+                                        @foreach ($group as $report)
+                                            <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
+                                                <td class="px-4 py-4 text-foreground">{{ $report->reference }}</td>
+                                                <td class="px-4 py-4 text-muted-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</td>
+                                                <td class="px-4 py-4 text-center">
+                                                    <x-monitor.badge kind="assignment" :value="$report->is_assigned ? 'assigned' : 'unassigned'" />
+                                                </td>
+                                                <td class="px-4 py-4">
+                                                    <div class="flex justify-end gap-2">
+                                                        <x-ui.button :href="$viewUrl($report->id)" variant="view" size="sm">View</x-ui.button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </x-record.farmer-block>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-14 text-center">
+                                            <p class="text-sm font-medium text-muted-foreground">No damage reports yet</p>
+                                            <p class="mt-1 text-xs text-muted-foreground">
+                                                Reports appear here as soon as farmers submit them.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @else
                 <div class="hidden overflow-x-auto rounded-xl border border-border lg:block">
                     <table class="w-full text-left">
                         <thead class="bg-muted/70">
@@ -217,33 +266,11 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border text-sm">
-                            @php $lastFarmer = null; @endphp
 
                             @forelse ($reports as $report)
-                                @if ($grouped && $report->farmer?->id !== $lastFarmer)
-                                    @php $lastFarmer = $report->farmer?->id; @endphp
-                                    <x-record.group-head :farmer="$report->farmer"
-                                                         :count="$perGroup[$report->farmer?->id] ?? 1"
-                                                         :total="$farmerTotals[$report->farmer?->id] ?? null"
-                                                         noun="damage report"
-                                                         :colspan="5"
-                                                         :href="$report->farmer ? route('mao.farmers.show', $report->farmer) : null" />
-                                @endif
-
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
-                                    <td class="px-4 py-4 text-foreground">
-                                        {{-- Indented under the farmer's heading when grouped, so
-                                             the block still reads as theirs without repeating
-                                             anything. --}}
-                                        <span class="{{ $grouped ? 'pl-3' : '' }}">{{ $grouped ? $report->reference : $report->full_reference }}</span>
-                                    </td>
-                                    {{-- The name in both views, muted under a
-                                         group heading that already carries it
-                                         in bold. It used to be the barangay
-                                         alone when grouped, which left the
-                                         column saying something its own
-                                         header did not. --}}
-                                    <td class="px-4 py-4 {{ $grouped ? 'text-muted-foreground' : 'font-bold text-foreground' }}">
+                                    <td class="px-4 py-4 text-foreground">{{ $report->full_reference }}</td>
+                                    <td class="px-4 py-4 font-bold text-foreground">
                                         {{ $report->farmer?->full_name ?? 'Unknown' }}
                                     </td>
                                     <td class="px-4 py-4 text-center">
@@ -271,6 +298,7 @@
                         </tbody>
                     </table>
                 </div>
+                @endif
 
                 {{-- "Showing 1 to 3 of 3 entries" on the left, the pages on
                      the right, as the design draws it. firstItem() is null on
@@ -278,12 +306,18 @@
                      than assumed. --}}
                 <div class="mt-6 flex flex-col gap-3 border-t border-border pt-5
                             sm:flex-row sm:items-center sm:justify-between">
+                    @php
+                        [$from, $to, $total] = $grouped
+                            ? \App\Support\FarmerGroups::range($reports)
+                            : [$reports->firstItem(), $reports->lastItem(), $reports->total()];
+                        $noun = $grouped ? 'farmer' : 'entry';
+                    @endphp
                     <p class="text-sm text-muted-foreground">
-                        @if ($reports->total() > 0)
-                            Showing {{ number_format($reports->firstItem()) }}
-                            to {{ number_format($reports->lastItem()) }}
-                            of {{ number_format($reports->total()) }}
-                            {{ \Illuminate\Support\Str::plural('entry', $reports->total()) }}
+                        @if ($total > 0)
+                            Showing {{ number_format($from) }}
+                            to {{ number_format($to) }}
+                            of {{ number_format($total) }}
+                            {{ \Illuminate\Support\Str::plural($noun, $total) }}
                         @else
                             No entries
                         @endif

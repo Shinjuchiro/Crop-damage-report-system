@@ -170,6 +170,8 @@ Route::middleware('auth')->group(function () {
        GET only. Nothing uploads through these routes. */
     Route::get('/files/farmers/{farmer}/certificate', [AttachmentController::class, 'barangayCertificate'])
         ->name('attachments.certificate');
+    Route::get('/files/farmers/documents/{document}', [AttachmentController::class, 'supportingDocument'])
+        ->name('attachments.supporting-document');
     Route::get('/files/damage-photos/{photo}', [AttachmentController::class, 'damagePhoto'])
         ->name('attachments.damage-photo');
     Route::get('/files/inspection-photos/{photo}', [AttachmentController::class, 'inspectionPhoto'])

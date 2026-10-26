@@ -73,6 +73,7 @@
             ->notDeleted()
             ->where('association_id', $associationId)
             ->whereIn('membership_stage', [
+                \App\Support\MembershipApplication::RETURNED_TO_ASSOCIATION,
                 \App\Support\MembershipApplication::SUBMITTED,
                 \App\Support\MembershipApplication::UNDER_REVIEW,
             ])

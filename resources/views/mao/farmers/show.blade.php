@@ -132,6 +132,8 @@
                         </div>
                     @endif
                 </dl>
+
+                <x-farmer.supporting-documents :farmer="$farmer" class="mt-5" />
             </div>
 
             <div class="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm">

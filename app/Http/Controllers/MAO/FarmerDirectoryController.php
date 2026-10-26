@@ -53,13 +53,49 @@ class FarmerDirectoryController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        /* WHEN AN ASSOCIATION IS OPEN (Oct 2026)
+
+           The directory is reached from an association's details with
+           ?association_id=, and on that screen the page is about that one
+           association. Three things follow from it:
+
+           - the association dropdown is not shown (the view hides it), since
+             there is nothing to choose;
+           - the summary counts that association's members, not the whole
+             municipality. It used to say 23 members above a list of two;
+           - the barangay dropdown offers only the barangays the association
+             governs, from its area coverage (association_barangay). An
+             association with no coverage recorded falls back to the
+             barangays its own members live in, so the filter is never empty
+             for an association that has members.
+
+           Without ?association_id= nothing changes: all barangays, all
+           associations, municipality-wide counts. */
+        $association = $request->filled('association_id')
+            ? Association::with('coverage')->find($request->association_id)
+            : null;
+
+        $scope = fn () => Farmer::notDeleted()
+            ->when($association, fn ($query) => $query->where('association_id', $association->id));
+
         $summary = [
-            'total'    => Farmer::notDeleted()->count(),
+            'total'    => $scope()->count(),
             'verified' => User::where('role', 'farmer')->where('status', 'active')->count(),
             'pending'  => User::where('role', 'farmer')->where('status', 'pending')->count(),
-            'active'   => Farmer::notDeleted()->where('activity_status', 'active')->count(),
-            'inactive' => Farmer::notDeleted()->where('activity_status', 'inactive')->count(),
+            'active'   => $scope()->where('activity_status', 'active')->count(),
+            'inactive' => $scope()->where('activity_status', 'inactive')->count(),
         ];
+
+        if ($association) {
+            $barangays = $association->coverage->sortBy('name')->values();
+
+            if ($barangays->isEmpty()) {
+                $barangays = Barangay::whereIn('id', $scope()->whereNotNull('barangay_id')->select('barangay_id'))
+                    ->orderBy('name')->get();
+            }
+        } else {
+            $barangays = Barangay::orderBy('name')->get();
+        }
 
         // List + detail panel (Sept 2026): the row a MAO user clicks "View"
         // on loads inline in the right-hand panel via ?selected=<id>,
@@ -72,8 +108,9 @@ class FarmerDirectoryController extends Controller
             'farmers'      => $farmers,
             'selected'     => $selected,
             'summary'      => $summary,
-            'barangays'    => Barangay::orderBy('name')->get(),
+            'barangays'    => $barangays,
             'associations' => Association::orderBy('name')->get(),
+            'association'  => $association,
         ]);
     }
 

@@ -46,20 +46,25 @@ class ValidationMonitorController extends Controller
             return $this->export($request);
         }
 
-        $limited = \App\Support\LatestPerFarmer::applies($request, $view);
+        // Completed inspections only, which is all this page lists.
+        $inspected = DamageReportMonitorController::baseQuery($request)
+            ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'));
 
-        $reports = DamageReportMonitorController::baseQuery($request)
-            ->when($limited, fn ($query) => \App\Support\LatestPerFarmer::damageReports($query, true))
-            ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
-            // Ordered by who was inspected last, not alphabetically. The
-            // true flag keeps the subquery to reports that have actually
-            // been inspected, which is all this page lists.
-            ->when($view === 'grouped', fn ($query) => $query
-                ->orderByDesc(DamageReportMonitorController::farmerLatestReport(true))
-                ->orderBy('damage_reports.farmer_id'))
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
+        /* Grouped: a handful of farmers a page, each with every inspected
+           report they have (App\Support\FarmerGroups). Flat: newest first,
+           fifteen a page. */
+        $reports = $view === 'grouped'
+            ? \App\Support\FarmerGroups::paginate(
+                $inspected,
+                fn ($q) => $q->select('damage_reports.farmer_id')
+                    ->groupBy('damage_reports.farmer_id')
+                    ->orderByRaw('MAX(damage_reports.created_at) DESC')
+                    ->orderBy('damage_reports.farmer_id'),
+                fn ($q, $ids) => $q->whereIn('damage_reports.farmer_id', $ids)
+                    ->latest()->orderByDesc('damage_reports.id'),
+                fn ($report) => $report->farmer_id
+            )
+            : $inspected->latest()->paginate(15)->withQueryString();
 
         \App\Support\PlantingMatch::annotate($reports->getCollection());
 
@@ -83,7 +88,7 @@ class ValidationMonitorController extends Controller
         return view('mao.validations.index', [
             'view'               => $view,
             'reports'            => $reports,
-            'farmerTotals'       => $limited ? \App\Support\LatestPerFarmer::damageTotals(true) : collect(),
+            'farmerTotals'       => collect(),
             'history'            => $selected ? DamageReport::query()->notDeleted()->where('farmer_id', $selected->farmer_id)
                 ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
                 ->orderByDesc('created_at')->orderByDesc('id')

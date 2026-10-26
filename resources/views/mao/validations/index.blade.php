@@ -35,13 +35,18 @@
      Damage Monitoring, which is also where a technician gets assigned in
      the first place. --}}
 <x-crop-management.header tab="validation">
-    {{-- This page's own figures, rendered above the tabs. --}}
-    <div class="grid gap-4 sm:grid-cols-3">
-        <x-ui.stat label="Completed Inspections" :value="number_format($summary['completed'])" hint="Technician has submitted"
+    {{-- Completed Inspection counts reports whose technician has submitted
+         the inspection; Approved and Rejected are the office's own review
+         decisions on those (App\Support\MonitorStats::validation()). --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <x-ui.stat label="Completed Inspection" :value="number_format($summary['completed'])"
+                   hint="Technician has submitted"
                    icon="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4" />
         <x-ui.stat label="Approved" :value="number_format($summary['approved'])"
+                   hint="Assessments approved by MAO"
                    icon="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         <x-ui.stat label="Rejected" :value="number_format($summary['rejected'])"
+                   hint="Assessments rejected by MAO"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6" />
     </div>
 </x-crop-management.header>
@@ -65,6 +70,12 @@
                 $rows     = $reports->getCollection();
                 $perGroup = $rows->groupBy(fn ($row) => $row->farmer?->id)->map->count();
 
+                // Which farmer's block starts open: the one whose inspection
+                // is open in the modal, or the only one when a search narrows
+                // the list to a single farmer. Otherwise every block is folded.
+                $openId = $grouped
+                    ? ($selected?->farmer_id ?? ($reports->total() === 1 ? $rows->first()?->farmer_id : null))
+                    : null;
             @endphp
 
             <x-record.view-toggle :view="$grouped ? 'grouped' : 'flat'" class="mb-4" />
@@ -118,29 +129,41 @@
                      Cards below lg, table from lg up. The card carries the
                      same four facts the table does; the technician and the
                      inspection date are in View. --}}
-                <ul class="space-y-3 lg:hidden">
+                <ul class="space-y-3 lg:hidden" @if ($grouped) x-data="{ open: {{ $openId ?? 'null' }} }" @endif>
                     @php $phoneLast = null; @endphp
 
                     @forelse ($reports as $report)
                         @if ($grouped && $report->farmer?->id !== $phoneLast)
                             @php $phoneLast = $report->farmer?->id; @endphp
-                            <li class="flex flex-wrap items-center justify-between gap-2 pt-2 first:pt-0">
-                                <span class="text-sm font-bold">{{ $report->farmer?->full_name ?? 'Unknown' }}</span>
-                                <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
-                                    {{ $perGroup[$report->farmer?->id] ?? 1 }}
-                                    {{ \Illuminate\Support\Str::plural('inspection', $perGroup[$report->farmer?->id] ?? 1) }}
+                            {{-- One row per farmer; tap to open their inspections. --}}
+                            <li class="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2.5"
+                                @click="open = open === {{ (int) $report->farmer?->id }} ? null : {{ (int) $report->farmer?->id }}"
+                                role="button" tabindex="0">
+                                <span class="flex items-center gap-2 text-sm font-bold">
+                                    {{ $report->farmer?->full_name ?? 'Unknown' }}
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
+                                        {{ $perGroup[$report->farmer?->id] ?? 1 }}
+                                        {{ \Illuminate\Support\Str::plural('inspection', $perGroup[$report->farmer?->id] ?? 1) }}
+                                    </span>
+                                    <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform"
+                                         :class="open === {{ (int) $report->farmer?->id }} ? 'rotate-90' : ''"
+                                         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                         stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                                 </span>
                             </li>
                         @endif
 
-                        <li class="{{ $grouped ? 'ml-3' : '' }}">
+                        <li class="{{ $grouped ? 'ml-3' : '' }}"
+                            @if ($grouped) x-show="open === {{ (int) $report->farmer?->id }}" x-cloak @endif>
                             <x-ui.record-card :href="$viewUrl($report->id)"
                                               :eyebrow="$grouped ? null : $report->full_reference"
                                               :title="$grouped
                                                   ? $report->reference
                                                   : ($report->farmer?->full_name ?? 'Unknown')"
                                               :badge="$report->review_state === 'approved' ? 'Approved' : ($report->review_state === 'rejected' ? 'Rejected' : 'Pending Review')"
-                                              :fields="['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
+                                              :fields="$grouped ? [] : ['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -158,6 +181,61 @@
                      rule, and its labels are small caps - the same treatment
                      x-ui.table gives every other table in the system, and
                      what the design draws. --}}
+                @if ($grouped)
+                    {{-- GROUPED (Oct 2026): one folded row per farmer, FARMER ID |
+                         FARMER | ASSOCIATION | NUMBER OF RECORDS. A farmer's inspections, with
+                         their own heading, are only on the page while that farmer
+                         is open. The planting comparison is in View. --}}
+                    <div class="hidden overflow-x-auto rounded-xl border border-border lg:block">
+                        <table class="w-full text-left">
+                            <thead class="bg-muted/70">
+                                <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    <th class="px-4 py-3">Farmer ID</th>
+                                    <th class="px-4 py-3">Farmer</th>
+                                    <th class="px-4 py-3">Association</th>
+                                    <th class="px-4 py-3 text-center">Number of Records</th>
+                                <th class="w-12 px-4 py-3"><span class="sr-only">Open</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
+                                @forelse ($rows->groupBy(fn ($row) => (int) $row->farmer_id) as $farmerId => $group)
+                                    @php $farmer = $group->first()->farmer; @endphp
+                                    <x-record.farmer-block :farmer="$farmer"
+                                                           :count="$group->count()"
+                                                           :group-id="$farmerId"
+                                                           :href="$farmer ? route('mao.farmers.show', $farmer) : null"
+                                                           :headers="[['Report ID'], ['Farmer'], ['Assessment Status', 'text-center'], ['Action', 'text-center']]">
+                                        @foreach ($group as $report)
+                                            <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
+                                                <td class="px-4 py-4 text-foreground">{{ $report->reference }}</td>
+                                                <td class="px-4 py-4 text-muted-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</td>
+                                                <td class="px-4 py-4 text-center">
+                                                    <x-monitor.badge kind="validation" :value="$report->review_state" />
+                                                </td>
+                                                <td class="px-4 py-4">
+                                                    <div class="flex items-center justify-center gap-2">
+                                                        <x-ui.button :href="$viewUrl($report->id)" variant="view" size="sm">View</x-ui.button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </x-record.farmer-block>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-14 text-center">
+                                            <p class="text-sm font-medium text-muted-foreground">No completed inspections yet</p>
+                                            <p class="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+                                                A report appears here once a technician has finished the field inspection
+                                                and submitted it. Reports still waiting for or undergoing inspection are in
+                                                <a href="{{ route('mao.damage-reports.index') }}" class="font-medium text-green-800 hover:underline">Crop Damage Monitoring</a>.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @else
                 <div class="hidden overflow-x-auto rounded-xl border border-border lg:block">
                     <table class="w-full text-left">
                         <thead class="bg-muted/70">
@@ -178,30 +256,11 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border text-sm">
-                            @php $lastFarmer = null; @endphp
 
                             @forelse ($reports as $report)
-                                @if ($grouped && $report->farmer?->id !== $lastFarmer)
-                                    @php $lastFarmer = $report->farmer?->id; @endphp
-                                    <x-record.group-head :farmer="$report->farmer"
-                                                         :count="$perGroup[$report->farmer?->id] ?? 1"
-                                                         :total="$farmerTotals[$report->farmer?->id] ?? null"
-                                                         noun="validation record"
-                                                         :colspan="5"
-                                                         :href="$report->farmer ? route('mao.farmers.show', $report->farmer) : null" />
-                                @endif
-
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
-                                    <td class="px-4 py-4 text-foreground">
-                                        {{-- Indented under the farmer's heading when grouped, so
-                                             the block still reads as theirs without repeating
-                                             anything. --}}
-                                        <span class="{{ $grouped ? 'pl-3' : '' }}">{{ $grouped ? $report->reference : $report->full_reference }}</span>
-                                    </td>
-                                    {{-- The name in both views, muted under a
-                                         group heading that already carries it
-                                         in bold. --}}
-                                    <td class="px-4 py-4 {{ $grouped ? 'text-muted-foreground' : 'font-bold text-foreground' }}">
+                                    <td class="px-4 py-4 text-foreground">{{ $report->full_reference }}</td>
+                                    <td class="px-4 py-4 font-bold text-foreground">
                                         {{ $report->farmer?->full_name ?? 'Unknown' }}
                                     </td>
                                     <td class="px-4 py-4 text-center">
@@ -231,6 +290,7 @@
                         </tbody>
                     </table>
                 </div>
+                @endif
 
                 {{-- "Showing 1 to 3 of 3 entries" on the left, the pages on
                      the right, as the design draws it. firstItem() is null on
@@ -238,12 +298,18 @@
                      than assumed. --}}
                 <div class="mt-6 flex flex-col gap-3 border-t border-border pt-5
                             sm:flex-row sm:items-center sm:justify-between">
+                    @php
+                        [$from, $to, $total] = $grouped
+                            ? \App\Support\FarmerGroups::range($reports)
+                            : [$reports->firstItem(), $reports->lastItem(), $reports->total()];
+                        $noun = $grouped ? 'farmer' : 'entry';
+                    @endphp
                     <p class="text-sm text-muted-foreground">
-                        @if ($reports->total() > 0)
-                            Showing {{ number_format($reports->firstItem()) }}
-                            to {{ number_format($reports->lastItem()) }}
-                            of {{ number_format($reports->total()) }}
-                            {{ \Illuminate\Support\Str::plural('entry', $reports->total()) }}
+                        @if ($total > 0)
+                            Showing {{ number_format($from) }}
+                            to {{ number_format($to) }}
+                            of {{ number_format($total) }}
+                            {{ \Illuminate\Support\Str::plural($noun, $total) }}
                         @else
                             No entries
                         @endif

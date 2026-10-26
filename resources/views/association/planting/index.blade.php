@@ -49,6 +49,12 @@
     $grouped  = ($view ?? 'grouped') !== 'flat';
     $rows     = $records->getCollection();
     $perGroup = $rows->groupBy(fn ($row) => $row->farmer?->id)->map->count();
+
+    // Which member's block starts open: the one whose record is open in the
+    // modal, or the only one when a search narrows the list to one member.
+    $openId = $grouped
+        ? ($selected?->farmer_id ?? ($records->total() === 1 ? $rows->first()?->farmer_id : null))
+        : null;
 @endphp
 
 <x-crop-management.header tab="planting" role="association">
@@ -105,17 +111,28 @@
         @else
 
             {{-- ---------- PHONE ---------- --}}
-            <ul class="space-y-3 p-4 lg:hidden">
+            <ul class="space-y-3 p-4 lg:hidden" @if ($grouped) x-data="{ open: {{ $openId ?? 'null' }} }" @endif>
                 @php $phoneLast = null; @endphp
 
                 @foreach ($records as $record)
                     @if ($grouped && $record->farmer?->id !== $phoneLast)
                         @php $phoneLast = $record->farmer?->id; @endphp
-                        <li class="flex flex-wrap items-center justify-between gap-2 pt-2 first:pt-0">
-                            <span class="text-sm font-bold">{{ $record->farmer?->full_name ?? 'Unknown member' }}</span>
-                            <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
-                                {{ $perGroup[$record->farmer?->id] ?? 1 }}
-                                {{ \Illuminate\Support\Str::plural('record', $perGroup[$record->farmer?->id] ?? 1) }}
+                        {{-- One row per member; tap to open their records. --}}
+                        <li class="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2.5"
+                            @click="open = open === {{ (int) $record->farmer?->id }} ? null : {{ (int) $record->farmer?->id }}"
+                            role="button" tabindex="0">
+                            <span class="flex items-center gap-2 text-sm font-bold">
+                                {{ $record->farmer?->full_name ?? 'Unknown member' }}
+                            </span>
+                            <span class="flex items-center gap-2">
+                                <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
+                                    {{ $perGroup[$record->farmer?->id] ?? 1 }}
+                                    {{ \Illuminate\Support\Str::plural('record', $perGroup[$record->farmer?->id] ?? 1) }}
+                                </span>
+                                <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform"
+                                     :class="open === {{ (int) $record->farmer?->id }} ? 'rotate-90' : ''"
+                                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                     stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                             </span>
                         </li>
                     @endif
@@ -124,7 +141,8 @@
                          does, and the whole card is the tap that opens the
                          record: the crops, the area, the barangay and the
                          dates are in View now. --}}
-                    <li class="{{ $grouped ? 'ml-3' : '' }}">
+                    <li class="{{ $grouped ? 'ml-3' : '' }}"
+                        @if ($grouped) x-show="open === {{ (int) $record->farmer?->id }}" x-cloak @endif>
                         <x-ui.record-card :href="$viewUrl($record->id)"
                                           :eyebrow="'REC-' . str_pad($record->id, 4, '0', STR_PAD_LEFT)"
                                           :title="$record->farmer?->full_name ?? 'Unknown member'"
@@ -134,6 +152,46 @@
             </ul>
 
             {{-- ---------- TABLET AND UP ---------- --}}
+            @if ($grouped)
+                {{-- GROUPED (Oct 2026): one folded row per farmer, FARMER ID |
+                     FARMER | NUMBER OF RECORDS. Their records, with their own
+                     heading, are only on the page while that farmer is open.
+                     No Association column here: every member of this screen
+                     is in the same association. --}}
+                <div class="hidden overflow-x-auto lg:block">
+                    <table class="w-full text-left">
+                        <thead class="bg-muted/70">
+                            <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                <th class="px-4 py-3">Farmer ID</th>
+                                <th class="px-4 py-3">Farmer</th>
+                                <th class="px-4 py-3 text-center">Number of Records</th>
+                            <th class="w-12 px-4 py-3"><span class="sr-only">Open</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
+                            @foreach ($rows->groupBy(fn ($r) => (int) $r->farmer_id) as $farmerId => $group)
+                                @php $farmer = $group->first()->farmer; @endphp
+                                <x-record.farmer-block :farmer="$farmer"
+                                                       :count="$group->count()"
+                                                       :group-id="$farmerId"
+                                                       :association="false"
+                                                       :headers="[['Record No.'], ['Farmer'], ['Status', 'text-center'], ['Action', 'text-right']]">
+                                    @foreach ($group as $record)
+                                        <tr class="hover:bg-muted/60 {{ $selected?->id === $record->id ? 'bg-muted/60' : '' }}">
+                                            <td class="whitespace-nowrap px-4 py-4 font-medium">REC-{{ str_pad($record->id, 4, '0', STR_PAD_LEFT) }}</td>
+                                            <td class="px-4 py-4 text-muted-foreground">{{ $record->farmer?->full_name ?? 'Unknown' }}</td>
+                                            <td class="px-4 py-4 text-center"><x-ui.status :value="$record->farmer?->activity_status" /></td>
+                                            <td class="px-4 py-4 text-right">
+                                                <x-ui.button :href="$viewUrl($record->id)" variant="view" size="sm">View</x-ui.button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </x-record.farmer-block>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
             <div class="hidden lg:block">
                 <x-ui.table>
                     <x-slot:head>
@@ -152,29 +210,13 @@
                         </tr>
                     </x-slot:head>
 
-                    @php $lastFarmer = null; @endphp
-
                     @foreach ($records as $record)
-                        @if ($grouped && $record->farmer?->id !== $lastFarmer)
-                            @php $lastFarmer = $record->farmer?->id; @endphp
-                            <x-record.group-head :farmer="$record->farmer"
-                                                 :count="$perGroup[$record->farmer?->id] ?? 1"
-                                                 :total="$farmerTotals[$record->farmer?->id] ?? null"
-                                                 noun="planting record"
-                                                 :colspan="4"
-                                                 :href="$record->farmer ? route('association.members.show', $record->farmer) : null" />
-                        @endif
-
                         <tr>
                             <td class="whitespace-nowrap font-medium">
-                                <span class="{{ $grouped ? 'pl-3' : '' }}">
-                                    REC-{{ str_pad($record->id, 4, '0', STR_PAD_LEFT) }}
-                                </span>
+                                REC-{{ str_pad($record->id, 4, '0', STR_PAD_LEFT) }}
                             </td>
 
-                            {{-- The name in both views, muted under a group
-                                 heading that already carries it in bold. --}}
-                            <td class="{{ $grouped ? 'text-muted-foreground' : 'font-medium' }}">
+                            <td class="font-medium">
                                 {{ $record->farmer?->full_name ?? 'Unknown' }}
                             </td>
 
@@ -194,6 +236,7 @@
                     @endforeach
                 </x-ui.table>
             </div>
+            @endif
         @endif
 
         @if ($records->hasPages())

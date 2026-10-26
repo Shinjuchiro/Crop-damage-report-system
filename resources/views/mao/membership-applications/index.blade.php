@@ -171,6 +171,24 @@
                     <x-ui.open-full-page :href="route('mao.membership-applications.show', $farmer)" />
                 </div>
 
+                {{-- Our own remarks, while the application is back with the
+                     association. The office can see what it asked for and
+                     that nothing else is expected of it yet. --}}
+                @if ($appStatus === MembershipApplication::RETURNED_TO_ASSOCIATION && $farmer->mao_return_note)
+                    <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm dark:border-amber-800 dark:bg-amber-950/50">
+                        <p class="font-semibold text-amber-900 dark:text-amber-200">
+                            Returned to the association by this office
+                            @if ($farmer->mao_returned_at)
+                                on {{ $farmer->mao_returned_at->format('M d, Y') }}
+                            @endif
+                            @if ($farmer->maoReturnedBy)
+                                ({{ $farmer->maoReturnedBy->display_name }})
+                            @endif
+                        </p>
+                        <p class="mt-1 text-amber-900 dark:text-amber-100">{{ $farmer->mao_return_note }}</p>
+                    </div>
+                @endif
+
                 {{-- The last correction note, from either side. The office
                      needs to see its own as much as the association's: an
                      application on its third pass with the same note each
@@ -235,6 +253,7 @@
                                 </div>
                             @endif
                         </dl>
+                        <x-farmer.supporting-documents :farmer="$farmer" class="mt-3" />
                     </div>
 
                     <div class="border-t border-border pt-4">
@@ -441,7 +460,7 @@
                              to turn away. --}}
                         <button @click="confirmAction = 'return'"
                                 class="w-full rounded-lg border border-input px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted/60">
-                            Return for Correction
+                            Return to Association
                         </button>
                     </div>
 
@@ -507,7 +526,7 @@
                                 Are you sure you want to reject <strong>{{ $farmer->full_name }}</strong>'s
                                 registration? This ends the application. Their membership will not be
                                 activated, and they cannot correct and resubmit it. If the registration is
-                                only incomplete, use <strong>Return for Correction</strong> instead.
+                                only incomplete, use <strong>Return to Association</strong> instead.
                             </p>
                             <form method="POST" action="{{ route('mao.membership-applications.reject', $farmer) }}">
                                 @csrf @method('PUT')
@@ -549,23 +568,25 @@
                     <div x-show="confirmAction === 'return'" x-cloak
                          class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
                         <div class="my-auto w-full max-w-md rounded-xl bg-card p-6">
-                            <h3 class="mb-2 text-lg font-semibold text-foreground">Return this application?</h3>
+                            <h3 class="mb-2 text-lg font-semibold text-foreground">Return this application to the association?</h3>
                             <p class="mb-4 text-sm text-muted-foreground">
-                                {{ $farmer->full_name }} will be asked to correct their registration.
-                                Nothing they entered is lost and the account stays pending. Once corrected it
-                                goes back to <strong>{{ $farmer->association->name ?? 'their association' }}</strong>
-                                for review before it returns here.
+                                It goes back to
+                                <strong>{{ $farmer->association->name ?? 'the farmers\' association' }}</strong>
+                                with your remarks. The association then returns it to
+                                {{ $farmer->full_name }} to correct, and it comes back through the association
+                                before it reaches this office again. Nothing the farmer entered is lost and the
+                                account stays pending.
                             </p>
                             <form method="POST" action="{{ route('mao.membership-applications.return', $farmer) }}">
                                 @csrf @method('PUT')
                                 <label for="mao_return_note" class="mb-1 block text-sm font-medium text-foreground">
-                                    What needs fixing <span class="text-red-600">*</span>
+                                    Reason for returning <span class="text-red-600">*</span>
                                 </label>
                                 <textarea id="mao_return_note" name="return_note" rows="4" required minlength="10" maxlength="1000"
-                                          placeholder="For example: the barangay certificate is unreadable, please upload a clearer photo."
-                                          class="mb-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600"></textarea>
+                                          placeholder="For example: the barangay certificate is unreadable, please ask the farmer to upload a clearer photo."
+                                          class="mb-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600">{{ old('return_note') }}</textarea>
                                 <p class="mb-4 text-xs text-muted-foreground">
-                                    At least 10 characters. The farmer sees this word for word.
+                                    At least 10 characters. The association reads this and passes it on to the farmer.
                                 </p>
                                 <div class="flex gap-3">
                                     <button type="button" @click="confirmAction = null"
@@ -574,7 +595,7 @@
                                     </button>
                                     <button type="submit"
                                             class="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
-                                        Confirm &amp; Return
+                                        Confirm &amp; Return to Association
                                     </button>
                                 </div>
                             </form>
@@ -585,6 +606,12 @@
                         Still with <strong>{{ $farmer->association->name ?? 'the farmers\' association' }}</strong>.
                         You can read it, but it has to be forwarded before this office can approve, reject
                         or return it.
+                    </p>
+                @elseif ($appStatus === MembershipApplication::RETURNED_TO_ASSOCIATION)
+                    <p class="mt-5 rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
+                        Returned to <strong>{{ $farmer->association->name ?? 'the farmers\' association' }}</strong>.
+                        They pass your remarks on to the farmer, and the application reaches this office
+                        again once the farmer has corrected it and the association has forwarded it.
                     </p>
                 @elseif ($appStatus === MembershipApplication::RETURNED)
                     <p class="mt-5 rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">

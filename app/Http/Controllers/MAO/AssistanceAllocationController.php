@@ -1363,7 +1363,14 @@ class AssistanceAllocationController extends Controller
     public function updateStatus(Request $request, AssistanceAllocation $allocation)
     {
         $data = $request->validate([
-            'status'  => ['required', Rule::in(['distributed', 'completed', 'cancelled'])],
+            /* 'distributed' is no longer something the office sets by hand
+               (Oct 2026). Assistance is no longer released to the association:
+               farmers collect it at the MAO venue. The status still exists
+               and is still written automatically when a hand-over is
+               recorded (refreshAllocationProgress), which is what moves an
+               allocation from 'allocated' to 'distributed' and on to
+               'completed'. Only closing it by hand remains here. */
+            'status'  => ['required', Rule::in(['completed', 'cancelled'])],
             'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -1373,14 +1380,6 @@ class AssistanceAllocationController extends Controller
 
         DB::transaction(function () use ($allocation, $data) {
             $changes = ['status' => $data['status']];
-
-            if ($data['status'] === 'distributed') {
-                $changes['distributed_to_association_at'] = now();
-                $changes['distributed_by']                = Auth::id();
-                // No distributed_quantity: there is no quantity to carry
-                // over. The date and the officer are the whole record of
-                // this step now.
-            }
 
             if (! empty($data['remarks'])) {
                 $changes['remarks'] = trim(($allocation->remarks ? $allocation->remarks . "\n" : '') . $data['remarks']);

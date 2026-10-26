@@ -261,18 +261,11 @@
         <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-green-800">Update Allocation</h3>
             <p class="mb-4 text-sm text-muted-foreground">
-                Mark the allocation as released once the goods or funds physically reach the association,
-                and completed once distribution is finished.
+                Farmers collect their assistance at the MAO venue. Mark the allocation as completed once
+                distribution is finished, or cancel it if it will not go ahead.
             </p>
 
             <div class="flex flex-col gap-3 sm:flex-row">
-                @if ($allocation->status !== 'distributed')
-                    <button type="button" @click="action = 'distributed'"
-                            class="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">
-                        Mark as Released
-                    </button>
-                @endif
-
                 <button type="button" @click="action = 'completed'"
                         class="rounded-lg border border-green-300 px-5 py-2.5 text-sm font-semibold text-green-800 hover:bg-accent">
                     Mark as Completed

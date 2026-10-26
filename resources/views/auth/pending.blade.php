@@ -94,7 +94,11 @@
          which has no association stage to be at. --}}
     @if ($farmer && ! $returned)
         @php
-            $atAssociation = in_array($status, [MembershipApplication::SUBMITTED, MembershipApplication::UNDER_REVIEW], true);
+            $atAssociation = in_array($status, [
+                MembershipApplication::SUBMITTED,
+                MembershipApplication::UNDER_REVIEW,
+                MembershipApplication::RETURNED_TO_ASSOCIATION,
+            ], true);
             $atOffice      = $status === MembershipApplication::FORWARDED;
             $done          = in_array($status, [MembershipApplication::APPROVED, MembershipApplication::REJECTED], true);
 

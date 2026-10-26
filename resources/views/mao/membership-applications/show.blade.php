@@ -57,6 +57,8 @@
                 </div>
             @endif
         </dl>
+
+        <x-farmer.supporting-documents :farmer="$farmer" class="mt-5" />
     </div>
 
     {{-- Farm information --}}
@@ -280,7 +282,7 @@
          still with a farmers' association, or sitting with the farmer for
          correction, is also pending and is not the office's to decide.
 
-         Return for Correction is on the list page's panel rather than
+         Return to Association is on the list page's panel rather than
          repeated here. This full page exists for reading a registration at
          length; the panel is where the office works through the queue, and
          a third copy of the same form is a third place to keep in step. --}}
@@ -338,7 +340,7 @@
                     Are you sure you want to reject <strong>{{ $farmer->full_name }}</strong>'s
                     registration? This ends the application. Their membership will not be activated,
                     and they cannot correct and resubmit it. If the registration is only incomplete,
-                    return it for correction from the Membership Applications list instead.
+                    return it to the association from the Membership Applications list instead.
                 </p>
                 <form method="POST" action="{{ route('mao.membership-applications.reject', $farmer) }}">
                     @csrf @method('PUT')

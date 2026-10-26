@@ -40,6 +40,12 @@
     $grouped  = ($view ?? 'grouped') !== 'flat';
     $rows     = $reports->getCollection();
     $perGroup = $rows->groupBy(fn ($row) => $row->farmer?->id)->map->count();
+
+    // Which member's block starts open: the one whose record is open in the
+    // modal, or the only one when a search narrows the list to one member.
+    $openId = $grouped
+        ? ($selected?->farmer_id ?? ($reports->total() === 1 ? $rows->first()?->farmer_id : null))
+        : null;
 @endphp
 
 <x-crop-management.header tab="damage" role="association">
@@ -97,17 +103,28 @@
         @else
 
             {{-- ---------- PHONE ---------- --}}
-            <ul class="space-y-3 p-4 lg:hidden">
+            <ul class="space-y-3 p-4 lg:hidden" @if ($grouped) x-data="{ open: {{ $openId ?? 'null' }} }" @endif>
                 @php $phoneLast = null; @endphp
 
                 @foreach ($reports as $report)
                     @if ($grouped && $report->farmer?->id !== $phoneLast)
                         @php $phoneLast = $report->farmer?->id; @endphp
-                        <li class="flex flex-wrap items-center justify-between gap-2 pt-2 first:pt-0">
-                            <span class="text-sm font-bold">{{ $report->farmer?->full_name ?? 'Unknown member' }}</span>
-                            <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
-                                {{ $perGroup[$report->farmer?->id] ?? 1 }}
-                                {{ \Illuminate\Support\Str::plural('report', $perGroup[$report->farmer?->id] ?? 1) }}
+                        {{-- One row per member; tap to open their reports. --}}
+                        <li class="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2.5"
+                            @click="open = open === {{ (int) $report->farmer?->id }} ? null : {{ (int) $report->farmer?->id }}"
+                            role="button" tabindex="0">
+                            <span class="flex items-center gap-2 text-sm font-bold">
+                                {{ $report->farmer?->full_name ?? 'Unknown member' }}
+                            </span>
+                            <span class="flex items-center gap-2">
+                                <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
+                                    {{ $perGroup[$report->farmer?->id] ?? 1 }}
+                                    {{ \Illuminate\Support\Str::plural('report', $perGroup[$report->farmer?->id] ?? 1) }}
+                                </span>
+                                <svg class="h-4 w-4 shrink-0 text-muted-foreground transition-transform"
+                                     :class="open === {{ (int) $report->farmer?->id }} ? 'rotate-90' : ''"
+                                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                     stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                             </span>
                         </li>
                     @endif
@@ -116,17 +133,60 @@
                          does, and the whole card is the tap that opens the
                          record: the cause, the barangay, the date and the
                          crops are in View now. --}}
-                    <li class="{{ $grouped ? 'ml-3' : '' }}">
+                    <li class="{{ $grouped ? 'ml-3' : '' }}"
+                        @if ($grouped) x-show="open === {{ (int) $report->farmer?->id }}" x-cloak @endif>
                         <x-ui.record-card :href="$viewUrl($report->id)"
                                           :eyebrow="$grouped ? $report->reference : $report->full_reference"
                                           :title="$report->farmer?->full_name ?? 'Unknown member'"
                                           :badge="$report->assignment_label"
-                                          :fields="['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
+                                          :fields="$grouped ? [] : ['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
                     </li>
                 @endforeach
             </ul>
 
             {{-- ---------- TABLET AND UP ---------- --}}
+            @if ($grouped)
+                {{-- GROUPED (Oct 2026): one folded row per farmer, FARMER ID |
+                     FARMER | NUMBER OF REPORTS. Their records, with their own
+                     heading, are only on the page while that farmer is open.
+                     No Association column here: every member of this screen
+                     is in the same association. --}}
+                <div class="hidden overflow-x-auto lg:block">
+                    <table class="w-full text-left">
+                        <thead class="bg-muted/70">
+                            <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                <th class="px-4 py-3">Farmer ID</th>
+                                <th class="px-4 py-3">Farmer</th>
+                                <th class="px-4 py-3 text-center">Number of Reports</th>
+                            <th class="w-12 px-4 py-3"><span class="sr-only">Open</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
+                            @foreach ($rows->groupBy(fn ($r) => (int) $r->farmer_id) as $farmerId => $group)
+                                @php $farmer = $group->first()->farmer; @endphp
+                                <x-record.farmer-block :farmer="$farmer"
+                                                       :count="$group->count()"
+                                                       :group-id="$farmerId"
+                                                       :association="false"
+                                                       :headers="[['Report ID'], ['Farmer'], ['Assignment', 'text-center'], ['Action', 'text-right']]">
+                                    @foreach ($group as $report)
+                                        <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
+                                            <td class="whitespace-nowrap px-4 py-4 font-medium">{{ $report->reference }}</td>
+                                            <td class="px-4 py-4 text-muted-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</td>
+                                            <td class="px-4 py-4 text-center">
+                                                <x-monitor.badge kind="assignment" :value="$report->is_assigned ? 'assigned' : 'unassigned'" />
+                                            </td>
+                                            <td class="px-4 py-4 text-right">
+                                                <x-ui.button :href="$viewUrl($report->id)" variant="view" size="sm">View</x-ui.button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </x-record.farmer-block>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
             <div class="hidden lg:block">
                 <x-ui.table>
                     <x-slot:head>
@@ -146,27 +206,13 @@
                         </tr>
                     </x-slot:head>
 
-                    @php $lastFarmer = null; @endphp
-
                     @foreach ($reports as $report)
-                        @if ($grouped && $report->farmer?->id !== $lastFarmer)
-                            @php $lastFarmer = $report->farmer?->id; @endphp
-                            <x-record.group-head :farmer="$report->farmer"
-                                                 :count="$perGroup[$report->farmer?->id] ?? 1"
-                                                 :total="$farmerTotals[$report->farmer?->id] ?? null"
-                                                 noun="damage report"
-                                                 :colspan="5"
-                                                 :href="$report->farmer ? route('association.members.show', $report->farmer) : null" />
-                        @endif
-
                         <tr>
                             <td class="whitespace-nowrap font-medium">
-                                <span class="{{ $grouped ? 'pl-3' : '' }}">{{ $grouped ? $report->reference : $report->full_reference }}</span>
+                                {{ $report->full_reference }}
                             </td>
 
-                            {{-- The name in both views, muted under a group
-                                 heading that already carries it in bold. --}}
-                            <td class="{{ $grouped ? 'text-muted-foreground' : 'font-medium' }}">
+                            <td class="font-medium">
                                 {{ $report->farmer?->full_name ?? 'Unknown' }}
                             </td>
 
@@ -185,6 +231,7 @@
                     @endforeach
                 </x-ui.table>
             </div>
+            @endif
         @endif
 
         @if ($reports->hasPages())
