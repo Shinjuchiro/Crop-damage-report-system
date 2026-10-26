@@ -298,7 +298,6 @@ class AssistanceAllocationController extends Controller
             /* The cases still owed an answer. Built here rather than in
                index() so exportOverview(), which shares this method, can
                carry the same figure if it ever needs to. */
-            'awaitingDecision'   => $this->casesAwaitingDecision($disasterId),
             // The same rows, unpaginated - exportOverview() downloads all of
             // them, not just the page currently on screen.
             'allOverviewRows'    => $rows,

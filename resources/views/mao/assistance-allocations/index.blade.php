@@ -80,86 +80,10 @@
     </div>
 
 
-    {{-- ===================== CASES AWAITING A DECISION =====================
-
-         Section 11.2: the office must be able to mark a farmer Not
-         Designated for Assistance. Designating already had a home - tick
-         the farmer in Allocate Assistance and a beneficiary row is written -
-         but refusing had none, so a farmer the office had considered and
-         passed over sat in the queue forever, looking exactly like a farmer
-         nobody had read yet, and never got an answer.
-
-         These are reports a technician has finished with that have no
-         decision and no live allocation against them. Four columns, like
-         every other list (section 3.1); everything else about the case is
-         behind View.
-
-         The list is capped at ten rows on screen. It is a worklist, not an
-         archive, and a hundred-row table here would push the allocation
-         overview off the page.
-    --}}
-    @if ($awaitingDecision->isNotEmpty())
-        <x-ui.card title="Cases Awaiting a Decision"
-                   :description="$awaitingDecision->count() . ' ' . \Illuminate\Support\Str::plural('farmer', $awaitingDecision->count()) . ' inspected and waiting on the office'"
-                   :padded="false" class="mb-5">
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-                        <tr>
-                            <th class="px-5 py-3 font-medium">Report ID</th>
-                            <th class="px-5 py-3 font-medium">Farmer</th>
-                            <th class="px-5 py-3 text-center font-medium">Status</th>
-                            <th class="px-5 py-3 text-right font-medium">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        @foreach ($awaitingDecision->take(10) as $case)
-                            <tr class="hover:bg-muted/60">
-                                <td class="whitespace-nowrap px-5 py-3 font-medium text-foreground">
-                                    {{ $case->reference }}
-                                </td>
-                                <td class="px-5 py-3 font-medium text-foreground">
-                                    {{ $case->farmer?->full_name ?? 'Unknown' }}
-                                </td>
-                                <td class="px-5 py-3 text-center">
-                                    <x-ui.status :value="\App\Support\AssistanceCase::PENDING_REVIEW" />
-                                </td>
-                                <td class="px-5 py-3">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <x-ui.button variant="view" size="sm"
-                                                     :href="route('mao.damage-reports.index', ['selected' => $case->id])">
-                                            View
-                                        </x-ui.button>
-
-                                        {{-- Designating is not a button here on purpose. A
-                                             designation is part of an allocation - which
-                                             assistance, how much, to which association - so
-                                             it belongs in Allocate Assistance and nowhere
-                                             else. This screen only records the "no". --}}
-                                        <button type="button"
-                                                @click="deciding = { id: {{ $case->id }}, reference: @js($case->reference), name: @js($case->farmer?->full_name ?? 'this farmer') }"
-                                                class="rounded-lg border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60">
-                                            Not Designated
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-
-            @if ($awaitingDecision->count() > 10)
-                <x-slot:footer>
-                    <p class="text-xs text-muted-foreground">
-                        Showing the 10 most recent of {{ number_format($awaitingDecision->count()) }}.
-                        Allocating assistance clears a farmer from this list.
-                    </p>
-                </x-slot:footer>
-            @endif
-        </x-ui.card>
-    @endif
+    {{-- The "Cases Awaiting a Decision" table was here and is gone (Oct 2026,
+         client request). Choosing beneficiaries still happens on Create
+         Assistance Distribution, which is untouched. The "Not Designated"
+         confirmation below and its route are left in place, unused here. --}}
 
     {{-- The record opens in a modal now (see x-ui.detail-panel), so the
          list keeps the full width and stays put underneath it. This was
