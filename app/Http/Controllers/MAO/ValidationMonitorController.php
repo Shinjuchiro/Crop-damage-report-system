@@ -61,12 +61,11 @@ class ValidationMonitorController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $summary = [
-            'completed' => DamageReport::whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))->count(),
-            'verified'  => DamageReport::where('status', 'verified')->count(),
-            'approved'  => DamageReport::where('status', 'approved')->count(),
-            'rejected'  => DamageReport::where('status', 'rejected')->count(),
-        ];
+        \App\Support\PlantingMatch::annotate($reports->getCollection());
+
+        // The same definitions as the dashboard cards (App\Support\MonitorStats),
+        // so this row can never disagree with the dashboard or with the list.
+        $summary = \App\Support\MonitorStats::validation();
 
         // List + detail panel (Sept 2026): "View Details" loads the report
         // inline via ?selected=<id> using the same read-only relations as
@@ -77,6 +76,10 @@ class ValidationMonitorController extends Controller
 
         \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'validation', $selected?->id);
 
+        if ($selected) {
+            \App\Support\PlantingMatch::annotate([$selected]);
+        }
+
         return view('mao.validations.index', [
             'view'               => $view,
             'reports'            => $reports,
@@ -86,7 +89,6 @@ class ValidationMonitorController extends Controller
                 ->orderByDesc('created_at')->orderByDesc('id')
                 ->get(['id', 'farmer_id', 'farmer_report_no', 'status', 'created_at']) : collect(),
             'selected'           => $selected,
-            'plantingComparison' => $selected ? $this->plantingComparison($selected) : collect(),
             'summary'            => $summary,
             'associations'       => Association::orderBy('name')->get(),
             'barangays'          => Barangay::orderBy('name')->get(),
@@ -108,6 +110,8 @@ class ValidationMonitorController extends Controller
             ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'))
             ->latest()
             ->get();
+
+        \App\Support\PlantingMatch::annotate($reports);
 
         $rows = $reports->map(function ($report) {
             $validation = $report->validation;
@@ -136,8 +140,13 @@ class ValidationMonitorController extends Controller
                 $validation?->latitude !== null && $validation?->longitude !== null
                     ? $validation->latitude . ', ' . $validation->longitude
                     : '-',
-                DamageReport::STATUSES[$report->status]
-                    ?? ucwords(str_replace('_', ' ', (string) $report->status)),
+                match ($report->review_state) {
+                    'approved' => 'Approved',
+                    'rejected' => 'Rejected',
+                    default    => 'Pending Review',
+                },
+                \App\Support\PlantingMatch::label($report->planting_match),
+                (string) ($report->review_remarks ?: '-'),
                 (string) ($validation?->notes ?: '-'),
             ];
         })->all();
@@ -146,8 +155,13 @@ class ValidationMonitorController extends Controller
             $request->query('export') === 'pdf' ? 'pdf' : 'xlsx',
             'Validation and Field Inspection Records',
             [
-                'Status'      => $request->filled('status')
-                    ? (DamageReport::STATUSES[$request->status] ?? $request->status)
+                'Validation Result' => $request->filled('status')
+                    ? match ($request->status) {
+                        'approved'       => 'Approved',
+                        'rejected'       => 'Rejected',
+                        'pending_review' => 'Pending Review',
+                        default          => null,
+                    }
                     : null,
                 'Association' => $request->filled('association_id')
                     ? Association::find($request->association_id)?->name
@@ -162,35 +176,12 @@ class ValidationMonitorController extends Controller
                 'Inspection Started', 'Inspection Submitted',
                 'Farmer Estimate (%)', 'Assessed Damage (%)',
                 'Severity', 'Damaged Area (ha)', 'Farmer-Reported Location',
-                'Technician-Verified Location', 'Status', 'Inspection Notes',
+                'Technician-Verified Location', 'Validation Result', 'Crop Planting Match',
+                'Review Remarks', 'Inspection Notes',
             ],
             $rows,
             'validation-records'
         );
-    }
-
-    /**
-     * Section 23's "comparison of PLANTED REPORT and DAMAGE report": for each
-     * crop on the damage report, find the farmer's own crop planting record
-     * for the same crop, planted before this damage report was filed - the
-     * same matching rule already used for the Technician's cross-check in
-     * Assigned Reports (same farmer, same crop, planted before the damage
-     * date). When more than one planting record matches, the most recent one
-     * before the damage report wins.
-     */
-    private function plantingComparison(DamageReport $report)
-    {
-        return $report->crops->map(function ($reportCrop) use ($report) {
-            $planted = CropPlantingRecordCrop::whereHas('plantingRecord', fn ($q) => $q
-                    ->where('farmer_id', $report->farmer_id)
-                    ->whereNull('archived_at'))
-                ->where('crop_id', $reportCrop->crop_id)
-                ->where('date_planted', '<=', $report->created_at)
-                ->orderByDesc('date_planted')
-                ->first();
-
-            return ['reportCrop' => $reportCrop, 'planted' => $planted];
-        });
     }
 
     /**
@@ -209,9 +200,13 @@ class ValidationMonitorController extends Controller
             'assigned_technician_id' => 'technician',
         ]);
 
-        if (in_array($damageReport->status, ['under_verification', 'verified', 'approved'], true)) {
+        // Only a report nobody has started inspecting can be given to a
+        // technician or moved to a different one. Once an inspection exists
+        // (started or submitted) it belongs to the technician who made it,
+        // whatever the report's status says.
+        if (! $damageReport->can_be_assigned) {
             return back()->withErrors([
-                'assigned_technician_id' => 'This report is already being inspected or has been verified, so it cannot be reassigned.',
+                'assigned_technician_id' => 'This report is already being inspected or has been inspected, so it cannot be reassigned.',
             ]);
         }
 

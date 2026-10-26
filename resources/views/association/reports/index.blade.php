@@ -47,19 +47,16 @@
          one an officer is asked about most: it is the point at which the
          office has something it can act on. It is not a promise of
          assistance, which is a separate decision (section 10.5). --}}
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <x-ui.stat label="Damage Reports" :value="number_format($summary['reports'])"
+    <div class="grid gap-4 sm:grid-cols-3">
+        <x-ui.stat label="Total Damage Reports" :value="number_format($summary['total'])"
                    hint="Filed by your members"
                    icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
-        <x-ui.stat label="Still Being Processed" :value="number_format($summary['processing'])"
-                   tone="warning" hint="Awaiting assignment or inspection"
-                   icon="M12 7v5l3 2M12 3a9 9 0 100 18 9 9 0 000-18z" />
-        <x-ui.stat label="Verified" :value="number_format($summary['verified'])"
-                   tone="primary" hint="Inspection completed"
-                   icon="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        <x-ui.stat label="Affected Members" :value="number_format($summary['members'])"
-                   hint="With at least one report"
-                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
+        <x-ui.stat label="Total Assigned Reports" :value="number_format($summary['assigned'])"
+                   tone="primary" hint="Currently given to a technician"
+                   icon="M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15zM21 21l-5.2-5.2" />
+        <x-ui.stat label="Total Area Damaged" :value="number_format($summary['area'], 2)" suffix="ha"
+                   hint="As reported by your members"
+                   icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
 </x-crop-management.header>
 
@@ -72,12 +69,17 @@
              itself: it is a menu of two links that build their own URL from
              the filters already in the query string. --}}
         <div class="flex flex-col gap-3 border-b border-border px-4 pt-4 sm:px-5 sm:pt-5 lg:flex-row lg:items-start lg:justify-between">
-            <x-ui.filter-bar :fields="['q', 'status', 'cause']" :tight="true" class="lg:flex-1">
+            <x-ui.filter-bar :fields="['q', 'assignment', 'planting_match', 'cause']" :tight="true" class="lg:flex-1">
                 <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
                             placeholder="Search member" class="sm:w-52" />
 
-                <x-ui.select name="status" placeholder="All statuses" onchange="this.form.submit()"
-                             :options="$statuses" :selected="$filters['status'] ?? null" class="sm:w-40" />
+                <x-ui.select name="assignment" placeholder="All assignments" onchange="this.form.submit()"
+                             :options="['unassigned' => 'Not Assigned', 'assigned' => 'Assigned']"
+                             :selected="$filters['assignment'] ?? null" class="sm:w-44" />
+
+                <x-ui.select name="planting_match" placeholder="Any crop planting" onchange="this.form.submit()"
+                             :options="['matched' => 'Matching Record Found', 'mismatch' => 'No Matching Planting Record', 'none' => 'No Planting Record Found']"
+                             :selected="$filters['planting_match'] ?? null" class="sm:w-60" />
 
                 <x-ui.select name="cause" placeholder="All causes" onchange="this.form.submit()"
                              :options="$causes" :selected="$filters['cause'] ?? null" class="sm:w-40" />
@@ -118,7 +120,8 @@
                         <x-ui.record-card :href="$viewUrl($report->id)"
                                           :eyebrow="$grouped ? $report->reference : $report->full_reference"
                                           :title="$report->farmer?->full_name ?? 'Unknown member'"
-                                          :status="$report->status" />
+                                          :badge="$report->assignment_label"
+                                          :fields="['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
                     </li>
                 @endforeach
             </ul>
@@ -137,7 +140,8 @@
                         <tr>
                             <th>Report ID</th>
                             <th>Member</th>
-                            <th>Status</th>
+                            <th class="text-center">Assignment</th>
+                            <th class="text-center">Crop Planting</th>
                             <th class="text-right">Action</th>
                         </tr>
                     </x-slot:head>
@@ -151,7 +155,7 @@
                                                  :count="$perGroup[$report->farmer?->id] ?? 1"
                                                  :total="$farmerTotals[$report->farmer?->id] ?? null"
                                                  noun="damage report"
-                                                 :colspan="4"
+                                                 :colspan="5"
                                                  :href="$report->farmer ? route('association.members.show', $report->farmer) : null" />
                         @endif
 
@@ -166,8 +170,12 @@
                                 {{ $report->farmer?->full_name ?? 'Unknown' }}
                             </td>
 
-                            <td>
-                                <x-ui.status :value="$report->status" />
+                            <td class="text-center">
+                                <x-monitor.badge kind="assignment" :value="$report->is_assigned ? 'assigned' : 'unassigned'" />
+                            </td>
+
+                            <td class="text-center">
+                                <x-monitor.badge kind="match" :value="$report->planting_match" />
                             </td>
 
                             <td class="text-right">
@@ -188,10 +196,10 @@
          The member's submission and the technician's findings, side by side
          and never merged (section 9.4). Only ever rendered for a report
          belonging to this association's own members. --}}
-    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl"
+    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true"
                        empty-text="Select a report from the list to view its full details.">
         @if ($selected)
-            @include('association.reports._report-detail', ['report' => $selected])
+            @include('monitor._damage-modal', ['report' => $selected, 'role' => 'association'])
         @endif
     </x-ui.detail-panel>
 </div>

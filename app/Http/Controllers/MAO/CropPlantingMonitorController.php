@@ -118,6 +118,7 @@ class CropPlantingMonitorController extends Controller
             'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::plantingTotals() : collect(),
             'view'         => $view,
             'selected'     => $selected,
+            'relatedDamage' => $selected ? \App\Support\PlantingMatch::damageFor($selected) : collect(),
             'history'      => $selected ? CropPlantingRecord::query()->notDeleted()->whereNull('archived_at')
                 ->where('farmer_id', $selected->farmer_id)->with('crops.crop')
                 ->orderByDesc('date_submitted')->orderByDesc('id')->get() : collect(),
@@ -237,6 +238,7 @@ class CropPlantingMonitorController extends Controller
             'farmer.user',
             'farmer.association',
             'farmer.barangay',
+            'farmer.mainCrops.crop',
             'crops.crop',
             'photos',
             'archivedBy',

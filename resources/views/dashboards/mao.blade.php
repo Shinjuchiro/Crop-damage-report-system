@@ -83,6 +83,80 @@
                      icon="M20 7.5l-8-4.5-8 4.5m16 0v9l-8 4.5-8-4.5v-9m16 0l-8 4.5m0 0l-8-4.5m8 4.5V21" />
     </div>
 
+    {{-- ===================== MONITORING FLASHCARDS ===================== --}}
+    {{-- Crop Planted, Crop Damage and Validation, three groups of live totals.
+         Every value is a query (App\Support\MonitorStats), none is typed in,
+         and each group's title opens the monitoring page its cards add up. --}}
+    <div class="mb-5 space-y-4">
+
+        <div>
+            <div class="mb-2 flex items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-foreground">Crop Planted Reports</h2>
+                <a href="{{ route('mao.crop-planting.index') }}" class="text-xs font-medium text-primary hover:underline">View all</a>
+            </div>
+            <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                <x-ui.stat label="Total Crop Planted"
+                           :value="number_format($flashcards['planting']['total'])"
+                           hint="Crop Planted reports recorded"
+                           :href="route('mao.crop-planting.index')"
+                           icon="M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14zM4 21h16" />
+                <x-ui.stat label="Total Area Planted"
+                           :value="number_format($flashcards['planting']['area'], 2)" suffix="ha"
+                           hint="Hectares across all planted crops"
+                           :href="route('mao.crop-planting.index')"
+                           icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
+            </div>
+        </div>
+
+        <div>
+            <div class="mb-2 flex items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-foreground">Crop Damage Reports</h2>
+                <a href="{{ route('mao.damage-reports.index') }}" class="text-xs font-medium text-primary hover:underline">View all</a>
+            </div>
+            <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                <x-ui.stat label="Total Damage Reports"
+                           :value="number_format($flashcards['damage']['total'])"
+                           hint="Crop Damage reports recorded"
+                           :href="route('mao.damage-reports.index')"
+                           icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
+                <x-ui.stat label="Total Assigned Reports"
+                           :value="number_format($flashcards['damage']['assigned'])" tone="primary"
+                           hint="Currently have a technician"
+                           :href="route('mao.damage-reports.index', ['assignment' => 'assigned'])"
+                           icon="M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15zM21 21l-5.2-5.2" />
+                <x-ui.stat label="Total Area Damaged"
+                           :value="number_format($flashcards['damage']['area'], 2)" suffix="ha"
+                           hint="Hectares as reported by farmers"
+                           :href="route('mao.damage-reports.index')"
+                           icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z" />
+            </div>
+        </div>
+
+        <div>
+            <div class="mb-2 flex items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-foreground">Validation Monitoring</h2>
+                <a href="{{ route('mao.validations.index') }}" class="text-xs font-medium text-primary hover:underline">View all</a>
+            </div>
+            <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                <x-ui.stat label="Completed Inspection"
+                           :value="number_format($flashcards['validation']['completed'])"
+                           hint="Technician has submitted"
+                           :href="route('mao.validations.index')"
+                           icon="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4" />
+                <x-ui.stat label="Approved"
+                           :value="number_format($flashcards['validation']['approved'])" tone="primary"
+                           hint="Assessments approved by MAO"
+                           :href="route('mao.validations.index', ['status' => 'approved'])"
+                           icon="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <x-ui.stat label="Rejected"
+                           :value="number_format($flashcards['validation']['rejected'])"
+                           hint="Assessments rejected by MAO"
+                           :href="route('mao.validations.index', ['status' => 'rejected'])"
+                           icon="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6" />
+            </div>
+        </div>
+    </div>
+
     {{-- ===================== DAMAGE MAP ===================== --}}
     {{-- A preview of the full Maps and Visualization page (mao.map.index):
          the same association bubbles, shaded by report count, with no stat

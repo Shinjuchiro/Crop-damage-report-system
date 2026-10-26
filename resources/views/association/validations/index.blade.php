@@ -48,14 +48,15 @@
          office has something it can act on. It is not a promise of
          assistance, which is a separate decision (section 10.5). --}}
     <div class="grid gap-4 sm:grid-cols-3">
-        <x-ui.stat label="Completed Inspections" :value="number_format($summary['completed'])"
+        <x-ui.stat label="Completed Inspection" :value="number_format($summary['completed'])"
                    hint="Technician has submitted"
                    icon="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4" />
         <x-ui.stat label="Approved" :value="number_format($summary['approved'])"
+                   tone="primary" hint="Approved by the office"
                    icon="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        <x-ui.stat label="Members Inspected" :value="number_format($summary['members'])"
-                   hint="With at least one inspection"
-                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
+        <x-ui.stat label="Rejected" :value="number_format($summary['rejected'])"
+                   hint="Rejected by the office"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6" />
     </div>
 </x-crop-management.header>
 
@@ -68,13 +69,17 @@
              itself: it is a menu of two links that build their own URL from
              the filters already in the query string. --}}
         <div class="flex flex-col gap-3 border-b border-border px-4 pt-4 sm:px-5 sm:pt-5 lg:flex-row lg:items-start lg:justify-between">
-            <x-ui.filter-bar :fields="['q', 'status']" :tight="true" class="lg:flex-1">
+            <x-ui.filter-bar :fields="['q', 'status', 'planting_match']" :tight="true" class="lg:flex-1">
                 <x-ui.input type="search" name="q" value="{{ $filters['q'] ?? '' }}"
                             placeholder="Search member" class="sm:w-52" />
 
-                <x-ui.select name="status" placeholder="All statuses" onchange="this.form.submit()"
-                             :options="$statuses" :selected="$filters['status'] ?? null" class="sm:w-40" />
+                <x-ui.select name="status" placeholder="All assessment statuses" onchange="this.form.submit()"
+                             :options="['pending_review' => 'Pending Review', 'approved' => 'Approved', 'rejected' => 'Rejected']"
+                             :selected="$filters['status'] ?? null" class="sm:w-56" />
 
+                <x-ui.select name="planting_match" placeholder="Any crop planting" onchange="this.form.submit()"
+                             :options="['matched' => 'Matching Record Found', 'mismatch' => 'No Matching Planting Record', 'none' => 'No Planting Record Found']"
+                             :selected="$filters['planting_match'] ?? null" class="sm:w-60" />
             </x-ui.filter-bar>
 
         </div>
@@ -111,7 +116,8 @@
                         <x-ui.record-card :href="$viewUrl($report->id)"
                                           :eyebrow="$grouped ? $report->reference : $report->full_reference"
                                           :title="$report->farmer?->full_name ?? 'Unknown member'"
-                                          :status="$report->status" />
+                                          :badge="$report->review_state === 'approved' ? 'Approved' : ($report->review_state === 'rejected' ? 'Rejected' : 'Pending Review')"
+                                          :fields="['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
                     </li>
                 @endforeach
             </ul>
@@ -130,7 +136,8 @@
                         <tr>
                             <th>Report ID</th>
                             <th>Member</th>
-                            <th>Status</th>
+                            <th class="text-center">Crop Planting</th>
+                            <th class="text-center">Assessment Status</th>
                             <th class="text-right">Action</th>
                         </tr>
                     </x-slot:head>
@@ -144,7 +151,7 @@
                                                  :count="$perGroup[$report->farmer?->id] ?? 1"
                                                  :total="$farmerTotals[$report->farmer?->id] ?? null"
                                                  noun="inspection"
-                                                 :colspan="4"
+                                                 :colspan="5"
                                                  :href="$report->farmer ? route('association.members.show', $report->farmer) : null" />
                         @endif
 
@@ -159,8 +166,12 @@
                                 {{ $report->farmer?->full_name ?? 'Unknown' }}
                             </td>
 
-                            <td>
-                                <x-ui.status :value="$report->status" />
+                            <td class="text-center">
+                                <x-monitor.badge kind="match" :value="$report->planting_match" />
+                            </td>
+
+                            <td class="text-center">
+                                <x-monitor.badge kind="validation" :value="$report->review_state" />
                             </td>
 
                             <td class="text-right">
@@ -181,10 +192,10 @@
          The member's submission and the technician's findings, side by side
          and never merged (section 9.4). Only ever rendered for a report
          belonging to this association's own members. --}}
-    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl"
-                       empty-text="Select a report from the list to view its full details.">
+    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true"
+                       empty-text="Select a completed inspection from the list to view its comparison and summary.">
         @if ($selected)
-            @include('association.reports._report-detail', ['report' => $selected])
+            @include('monitor._validation-modal', ['report' => $selected, 'role' => 'association'])
         @endif
     </x-ui.detail-panel>
 </div>

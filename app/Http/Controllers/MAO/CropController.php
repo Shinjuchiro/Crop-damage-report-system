@@ -101,7 +101,8 @@ class CropController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('crops', 'name')->ignore($crop?->id)],
-        ]);
+            'growing_days' => ['nullable', 'integer', 'min:1', 'max:1000'],
+        ], [], ['growing_days' => 'growing period']);
 
         $data['is_hvcc'] = $request->boolean('is_hvcc');
 

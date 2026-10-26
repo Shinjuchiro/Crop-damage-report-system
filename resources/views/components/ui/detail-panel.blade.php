@@ -43,6 +43,9 @@
     'selected'  => null,
     'backUrl'   => null,
     'emptyText' => 'Select a record to view its details.',
+    // The three monitoring pages (Crop Planted, Crop Damage, Validation)
+    // show a whole record, so they ask for a wide modal.
+    'wide'      => false,
 ])
 
 @php
@@ -91,7 +94,7 @@
              On a phone it stays a bottom sheet (items-end), which is where
              a thumb is. --}}
         <div {{ $attributes->class(
-                'relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden '
+                'relative flex max-h-[92vh] w-full ' . ($wide ? 'max-w-6xl' : 'max-w-2xl') . ' flex-col overflow-hidden '
                 . 'rounded-t-2xl border border-border bg-card shadow-2xl sm:max-h-[86vh] sm:rounded-2xl'
             ) }}>
 

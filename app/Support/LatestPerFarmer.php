@@ -60,10 +60,13 @@ class LatestPerFarmer
     }
 
     /** farmer_id => how many records they have in all (for "3 of 7"). */
-    public static function damageTotals(bool $inspectedOnly = false)
+    public static function damageTotals(bool $inspectedOnly = false, ?int $associationId = null)
     {
         return DB::table('damage_reports as d')
             ->whereNull('d.deleted_at')->whereNull('d.archived_at')
+            // An association is only ever handed totals for its own members.
+            ->when($associationId, fn ($q) => $q->whereIn('d.farmer_id', fn ($s) => $s->select('id')
+                ->from('farmers')->where('association_id', $associationId)))
             ->when($inspectedOnly, fn ($q) => $q->whereExists(fn ($s) => $s->select(DB::raw(1))
                 ->from('validations as v')->whereColumn('v.damage_report_id', 'd.id')->whereNotNull('v.validated_at')))
             ->select('d.farmer_id', DB::raw('COUNT(*) as total'))
@@ -71,11 +74,13 @@ class LatestPerFarmer
             ->pluck('total', 'farmer_id');
     }
 
-    public static function plantingTotals()
+    public static function plantingTotals(?int $associationId = null)
     {
         return DB::table('crop_planting_record_crops as c')
             ->join('crop_planting_records as r', 'r.id', '=', 'c.crop_planting_record_id')
             ->whereNull('r.deleted_at')->whereNull('r.archived_at')
+            ->when($associationId, fn ($q) => $q->whereIn('r.farmer_id', fn ($s) => $s->select('id')
+                ->from('farmers')->where('association_id', $associationId)))
             ->select('r.farmer_id', DB::raw('COUNT(*) as total'))
             ->groupBy('r.farmer_id')
             ->pluck('total', 'farmer_id');

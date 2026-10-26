@@ -79,17 +79,24 @@ class DamageReportMonitorController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $statusCounts = DamageReport::query()
-            ->select('status', DB::raw('COUNT(*) as total'))
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        // The planting-match result for every row on this page, in one query.
+        \App\Support\PlantingMatch::annotate($reports->getCollection());
+
+        /* THREE SEPARATE FACTS, NOT ONE STATUS
+
+           This page used to count reports by status (pending, under
+           verification, verified), which mixed three different things. It now
+           counts only what this page is about: whether a technician has been
+           assigned, and whether a planting record backs the report up.
+           Whether the report has been verified is Validation Monitoring's
+           business. Archived and deleted reports are left out so the cards
+           match the list. */
+        $live = fn () => DamageReport::query()->notDeleted()->whereNull('archived_at');
 
         $summary = [
-            'total'              => (int) $statusCounts->sum(),
-            'pending'            => (int) $statusCounts->get('pending', 0),
-            'under_verification' => (int) $statusCounts->get('under_verification', 0),
-            'verified'           => (int) $statusCounts->get('verified', 0),
-            'flagged'            => (int) $statusCounts->get('flagged', 0),
+            'unassigned'  => $live()->assignment('unassigned')->count(),
+            'assigned'    => $live()->assignment('assigned')->count(),
+            'no_planting' => $live()->noPlantingMatch()->count(), // mismatch + none
             /* 'affected_area' was here and is gone (revision sections 5 and
                14, Oct 2026).
 
@@ -124,6 +131,10 @@ class DamageReportMonitorController extends Controller
 
         \App\Support\Seen::mark(Auth::user(), 'damage_report', $selected?->id);
 
+        if ($selected) {
+            \App\Support\PlantingMatch::annotate([$selected]);
+        }
+
         return view('mao.damage-reports.index', [
             'view'    => $view,
             'reports'      => $reports,
@@ -133,7 +144,6 @@ class DamageReportMonitorController extends Controller
             'availableDisasters' => $selected ? Disaster::active()->orderByDesc('date_start')->orderBy('name')->get() : collect(),
             'canEditDisasters'   => $selected ? in_array($selected->status, self::DISASTER_EDITABLE_STATUSES, true) : false,
             'summary'      => $summary,
-            'statuses'     => self::STATUSES,
             'associations' => Association::orderBy('name')->get(),
             'barangays'    => Barangay::orderBy('name')->get(),
             'disasters'    => Disaster::orderByDesc('date_start')->get(),
@@ -162,6 +172,7 @@ class DamageReportMonitorController extends Controller
     private function export(Request $request)
     {
         $reports = $this->baseQuery($request)->latest()->get();
+        \App\Support\PlantingMatch::annotate($reports);
 
         $rows = $reports->map(fn ($report) => [
             $report->full_reference,
@@ -182,7 +193,19 @@ class DamageReportMonitorController extends Controller
                 ? round((float) $report->crops->max('farmgate_price_per_kg'), 2)
                 : '',
             round((float) $report->crops->sum('total_damage_cost'), 2),
-            DamageReport::STATUSES[$report->status] ?? ucwords(str_replace('_', ' ', (string) $report->status)),
+            $report->assignment_label,
+            \App\Support\PlantingMatch::label($report->planting_match),
+            // Validation is its own thing, never folded into assignment, and
+            // "Assigned" is never a validation result: only a submitted
+            // inspection has one, and the office's review reads Pending
+            // Review, Approved or Rejected.
+            $report->validation?->validated_at
+                ? match ($report->review_state) {
+                    'approved' => 'Approved',
+                    'rejected' => 'Rejected',
+                    default    => 'Pending Review',
+                }
+                : '-',
             $report->assigned_at?->format('d M Y') ?? '-',
             $report->assignedTechnician?->full_name ?: ($report->assignedTechnician?->username ?? '-'),
             $report->validation?->assessed_damage_percent !== null
@@ -201,7 +224,8 @@ class DamageReportMonitorController extends Controller
                 'Report ID', 'Farmer', 'Contact', 'Barangay', 'Association', 'Date Reported',
                 'Cause', 'Disaster Event', 'Crops', 'Damaged Area (ha)',
                 'Farmer Estimate (%)', 'Production Cost', 'Farmgate Price/kg',
-                'Estimated Damage Cost', 'Status', 'Date Assigned', 'Technician',
+                'Estimated Damage Cost', 'Assignment', 'Crop Planting Match', 'Validation Result',
+                'Date Assigned', 'Technician',
                 'Assessed Damage (%)', 'Severity', 'Date Inspected', 'Farmer Remarks',
             ],
             $rows,
@@ -217,8 +241,13 @@ class DamageReportMonitorController extends Controller
     private function exportFilters(Request $request): array
     {
         return [
-            'Status'      => $request->filled('status')
-                ? (DamageReport::STATUSES[$request->status] ?? $request->status)
+            'Assignment'  => match ($request->assignment) {
+                'assigned'   => 'Assigned',
+                'unassigned' => 'Not Assigned',
+                default      => null,
+            },
+            'Crop Planting' => in_array($request->planting_match, ['matched', 'mismatch', 'none'], true)
+                ? \App\Support\PlantingMatch::label($request->planting_match)
                 : null,
             'Association' => $request->filled('association_id')
                 ? Association::find($request->association_id)?->name
@@ -271,25 +300,47 @@ class DamageReportMonitorController extends Controller
             'photos',
             'assignedTechnician',
             'approvedBy',
+            'reviewedBy',
+            'reportedBarangay',
             'validation.technician',
             'validation.photos',
         ];
     }
 
     /**
-     * The MAO's decision on a report a technician has already verified.
-     * Approve, flag for a second look, or reject.
+     * The MAO's review of a technician's submitted assessment: Approved or
+     * Rejected (Oct 2026). Anything else is refused.
+     *
+     * Only a report whose technician has actually SUBMITTED the inspection
+     * can be reviewed, so nothing that is merely assigned, waiting or in
+     * progress can be approved or rejected by mistake. A rejection must say
+     * why: the remarks are kept on the report and shown beside the decision.
+     *
+     * This is a decision about the TECHNICIAN'S ASSESSMENT. It is not a
+     * decision on assistance: nobody is designated a beneficiary here, and
+     * allocation stays a separate step under Assistance Allocation.
+     *
+     * The old "flagged" choice is retired. Reports already flagged still
+     * read as Pending Review and can be approved or rejected from here.
      */
     public function decide(Request $request, DamageReport $damageReport)
     {
         $data = $request->validate([
-            'decision' => ['required', Rule::in(['approved', 'flagged', 'rejected'])],
-            'remarks'  => ['nullable', 'string', 'max:1000'],
+            'decision' => ['required', Rule::in(['approved', 'rejected'])],
+            'remarks'  => [
+                Rule::requiredIf($request->input('decision') === 'rejected'),
+                'nullable', 'string', 'max:1000',
+            ],
+        ], [
+            'remarks.required' => 'Please give the reason for rejecting this assessment.',
         ]);
 
-        if (! in_array($damageReport->status, ['verified', 'flagged'], true)) {
+        $damageReport->loadMissing('validation');
+
+        if (! in_array($damageReport->status, DamageReport::PENDING_REVIEW, true)
+            || ! $damageReport->validation?->validated_at) {
             return back()->withErrors([
-                'decision' => 'Only a report a technician has verified can be approved, flagged or rejected.',
+                'decision' => 'Only an assessment the technician has submitted, and that is still pending review, can be approved or rejected.',
             ]);
         }
 
@@ -297,15 +348,18 @@ class DamageReportMonitorController extends Controller
             $approved = $data['decision'] === 'approved';
 
             $damageReport->update([
-                'status'      => $data['decision'],
-                'approved_by' => $approved ? Auth::id() : null,
-                'approved_at' => $approved ? now() : null,
+                'status'         => $data['decision'],
+                'approved_by'    => $approved ? Auth::id() : null,
+                'approved_at'    => $approved ? now() : null,
+                'reviewed_by'    => Auth::id(),
+                'reviewed_at'    => now(),
+                'review_remarks' => filled($data['remarks'] ?? null) ? trim($data['remarks']) : null,
             ]);
 
             AuditLog::create([
                 'user_id'      => Auth::id(),
-                'action'       => ucfirst($data['decision']) . ' damage report DR-'
-                    . str_pad($damageReport->id, 4, '0', STR_PAD_LEFT)
+                'action'       => ucfirst($data['decision']) . ' technician assessment for damage report '
+                    . $damageReport->full_reference
                     . (! empty($data['remarks']) ? ': ' . $data['remarks'] : ''),
                 'target_table' => 'damage_reports',
                 'target_id'    => $damageReport->id,
@@ -315,7 +369,7 @@ class DamageReportMonitorController extends Controller
 
         $this->notifyFarmerOfDecision($damageReport, $data['decision']);
 
-        return back()->with('status', 'Report marked as ' . $data['decision'] . '.');
+        return back()->with('status', 'Assessment ' . $data['decision'] . '.');
     }
 
     /**
@@ -338,9 +392,10 @@ class DamageReportMonitorController extends Controller
     {
         [$title, $message] = match ($decision) {
             'approved' => [
-                'Report Approved',
-                'Your damage report ' . $damageReport->full_reference . ' has been approved by the Municipal '
-                    . 'Agriculture Office. It may now be considered for assistance allocation.',
+                'Inspection Approved',
+                'The technician\'s inspection of your damage report ' . $damageReport->full_reference . ' has been '
+                    . 'approved by the Municipal Agriculture Office. This is not yet a decision on assistance; '
+                    . 'the office decides allocation separately.',
             ],
             'flagged' => [
                 'Report Needs a Second Look',
@@ -349,9 +404,9 @@ class DamageReportMonitorController extends Controller
                     . 'a follow-up, or check with your association or the office.',
             ],
             'rejected' => [
-                'Report Rejected',
-                'Your damage report ' . $damageReport->full_reference . ' has been reviewed and was not approved by '
-                    . 'the Municipal Agriculture Office. Please contact the office if you have questions.',
+                'Inspection Not Approved',
+                'The technician\'s inspection of your damage report ' . $damageReport->full_reference . ' was not '
+                    . 'approved by the Municipal Agriculture Office. Please contact the office if you have questions.',
             ],
             default => [null, null],
         };
@@ -520,8 +575,15 @@ class DamageReportMonitorController extends Controller
                 'assignedTechnician',
             ])
             ->withSum('crops', 'damaged_area_hectares')
-            ->when($request->filled('status'),
-                fn ($query) => $query->where('status', $request->status))
+            // 'pending_review' is the office's name for a submitted assessment
+            // nobody has decided yet: verified, or the retired flagged state.
+            ->when($request->filled('status'), fn ($query) => $request->status === 'pending_review'
+                ? $query->whereIn('status', DamageReport::PENDING_REVIEW)
+                : $query->where('status', $request->status))
+            ->when($request->filled('assignment'),
+                fn ($query) => $query->assignment($request->assignment === 'assigned' ? 'assigned' : 'unassigned'))
+            ->when(in_array($request->planting_match, ['matched', 'mismatch', 'none'], true),
+                fn ($query) => $query->plantingResult($request->planting_match))
             ->when($request->filled('disaster_id'), fn ($query) => $query
                 ->whereHas('disasters', fn ($disaster) => $disaster->where('disasters.id', $request->disaster_id)))
             ->when($request->filled('technician_id'), function ($query) use ($request) {

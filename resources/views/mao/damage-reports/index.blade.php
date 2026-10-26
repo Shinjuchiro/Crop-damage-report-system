@@ -55,12 +55,13 @@
          behind it came out of the controller too rather than being left to
          run unread on every page load. --}}
     <div class="grid gap-4 sm:grid-cols-3">
-        <x-ui.stat label="Pending" :value="number_format($summary['pending'])" hint="Not yet assigned"
+        <x-ui.stat label="Not Assigned" :value="number_format($summary['unassigned'])" hint="Waiting for a technician"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2" />
-        <x-ui.stat label="Under Verification" :value="number_format($summary['under_verification'])"
+        <x-ui.stat label="Assigned" :value="number_format($summary['assigned'])" hint="Given to a technician"
                    icon="M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15zM21 21l-5.2-5.2" />
-        <x-ui.stat label="Verified" :value="number_format($summary['verified'])"
-                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
+        <x-ui.stat label="Without a Planting Match" :value="number_format($summary['no_planting'])"
+                   hint="No matching or no planting record; the technician checks in the field"
+                   icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z" />
     </div>
 </x-crop-management.header>
 <div x-data="{ assigning: null }">
@@ -114,9 +115,15 @@
                         <x-ui.select name="disaster_id" placeholder="All Disasters" onchange="this.form.submit()"
                                      :options="$disasters->pluck('name', 'id')" :selected="request('disaster_id')" class="sm:w-52" />
 
-                        <x-ui.select name="status" placeholder="All Statuses" onchange="this.form.submit()"
-                                     :options="collect($statuses)->mapWithKeys(fn ($v) => [$v => ucwords(str_replace('_', ' ', $v))])"
-                                 :selected="request('status')" class="sm:w-44" />
+                        {{-- Assignment and planting match, never the verification
+                             result: that is Validation Monitoring's. --}}
+                        <x-ui.select name="assignment" placeholder="All Assignments" onchange="this.form.submit()"
+                                     :options="['unassigned' => 'Not Assigned', 'assigned' => 'Assigned']"
+                                     :selected="request('assignment')" class="sm:w-44" />
+
+                        <x-ui.select name="planting_match" placeholder="Any Crop Planting" onchange="this.form.submit()"
+                                     :options="['matched' => 'Matching Record Found', 'mismatch' => 'No Matching Planting Record', 'none' => 'No Planting Record Found']"
+                                     :selected="request('planting_match')" class="sm:w-60" />
 
                         {{-- The magnifier sits inside the field, as the design
                              draws it. pointer-events-none so it never steals
@@ -134,7 +141,7 @@
                                           placeholder:text-muted-foreground focus:border-primary focus:outline-none">
                         </div>
 
-                        @if (request()->hasAny(['search', 'association_id', 'disaster_id', 'status']))
+                        @if (request()->hasAny(['search', 'association_id', 'disaster_id', 'assignment', 'planting_match']))
                             <a href="{{ route('mao.damage-reports.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
                         @endif
                     </form>
@@ -170,7 +177,8 @@
                                               :title="$grouped
                                                   ? $report->reference
                                                   : ($report->farmer?->full_name ?? 'Unknown')"
-                                              :status="$report->status" />
+                                              :badge="$report->assignment_label"
+                                              :fields="['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -203,7 +211,8 @@
                                      progress by definition. --}}
                                 <th class="px-4 py-3">Report ID</th>
                                 <th class="px-4 py-3">Farmer</th>
-                                <th class="px-4 py-3 text-center">Status</th>
+                                <th class="px-4 py-3 text-center">Assignment</th>
+                                <th class="px-4 py-3 text-center">Crop Planting</th>
                                 <th class="px-4 py-3 text-right">Action</th>
                             </tr>
                         </thead>
@@ -217,7 +226,7 @@
                                                          :count="$perGroup[$report->farmer?->id] ?? 1"
                                                          :total="$farmerTotals[$report->farmer?->id] ?? null"
                                                          noun="damage report"
-                                                         :colspan="4"
+                                                         :colspan="5"
                                                          :href="$report->farmer ? route('mao.farmers.show', $report->farmer) : null" />
                                 @endif
 
@@ -238,9 +247,10 @@
                                         {{ $report->farmer?->full_name ?? 'Unknown' }}
                                     </td>
                                     <td class="px-4 py-4 text-center">
-                                        <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $statusBadges[$report->status] ?? $statusBadges['pending'] }}">
-                                            {{ ucwords(str_replace('_', ' ', $report->status)) }}
-                                        </span>
+                                        <x-monitor.badge kind="assignment" :value="$report->is_assigned ? 'assigned' : 'unassigned'" />
+                                    </td>
+                                    <td class="px-4 py-4 text-center">
+                                        <x-monitor.badge kind="match" :value="$report->planting_match" />
                                     </td>
                                     <td class="px-4 py-4">
                                         <div class="flex justify-end gap-2">
@@ -250,7 +260,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="px-4 py-14 text-center">
+                                    <td colspan="5" class="px-4 py-14 text-center">
                                         <p class="text-sm font-medium text-muted-foreground">No damage reports yet</p>
                                         <p class="mt-1 text-xs text-muted-foreground">
                                             Reports appear here as soon as farmers submit them.
@@ -285,272 +295,25 @@
         </div>
 
         {{-- DETAIL --}}
-        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-5 lg:mt-0"
+        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true" class="mt-5 lg:mt-0"
                             empty-text="Select a report from the list to view its full details.">
             @if ($selected)
+                {{-- The same wide modal the association sees (monitor/_damage-modal).
+                     The assign form below this block is the office's alone. --}}
+                @include('monitor._damage-modal', [
+                    'report'             => $selected,
+                    'role'               => 'mao',
+                    'technicians'        => $technicians,
+                    'availableDisasters' => $availableDisasters,
+                    'canEditDisasters'   => $canEditDisasters,
+                ])
+
                 @php
-                    $damageReport = $selected;
-                    $farmer = $damageReport->farmer;
-                    $validation = $damageReport->validation;
-                    $canDecide = in_array($damageReport->status, ['verified', 'flagged'], true);
-                @endphp
-
-                <div x-data="{
-                        decision: null,
-                        editingDisasters: false,
-                        confirmingDisasters: false,
-                        disasterIds: {!! json_encode($damageReport->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!},
-                        disasterLabels: {!! json_encode($availableDisasters->pluck('name', 'id')) !!},
-                     }">
-                    <div class="mb-4 flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ $damageReport->full_reference }}</p>
-                            <h3 class="mt-0.5 text-lg font-bold text-foreground">
-                                <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
-                            </h3>
-                            <p class="text-sm text-muted-foreground">{{ $farmer->association?->name ?? '-' }} &middot; {{ $farmer->barangay?->name ?? '-' }}</p>
-                        </div>
-                    </div>
-
-                    <span class="inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $statusBadges[$damageReport->status] ?? $statusBadges['pending'] }}">
-                        {{ ucwords(str_replace('_', ' ', $damageReport->status)) }}
-                    </span>
-
-                    <x-ui.open-full-page :href="route('mao.damage-reports.show', $damageReport)" />
-
-                    <div class="mt-4 space-y-4 border-t border-border pt-4 text-sm">
-                        {{-- Cause + declared event --}}
-                        <div>
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cause of Damage</p>
-                            <p class="mb-2 rounded-lg bg-muted px-3 py-2 text-xs font-medium text-foreground">{{ $damageReport->damage_cause_label }}</p>
-
-                            <div class="mb-1 flex items-center justify-between">
-                                <p class="text-xs text-muted-foreground">Declared event(s)</p>
-                                @if ($canEditDisasters)
-                                    <button type="button" x-show="! editingDisasters" @click="editingDisasters = true"
-                                            class="text-xs font-semibold text-green-800 hover:underline">
-                                        Correct
-                                    </button>
-                                @endif
-                            </div>
-
-                            <template x-if="! editingDisasters">
-                                <div>
-                                    @forelse ($damageReport->disasters as $disaster)
-                                        <p class="text-xs text-foreground">{{ $disaster->name }} <span class="text-muted-foreground">({{ ucwords(str_replace('_', ' ', $disaster->type)) }})</span></p>
-                                    @empty
-                                        <p class="text-xs text-muted-foreground">No declared event attached.</p>
-                                    @endforelse
-                                </div>
-                            </template>
-
-                            @if ($canEditDisasters)
-                                <div x-show="editingDisasters" x-cloak class="mt-2 space-y-1.5">
-                                    @foreach ($availableDisasters as $disaster)
-                                        <label class="flex cursor-pointer items-start gap-2 rounded-lg border border-border px-2.5 py-2 text-xs">
-                                            <input type="checkbox" value="{{ $disaster->id }}" x-model="disasterIds" class="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[var(--primary)]">
-                                            <span>{{ $disaster->name }}</span>
-                                        </label>
-                                    @endforeach
-                                    <div class="flex gap-2 pt-1">
-                                        <button type="button" @click="editingDisasters = false"
-                                                class="flex-1 rounded-lg border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60">
-                                            Cancel
-                                        </button>
-                                        <button type="button" @click="confirmingDisasters = true"
-                                                class="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110">
-                                            Review
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div x-show="confirmingDisasters" x-cloak class="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-                                    <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-                                        <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm Disaster Event Changes</h3>
-                                        <p class="mb-4 text-sm text-muted-foreground">This report will now be linked to:</p>
-                                        <ul class="mb-4 space-y-1 text-sm text-foreground" x-show="disasterIds.length">
-                                            <template x-for="id in disasterIds" :key="id">
-                                                <li class="rounded bg-muted px-3 py-1.5" x-text="disasterLabels[id]"></li>
-                                            </template>
-                                        </ul>
-                                        <p class="mb-4 text-sm text-muted-foreground" x-show="! disasterIds.length">
-                                            No disaster event - only appropriate if the cause was pests, plant disease, or heat.
-                                        </p>
-                                        <form method="POST" action="{{ route('mao.damage-reports.disasters.update', $damageReport) }}">
-                                            @csrf @method('PUT')
-                                            <template x-for="id in disasterIds" :key="id">
-                                                <input type="hidden" name="disasters[]" :value="id">
-                                            </template>
-                                            <div class="flex gap-3">
-                                                <button type="button" @click="confirmingDisasters = false"
-                                                        class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                                                    Back to Edit
-                                                </button>
-                                                <button type="submit"
-                                                        class="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
-                                                    Confirm Changes
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-
-                        {{-- Damaged crops --}}
-                        <div class="border-t border-border pt-4">
-                            <div class="mb-2 flex items-center justify-between">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Damaged Crops</p>
-                                <p class="text-xs text-muted-foreground">Total: <span class="font-semibold text-foreground">{{ number_format($damageReport->crops->sum('damaged_area_hectares'), 2) }} ha</span></p>
-                            </div>
-                            @forelse ($damageReport->crops as $reportCrop)
-                                <div class="mb-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                                    <p class="font-medium text-foreground">{{ $reportCrop->crop?->name ?? '-' }} &middot; {{ $reportCrop->damaged_area_hectares }} ha</p>
-                                    <p class="text-muted-foreground">
-                                        Est. {{ $reportCrop->estimated_damage_percent }}% &middot;
-                                        {{ $reportCrop->production_cost !== null ? '₱' . number_format($reportCrop->production_cost, 2) : '-' }} cost &middot;
-                                        {{ $reportCrop->farmgate_price_per_kg !== null ? '₱' . number_format($reportCrop->farmgate_price_per_kg, 2) . '/kg' : '-' }}
-                                    </p>
-                                </div>
-                            @empty
-                                <p class="text-xs text-muted-foreground">No crops recorded.</p>
-                            @endforelse
-                            @if ($damageReport->description)
-                                <p class="mt-2 text-xs text-muted-foreground"><span class="font-medium text-foreground">Farmer's description:</span> {{ $damageReport->description }}</p>
-                            @endif
-                        </div>
-
-                        {{-- Farmer photos --}}
-                        <div class="border-t border-border pt-4">
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farmer's Damage Photos</p>
-                            @if ($damageReport->photos->isNotEmpty())
-                                <div class="grid grid-cols-3 gap-2">
-                                    @foreach ($damageReport->photos as $photo)
-                                        <a href="{{ $photo->url }}" target="_blank" class="block overflow-hidden rounded-lg border border-border">
-                                            <img src="{{ $photo->url }}" alt="Damage photo" class="h-16 w-full object-cover transition hover:scale-105">
-                                        </a>
-                                    @endforeach
-                                </div>
-                            @else
-                                <p class="text-xs text-muted-foreground">The farmer did not attach any photos.</p>
-                            @endif
-                        </div>
-
-                        {{-- Farmer-reported location --}}
-                        <div class="border-t border-border pt-4">
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Farmer-Reported Location</p>
-                            <p class="text-xs text-foreground">{{ $damageReport->farm_location_description ?: 'No location description provided.' }}</p>
-                            <p class="mt-1 text-xs text-muted-foreground">{{ $damageReport->reportedBarangay?->name ?? $farmer->barangay?->name ?? '-' }}</p>
-                            @if ($damageReport->reported_latitude && $damageReport->reported_longitude)
-                                <div id="reportedMap-{{ $damageReport->id }}" class="mt-2 h-48 w-full rounded-lg border border-border"
-                                     data-lat="{{ $damageReport->reported_latitude }}" data-lng="{{ $damageReport->reported_longitude }}"
-                                     data-label="{{ $farmer->full_name }} &middot; {{ $damageReport->reportedBarangay?->name ?? $farmer->barangay?->name }}"></div>
-                            @endif
-                        </div>
-                    </div>
-
-                    {{-- This page shows the farmer's own submitted report only (section
-                         23: "walang info na na-validate na") - a technician's assessment,
-                         once one exists, belongs in Validation Monitoring's completed-
-                         inspection history instead. What this page still owns is getting
-                         a report TO a technician in the first place. --}}
-                    @if (! in_array($damageReport->status, ['under_verification', 'verified', 'approved'], true) && $technicians->isNotEmpty())
-                        <div class="mt-5 border-t border-border pt-4">
-                            <button type="button"
-                                    @click="assigning = {
-                                        id: {{ $damageReport->id }},
-                                        code: @js($damageReport->full_reference),
-                                        farmer: @js($farmer->full_name ?? 'Unknown'),
-                                        current: {{ $damageReport->assigned_technician_id ?: 'null' }}
-                                    }"
-                                    class="w-full rounded-lg bg-green-800 px-3 py-2 text-sm font-semibold text-white hover:bg-green-900">
-                                {{ $damageReport->assignedTechnician ? 'Reassign Technician' : 'Assign Technician' }}
-                            </button>
-                        </div>
-                    @elseif ($damageReport->assignedTechnician)
-                        <div class="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">
-                            Assigned to <span class="font-bold text-foreground">{{ $damageReport->assignedTechnician->full_name ?: $damageReport->assignedTechnician->username }}</span>.
-                            Inspection progress and results are in Validation Monitoring once complete.
-                        </div>
-                    @endif
-
-                    {{-- MAO decision --}}
-                    @if ($canDecide)
-                        <div class="mt-5 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row">
-                            <button type="button" @click="decision = 'approved'"
-                                    class="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110">
-                                Approve
-                            </button>
-                            <button type="button" @click="decision = 'flagged'"
-                                    class="w-full rounded-lg border border-orange-300 px-3 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-50">
-                                Flag
-                            </button>
-                            <button type="button" @click="decision = 'rejected'"
-                                    class="w-full rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">
-                                Reject
-                            </button>
-                        </div>
-
-                        <div x-show="decision" x-cloak class="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-                            <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-                                <h3 class="mb-2 text-lg font-semibold text-foreground">Confirm <span x-text="decision"></span></h3>
-                                <p class="mb-4 text-sm text-muted-foreground">
-                                    You are about to mark report <strong>{{ $damageReport->full_reference }}</strong> for
-                                    <strong>{{ $farmer->full_name }}</strong> as <span class="font-semibold" x-text="decision"></span>.
-                                    Please review the inspection above before continuing.
-                                </p>
-                                <form method="POST" action="{{ route('mao.damage-reports.decide', $damageReport) }}">
-                                    @csrf @method('PUT')
-                                    <input type="hidden" name="decision" :value="decision">
-                                    <label class="mb-1.5 block text-sm font-medium text-foreground">Remarks (optional)</label>
-                                    <textarea name="remarks" rows="3" class="mb-4 w-full rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring"></textarea>
-                                    <div class="flex gap-3">
-                                        <button type="button" @click="decision = null"
-                                                class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
-                                            Cancel
-                                        </button>
-                                        <button type="submit"
-                                                class="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
-                                            Confirm
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    @endif
-                </div>
-
-                @if ($damageReport->reported_latitude && $damageReport->reported_longitude)
-                    @push('head')
-                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-                    @endpush
-                    @push('scripts')
-                        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-                        <script>
-                            document.addEventListener('DOMContentLoaded', function () {
-                                const el = document.getElementById('reportedMap-{{ $damageReport->id }}');
-                                if (! el || typeof L === 'undefined') return;
-
-                                const lat = parseFloat(el.dataset.lat);
-                                const lng = parseFloat(el.dataset.lng);
-                                const map = L.map(el).setView([lat, lng], 15);
-
-                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                    maxZoom: 19,
-                                    attribution: '&copy; OpenStreetMap contributors',
-                                }).addTo(map);
-
-                                L.marker([lat, lng]).addTo(map).bindPopup(el.dataset.label).openPopup();
-                            });
-                        </script>
-                    @endpush
-                @endif
-            @php
                     $historyRows = $history->map(fn ($h) => [
                         'label'   => $h->full_reference,
-                        'meta'    => $h->created_at?->format('M d, Y'),
+                        'meta'    => $h->created_at?->format('M d, Y') . ' · ' . ($h->assigned_technician_id ? 'Assigned' : 'Not Assigned'),
                         'href'    => request()->fullUrlWithQuery(['selected' => $h->id]),
-                        'status'  => $h->status,
+                        'status'  => null,
                         'current' => $h->id === $selected->id,
                     ])->all();
                 @endphp
@@ -576,6 +339,7 @@
 
                 <label class="mb-1.5 block text-sm font-medium text-foreground">Technician</label>
                 <select name="assigned_technician_id" required
+                        x-effect="$el.value = assigning && assigning.current ? String(assigning.current) : ''"
                         class="mb-5 w-full rounded-lg border border-input px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
                     <option value="">Select technician</option>
                     @foreach ($technicians as $technician)

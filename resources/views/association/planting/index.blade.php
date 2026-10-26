@@ -55,22 +55,14 @@
     {{-- This page's own figures, rendered above the tabs. These are the
          numbers the hub's Crop Planted card used to carry, with the two an
          officer is most often asked for beside them. --}}
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <x-ui.stat label="Planting Records" :value="number_format($summary['records'])"
-                   hint="Filed by your members"
-                   icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" />
-        <x-ui.stat label="Filed This Month" :value="number_format($summary['this_month'])"
-                   tone="primary"
-                   icon="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0119 21H5a1.5 1.5 0 01-1.5-1.5v-13A1.5 1.5 0 015 5z" />
-        <x-ui.stat label="Members Reporting" :value="number_format($summary['members'])"
-                   hint="With at least one record"
-                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9" />
-        {{-- Same relabel as mao/crop-planting/index, where the reasoning is
-             written out: this sums every planting record, so a field planted
-             twice in a year counts twice, and "Total Area Planted" read as
-             the association's acreage. --}}
-        <x-ui.stat label="Area Planted" :value="number_format($summary['area'], 2)" suffix="ha"
-                   hint="Across all records; a field planted twice counts twice"
+    <div class="grid gap-4 sm:grid-cols-2">
+        <x-ui.stat label="Total Crop Planted" :value="number_format($summary['total'])"
+                   hint="Crop Planted reports from your members"
+                   icon="M12 21v-7M12 14c0-3.3 2.2-5.5 5.5-5.5C17.5 11.8 15.3 14 12 14zM12 14C12 10.7 9.8 8.5 6.5 8.5 6.5 11.8 8.7 14 12 14zM4 21h16" />
+        {{-- Hectares, summed once per planted crop. A field planted twice in a
+             year is two plantings, so it counts twice; the hint says so. --}}
+        <x-ui.stat label="Total Area Planted" :value="number_format($summary['area'], 2)" suffix="ha"
+                   hint="Across all reports; a field planted twice counts twice"
                    icon="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
     </div>
 </x-crop-management.header>
@@ -213,10 +205,10 @@
          Everything the four columns no longer carry. Only ever rendered for
          a record belonging to this association's own members, because that
          is the only thing the controller will find. --}}
-    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl"
+    <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true"
                        empty-text="Select a record from the list to view its full details.">
         @if ($selected)
-            @include('association.planting._record-detail', ['record' => $selected])
+            @include('monitor._planting-modal', ['record' => $selected, 'relatedDamage' => $relatedDamage, 'role' => 'association'])
         @endif
     </x-ui.detail-panel>
 </div>

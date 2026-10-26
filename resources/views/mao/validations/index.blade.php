@@ -82,6 +82,10 @@
                         <x-ui.select name="association_id" placeholder="All Associations" onchange="this.form.submit()"
                                      :options="$associations->pluck('name', 'id')" :selected="request('association_id')" class="sm:w-52" />
 
+                        <x-ui.select name="status" placeholder="All Results" onchange="this.form.submit()"
+                                     :options="['pending_review' => 'Pending Review', 'approved' => 'Approved', 'rejected' => 'Rejected']"
+                                     :selected="request('status')" class="sm:w-44" />
+
                         <x-ui.select name="barangay_id" placeholder="All Barangays" onchange="this.form.submit()"
                                      :options="$barangays->pluck('name', 'id')" :selected="request('barangay_id')" class="sm:w-52" />
 
@@ -101,7 +105,7 @@
                                           placeholder:text-muted-foreground focus:border-primary focus:outline-none">
                         </div>
 
-                        @if (request()->hasAny(['search', 'association_id', 'barangay_id']))
+                        @if (request()->hasAny(['search', 'association_id', 'barangay_id', 'status']))
                             <a href="{{ route('mao.validations.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
                         @endif
                     </form>
@@ -135,7 +139,8 @@
                                               :title="$grouped
                                                   ? $report->reference
                                                   : ($report->farmer?->full_name ?? 'Unknown')"
-                                              :status="$report->status" />
+                                              :badge="$report->review_state === 'approved' ? 'Approved' : ($report->review_state === 'rejected' ? 'Rejected' : 'Pending Review')"
+                                              :fields="['Crop Planting' => \App\Support\PlantingMatch::label($report->planting_match)]" />
                         </li>
                     @empty
                         <li class="rounded-xl border border-dashed border-border px-4 py-10 text-center">
@@ -167,7 +172,8 @@
                                      findings and the photographs. --}}
                                 <th class="px-4 py-3">Report ID</th>
                                 <th class="px-4 py-3">Farmer</th>
-                                <th class="px-4 py-3 text-center">Status</th>
+                                <th class="px-4 py-3 text-center">Crop Planting</th>
+                                <th class="px-4 py-3 text-center">Assessment Status</th>
                                 <th class="px-4 py-3 text-center">Action</th>
                             </tr>
                         </thead>
@@ -181,7 +187,7 @@
                                                          :count="$perGroup[$report->farmer?->id] ?? 1"
                                                          :total="$farmerTotals[$report->farmer?->id] ?? null"
                                                          noun="validation record"
-                                                         :colspan="4"
+                                                         :colspan="5"
                                                          :href="$report->farmer ? route('mao.farmers.show', $report->farmer) : null" />
                                 @endif
 
@@ -199,9 +205,10 @@
                                         {{ $report->farmer?->full_name ?? 'Unknown' }}
                                     </td>
                                     <td class="px-4 py-4 text-center">
-                                        <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $statusBadges[$report->status] ?? $statusBadges['pending'] }}">
-                                            {{ ucwords(str_replace('_', ' ', $report->status)) }}
-                                        </span>
+                                        <x-monitor.badge kind="match" :value="$report->planting_match" />
+                                    </td>
+                                    <td class="px-4 py-4 text-center">
+                                        <x-monitor.badge kind="validation" :value="$report->review_state" />
                                     </td>
                                     <td class="px-4 py-4">
                                         <div class="flex items-center justify-center gap-2">
@@ -211,7 +218,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="px-4 py-14 text-center">
+                                    <td colspan="5" class="px-4 py-14 text-center">
                                         <p class="text-sm font-medium text-muted-foreground">No completed inspections yet</p>
                                         <p class="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
                                             A report appears here once a technician has finished the field inspection
@@ -248,115 +255,19 @@
         </div>
 
         {{-- DETAIL --}}
-        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-5 lg:mt-0"
+        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true" class="mt-5 lg:mt-0"
                             empty-text="Select a completed inspection from the list to view its comparison and summary.">
             @if ($selected)
-                @php $report = $selected; $farmer = $report->farmer; $validation = $report->validation; @endphp
+                {{-- The same wide modal the association sees (monitor/_validation-modal).
+                     Approve and Reject inside it are the office's alone. --}}
+                @include('monitor._validation-modal', ['report' => $selected, 'role' => 'mao'])
 
-                <div class="mb-4">
-                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ $report->full_reference }}</p>
-                    <h3 class="mt-0.5 text-lg font-bold text-foreground">
-                        <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">{{ $farmer->full_name }}</a>
-                    </h3>
-                    <p class="text-sm text-muted-foreground">{{ $farmer->association?->name ?? '-' }} &middot; {{ $farmer->barangay?->name ?? '-' }}</p>
-                    <span class="mt-2 inline-flex rounded px-2.5 py-1 text-xs font-medium {{ $statusBadges[$report->status] ?? $statusBadges['pending'] }}">
-                        {{ ucwords(str_replace('_', ' ', $report->status)) }}
-                    </span>
-
-                    {{-- Validation Monitoring has no page of its own: what is
-                         being inspected IS a damage report, so the full record
-                         lives on that report's page, inspection included. The
-                         label says so rather than pretending otherwise. --}}
-                    <x-ui.open-full-page label="Open the full damage report"
-                                         :href="route('mao.damage-reports.show', $report)" />
-                </div>
-
-                <div class="space-y-5 border-t border-border pt-4 text-sm">
-                    {{-- Planted Report vs Damage Report --}}
-                    <div>
-                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Planted Report vs. Damage Report
-                        </p>
-                        @forelse ($plantingComparison as $row)
-                            @php $reportCrop = $row['reportCrop']; $planted = $row['planted']; @endphp
-                            <div class="mb-2 overflow-hidden rounded-lg border border-border">
-                                <p class="border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold text-foreground">
-                                    {{ $reportCrop->crop?->name ?? '-' }}
-                                </p>
-                                <div class="grid grid-cols-2 divide-x divide-border text-xs">
-                                    <div class="px-3 py-2">
-                                        <p class="mb-1 font-medium text-muted-foreground">Planting Record</p>
-                                        @if ($planted)
-                                            <p class="text-foreground">Planted: {{ $planted->date_planted?->format('M d, Y') }}</p>
-                                            <p class="text-foreground">Area: {{ number_format($planted->area_hectares, 2) }} ha</p>
-                                        @else
-                                            <p class="text-muted-foreground">No matching planting record found.</p>
-                                        @endif
-                                    </div>
-                                    <div class="px-3 py-2">
-                                        <p class="mb-1 font-medium text-muted-foreground">Damage Report</p>
-                                        <p class="text-foreground">Planted: {{ $reportCrop->date_planted?->format('M d, Y') ?? '-' }}</p>
-                                        <p class="text-foreground">Damaged Area: {{ $reportCrop->damaged_area_hectares }} ha</p>
-                                        <p class="text-foreground">Farmer Est. Damage: {{ $reportCrop->estimated_damage_percent }}%</p>
-                                    </div>
-                                </div>
-                            </div>
-                        @empty
-                            <p class="text-xs text-muted-foreground">No crops recorded on this report.</p>
-                        @endforelse
-                    </div>
-
-                    {{-- Inspection Summary --}}
-                    <div class="border-t border-border pt-4">
-                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Inspection Summary</p>
-                        @if ($validation)
-                            <dl class="space-y-1.5">
-                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Technician</dt><dd class="min-w-0 text-right font-bold text-foreground">{{ $validation->technician?->full_name ?: $validation->technician?->username ?? '-' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Severity</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ \App\Models\Validation::severityLabel($validation->severity) ?? 'Not assessed' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Farmer Estimated Damage</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $report->crops->avg('estimated_damage_percent') !== null ? round($report->crops->avg('estimated_damage_percent')) . '%' : '-' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Technician Assessed Damage</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $validation->assessed_damage_percent !== null ? $validation->assessed_damage_percent . '%' : '-' }}</dd></div>
-                                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Inspection Submitted</dt><dd class="min-w-0 text-right font-medium text-foreground">{{ $validation->validated_at?->format('M d, Y g:i A') ?? 'In progress' }}</dd></div>
-                                <div><dt class="mb-1 text-muted-foreground">Inspection Notes</dt><dd class="font-medium text-foreground">{{ $validation->notes ?: 'No notes recorded.' }}</dd></div>
-                            </dl>
-
-                            @if ($validation->photos->isNotEmpty())
-                                <p class="mb-2 mt-3 text-xs text-muted-foreground">Inspection photos</p>
-                                <div class="grid grid-cols-3 gap-2">
-                                    @foreach ($validation->photos as $photo)
-                                        <a href="{{ $photo->url }}" target="_blank" class="block overflow-hidden rounded-lg border border-border">
-                                            <img src="{{ $photo->url }}" alt="Inspection photo" class="h-16 w-full object-cover transition hover:scale-105">
-                                        </a>
-                                    @endforeach
-                                </div>
-                            @endif
-                        @else
-                            <p class="text-xs text-muted-foreground">No inspection has been submitted for this report yet.</p>
-                        @endif
-                    </div>
-
-                    {{-- Technician-verified location --}}
-                    @if ($validation && $validation->latitude && $validation->longitude)
-                        <div class="border-t border-border pt-4">
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Technician-Verified Location</p>
-                            <div id="verifiedMap-{{ $report->id }}" class="h-48 w-full rounded-lg border border-border"
-                                 data-lat="{{ $validation->latitude }}" data-lng="{{ $validation->longitude }}"
-                                 data-label="{{ $farmer->full_name }} &middot; {{ $farmer->barangay?->name }}"></div>
-                        </div>
-                    @endif
-
-                    <div class="border-t border-border pt-4">
-                        <a href="{{ route('mao.damage-reports.index', ['selected' => $report->id]) }}"
-                           class="text-xs font-semibold text-green-800 hover:underline">
-                            Open in Crop Damage Monitoring &rarr;
-                        </a>
-                    </div>
-                </div>
-            @php
+                @php
                     $historyRows = $history->map(fn ($h) => [
                         'label'   => $h->full_reference,
-                        'meta'    => $h->created_at?->format('M d, Y'),
+                        'meta'    => $h->created_at?->format('M d, Y') . ' · ' . ($h->review_state === 'approved' ? 'Approved' : ($h->review_state === 'rejected' ? 'Rejected' : 'Pending Review')),
                         'href'    => request()->fullUrlWithQuery(['selected' => $h->id]),
-                        'status'  => $h->status,
+                        'status'  => null,
                         'current' => $h->id === $selected->id,
                     ])->all();
                 @endphp
@@ -366,29 +277,4 @@
     </div>
 </div>
 
-@if ($selected && $selected->validation && $selected->validation->latitude && $selected->validation->longitude)
-    @push('head')
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-    @endpush
-    @push('scripts')
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                const el = document.getElementById('verifiedMap-{{ $selected->id }}');
-                if (! el || typeof L === 'undefined') return;
-
-                const lat = parseFloat(el.dataset.lat);
-                const lng = parseFloat(el.dataset.lng);
-                const map = L.map(el).setView([lat, lng], 15);
-
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '&copy; OpenStreetMap contributors',
-                }).addTo(map);
-
-                L.marker([lat, lng]).addTo(map).bindPopup(el.dataset.label).openPopup();
-            });
-        </script>
-    @endpush
-@endif
 @endsection

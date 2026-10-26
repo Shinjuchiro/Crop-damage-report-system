@@ -9,6 +9,8 @@ use App\Models\DamageReport;
 use App\Models\Farmer;
 use App\Models\Validation;
 use App\Services\RecordListExport;
+use App\Support\MonitorStats;
+use App\Support\PlantingMatch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -170,28 +172,10 @@ class MonitoringController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        /* The figures that used to sit on the hub's Crop Planted card, now
-           on the page itself. Unfiltered on purpose: they answer "how is
-           the membership doing", which is not a question the filter row
-           above the list is asking. */
-        $all = fn () => CropPlantingRecord::active()
-            ->whereIn('farmer_id', $this->memberIds($association));
-
-        $summary = [
-            'records'    => $all()->count(),
-            'this_month' => $all()
-                ->whereMonth('date_submitted', now()->month)
-                ->whereYear('date_submitted', now()->year)
-                ->count(),
-            'members'    => $all()->distinct('farmer_id')->count('farmer_id'),
-            'area'       => (float) DB::table('crop_planting_record_crops as c')
-                ->join('crop_planting_records as r', 'r.id', '=', 'c.crop_planting_record_id')
-                ->join('farmers as f', 'f.id', '=', 'r.farmer_id')
-                ->where('f.association_id', $association->id)
-                ->whereNull('r.archived_at')
-                ->whereNull('r.deleted_at')
-                ->sum('c.area_hectares'),
-        ];
+        /* The same two figures, defined the same way, as the office's
+           dashboard (App\Support\MonitorStats), limited to this
+           association's own members. */
+        $summary = MonitorStats::planting($association->id);
 
         $selected = $this->selectedPlanting($request, $association);
         \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'planting', $selected?->id);
@@ -202,7 +186,8 @@ class MonitoringController extends Controller
             'view'        => $view,
             'summary'     => $summary,
             'selected'    => $selected,
-            'farmerTotals' => $limited ? DB::table('crop_planting_records')->whereNull('deleted_at')->whereNull('archived_at')->select('farmer_id', DB::raw('COUNT(*) as total'))->groupBy('farmer_id')->pluck('total', 'farmer_id') : collect(),
+            'relatedDamage' => $selected ? PlantingMatch::damageFor($selected) : collect(),
+            'farmerTotals' => $limited ? DB::table('crop_planting_records')->whereNull('deleted_at')->whereNull('archived_at')->whereIn('farmer_id', $this->memberIds($association))->select('farmer_id', DB::raw('COUNT(*) as total'))->groupBy('farmer_id')->pluck('total', 'farmer_id') : collect(),
             'filters'     => $request->only(['q', 'month', 'year']),
         ]);
     }
@@ -292,7 +277,14 @@ class MonitoringController extends Controller
                 'crops.crop', 'disasters', 'validation', 'assignedTechnician',
             ])
             ->withCount('photos')
-            ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
+            // 'pending_review' is a submitted assessment nobody has decided yet.
+            ->when($request->query('status'), fn ($q, $status) => $status === 'pending_review'
+                ? $q->whereIn('status', DamageReport::PENDING_REVIEW)
+                : $q->where('status', $status))
+            // Technician assignment, kept apart from the report's status.
+            ->when($request->query('assignment'), fn ($q, $which) => $q->assignment($which === 'assigned' ? 'assigned' : 'unassigned'))
+            ->when(in_array($request->query('planting_match'), ['matched', 'mismatch', 'none'], true),
+                fn ($q) => $q->plantingResult($request->query('planting_match')))
             ->when($request->query('cause'), fn ($q, $cause) => $q->where('damage_cause', $cause))
             ->when($request->query('q'), function ($q, $term) {
                 $q->whereHas('farmer', function ($farmer) use ($term) {
@@ -326,20 +318,10 @@ class MonitoringController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        /* The hub's Crop Damage card carried the total and how many were
-           still being processed. Both are here, with the two figures an
-           officer is actually asked about beside them: how many have been
-           verified (which is what makes a member eligible to be considered
-           for assistance), and how many distinct members are affected. */
-        $all = fn () => DamageReport::active()
-            ->whereIn('farmer_id', $this->memberIds($association));
+        PlantingMatch::annotate($reports->getCollection());
 
-        $summary = [
-            'reports'    => $all()->count(),
-            'processing' => $all()->whereIn('status', ['pending', 'assigned', 'under_verification'])->count(),
-            'verified'   => $all()->whereIn('status', ['verified', 'approved'])->count(),
-            'members'    => $all()->distinct('farmer_id')->count('farmer_id'),
-        ];
+        // Same definitions as the office's dashboard, for this association only.
+        $summary = MonitorStats::damage($association->id);
 
         $selected = $this->selectedReport($request, $association);
         \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'damage_report', $selected?->id);
@@ -350,10 +332,9 @@ class MonitoringController extends Controller
             'view'        => $view,
             'summary'     => $summary,
             'selected'    => $selected,
-            'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::damageTotals() : collect(),
-            'filters'     => $request->only(['status', 'cause', 'q']),
+            'farmerTotals' => $limited ? \App\Support\LatestPerFarmer::damageTotals(false, $association->id) : collect(),
+            'filters'     => $request->only(['assignment', 'planting_match', 'cause', 'q']),
             'causes'      => DamageReport::CAUSES,
-            'statuses'    => DamageReport::STATUSES,
         ]);
     }
 
@@ -379,15 +360,10 @@ class MonitoringController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $done = fn () => DamageReport::active()
-            ->whereIn('farmer_id', $this->memberIds($association))
-            ->whereHas('validation', fn ($v) => $v->whereNotNull('validated_at'));
+        PlantingMatch::annotate($reports->getCollection());
 
-        $summary = [
-            'completed' => $done()->count(),
-            'approved'  => $done()->where('status', 'approved')->count(),
-            'members'   => $done()->distinct('farmer_id')->count('farmer_id'),
-        ];
+        // Same definitions as the office's dashboard, for this association only.
+        $summary = MonitorStats::validation($association->id);
 
         $selected = $this->selectedReport($request, $association);
         if ($selected && $selected->validation?->validated_at) {
@@ -401,10 +377,9 @@ class MonitoringController extends Controller
             'summary'      => $summary,
             'selected'     => $selected,
             'farmerTotals' => $limited
-                ? \App\Support\LatestPerFarmer::damageTotals(true)
+                ? \App\Support\LatestPerFarmer::damageTotals(true, $association->id)
                 : collect(),
-            'filters'      => $request->only(['status', 'q']),
-            'statuses'     => DamageReport::STATUSES,
+            'filters'      => $request->only(['status', 'planting_match', 'q']),
         ]);
     }
 
@@ -425,15 +400,21 @@ class MonitoringController extends Controller
             return null;
         }
 
-        return DamageReport::active()
+        $report = DamageReport::active()
             ->whereIn('farmer_id', $this->memberIds($association))
             ->with([
-                'farmer.barangay', 'farmer.association', 'reportedBarangay',
+                'farmer.barangay', 'farmer.association', 'farmer.mainCrops.crop', 'reportedBarangay',
                 'crops.crop', 'disasters', 'photos',
                 'validation.technician', 'validation.photos',
-                'assignedTechnician',
+                'assignedTechnician', 'reviewedBy', 'approvedBy',
             ])
             ->find($request->selected);
+
+        if ($report) {
+            PlantingMatch::annotate([$report]);
+        }
+
+        return $report;
     }
 
     /**
@@ -447,9 +428,13 @@ class MonitoringController extends Controller
      */
     private function exportDamage(Request $request, $association)
     {
-        $rows = $this->filteredDamage($request, $association)
+        $reports = $this->filteredDamage($request, $association)
             ->latest()
-            ->get()
+            ->get();
+
+        PlantingMatch::annotate($reports);
+
+        $rows = $reports
             ->map(function ($report) {
                 $validation = $report->validation;
 
@@ -465,8 +450,15 @@ class MonitoringController extends Controller
                     $report->crops->max('estimated_damage_percent') !== null
                         ? (float) $report->crops->max('estimated_damage_percent')
                         : '',
-                    DamageReport::STATUSES[$report->status]
-                        ?? ucwords(str_replace('_', ' ', (string) $report->status)),
+                    $report->assignment_label,
+                    PlantingMatch::label($report->planting_match),
+                    $validation?->validated_at
+                        ? match ($report->review_state) {
+                            'approved' => 'Approved',
+                            'rejected' => 'Rejected',
+                            default    => 'Pending Review',
+                        }
+                        : '-',
                     $report->assignedTechnician?->full_name
                         ?: ($report->assignedTechnician?->username ?? 'Not assigned'),
                     $validation?->assessed_damage_percent !== null
@@ -483,8 +475,13 @@ class MonitoringController extends Controller
             $association->name . ' - Crop Damage Reports',
             [
                 'Member' => $request->query('q'),
-                'Status' => $request->filled('status')
-                    ? (DamageReport::STATUSES[$request->status] ?? $request->status)
+                'Assignment' => match ($request->query('assignment')) {
+                    'assigned'   => 'Assigned',
+                    'unassigned' => 'Not Assigned',
+                    default      => null,
+                },
+                'Crop Planting' => in_array($request->query('planting_match'), ['matched', 'mismatch', 'none'], true)
+                    ? PlantingMatch::label($request->query('planting_match'))
                     : null,
                 'Cause'  => $request->filled('cause')
                     ? (DamageReport::CAUSES[$request->cause] ?? $request->cause)
@@ -492,7 +489,7 @@ class MonitoringController extends Controller
             ],
             [
                 'Report ID', 'Member', 'Barangay', 'Crops', 'Damaged Area (ha)',
-                'Disasters', 'Member Estimate (%)', 'Status', 'Technician',
+                'Disasters', 'Member Estimate (%)', 'Assignment', 'Crop Planting', 'Assessment Status', 'Technician',
                 'Assessed Damage (%)', 'Severity', 'Date Filed',
             ],
             $rows,

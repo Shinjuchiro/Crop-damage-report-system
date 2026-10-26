@@ -215,6 +215,12 @@ class DashboardController extends Controller
             return $band;
         });
 
+        /* The eight Crop Planted / Crop Damage / Validation figures. All-time
+           and office-wide on purpose, not tied to the period dropdown: they
+           are totals of what is in the system, defined once in MonitorStats
+           so each one matches the monitoring page it links to. */
+        $flashcards = \App\Support\MonitorStats::all();
+
         return view('dashboards.mao', compact(
             'headline',
             'monthly',
@@ -223,7 +229,8 @@ class DashboardController extends Controller
             'period',
             'disputeCount',
             'mapAssociations',
-            'mapCountLegend'
+            'mapCountLegend',
+            'flashcards'
         ) + ['periods' => self::PERIODS, 'mapCenter' => MapController::CENTER]);
     }
 

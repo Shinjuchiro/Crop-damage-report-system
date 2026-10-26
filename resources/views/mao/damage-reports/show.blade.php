@@ -56,8 +56,8 @@
         decision: null,
         editingDisasters: false,
         confirmingDisasters: false,
-        disasterIds: {!! json_encode($damageReport->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!},
-        disasterLabels: {!! json_encode($availableDisasters->pluck('name', 'id')) !!},
+        disasterIds: @js($damageReport->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()->all()),
+        disasterLabels: @js($availableDisasters->pluck('name', 'id')->all()),
      }" class="space-y-6">
 
     @if ($errors->any())
@@ -228,7 +228,7 @@
 
                 <div class="mt-4 flex gap-3">
                     <button type="button"
-                            @click="editingDisasters = false; disasterIds = {!! json_encode($damageReport->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!}"
+                            @click="editingDisasters = false; disasterIds = @js($damageReport->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()->all())"
                             class="rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
                         Cancel
                     </button>
@@ -443,22 +443,19 @@
         <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-green-800">MAO Decision</h3>
             <p class="mb-4 text-sm text-muted-foreground">
-                The technician has verified this report. Approve it so it can be counted for assistance,
-                flag it for a second look, or reject it.
+                The technician has submitted this inspection and it is pending your review. Approving or
+                rejecting it is a decision about the technician's assessment only; it does not allocate
+                assistance, which is decided separately.
             </p>
 
             <div class="flex flex-col gap-3 sm:flex-row">
                 <button type="button" @click="decision = 'approved'"
                         class="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">
-                    Approve Report
-                </button>
-                <button type="button" @click="decision = 'flagged'"
-                        class="rounded-lg border border-orange-300 px-5 py-2.5 text-sm font-semibold text-orange-700 hover:bg-orange-50">
-                    Flag for Review
+                    Approve Assessment
                 </button>
                 <button type="button" @click="decision = 'rejected'"
                         class="rounded-lg border border-red-300 px-5 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">
-                    Reject Report
+                    Reject Assessment
                 </button>
             </div>
         </div>
@@ -481,8 +478,10 @@
                     @csrf @method('PUT')
                     <input type="hidden" name="decision" :value="decision">
 
-                    <label class="mb-1.5 block text-sm font-medium text-foreground">Remarks (optional)</label>
-                    <textarea name="remarks" rows="3"
+                    <label class="mb-1.5 block text-sm font-medium text-foreground">
+                        Remarks <span x-text="decision === 'rejected' ? '(required)' : '(optional)'"></span>
+                    </label>
+                    <textarea name="remarks" rows="3" :required="decision === 'rejected'"
                               class="mb-4 w-full rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring"></textarea>
 
                     <div class="flex gap-3">

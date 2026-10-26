@@ -22,6 +22,7 @@
               confirm: false,
               name: @js(old('name', $crop->name ?? '')),
               hvcc: @js((bool) old('is_hvcc', $crop->is_hvcc ?? false)),
+              days: @js((string) old('growing_days', $crop->growing_days ?? '')),
           }">
         @csrf
         @if ($crop) @method('PUT') @endif
@@ -34,6 +35,18 @@
                 <input type="text" name="name" x-model="name" required maxlength="100"
                        placeholder="e.g. Rice, Corn, HVCC"
                        class="w-full rounded-lg border border-input px-3.5 py-2.5 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600">
+            </div>
+
+            <div class="mb-5">
+                <label class="mb-1.5 block text-sm font-medium text-foreground">Usual growing period (days)</label>
+                <input type="number" name="growing_days" x-model="days" min="1" max="1000"
+                       placeholder="e.g. 120 for rice"
+                       class="w-full rounded-lg border border-input px-3.5 py-2.5 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600">
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Optional. Used to show an estimated harvest date (date planted plus these days) in Crop
+                    Planted Monitoring. Leave empty if it varies too much to estimate.
+                </p>
+                @error('growing_days') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-start gap-3 rounded-lg bg-muted p-4 text-sm">
@@ -74,6 +87,10 @@
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">Crop Name</dt>
                         <dd class="min-w-0 text-right font-medium text-foreground" x-text="name || '-'"></dd>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <dt class="shrink-0 text-muted-foreground">Growing period</dt>
+                        <dd class="min-w-0 text-right font-medium text-foreground" x-text="days ? days + ' days' : 'Not set'"></dd>
                     </div>
                     <div class="flex justify-between gap-4">
                         <dt class="shrink-0 text-muted-foreground">HVCC</dt>

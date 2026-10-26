@@ -81,12 +81,16 @@ class DamageReport extends Model
         // never touches these, so both locations survive (section 49).
         'reported_latitude', 'reported_longitude', 'location_source',
         'description', 'status', 'approved_by', 'approved_at',
+        // The office's review of the technician's assessment (Oct 2026):
+        // who decided, when, and the remarks (required on a rejection).
+        'reviewed_by', 'reviewed_at', 'review_remarks',
     ];
 
     protected function casts(): array
     {
         return [
             'approved_at' => 'datetime',
+            'reviewed_at' => 'datetime',
             // Set once, when the MAO hands the report to a technician.
             // The technician dashboard counts today's work off this.
             'assigned_at' => 'datetime',
@@ -151,6 +155,12 @@ class DamageReport extends Model
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /** Whoever approved OR rejected the technician's assessment. */
+    public function reviewedBy()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     // The barangay the FARMER picked when reporting. Not necessarily the
@@ -226,6 +236,102 @@ class DamageReport extends Model
     public function getTotalDamageCostAttribute(): float
     {
         return (float) $this->crops()->sum('total_damage_cost');
+    }
+
+    /* ------------------------------------------------------------------
+     | Assignment and planting match, kept apart from the status
+     |
+     | The monitoring pages show three separate facts about a report and
+     | never fold them into one status:
+     |   assignment      Not Assigned / Assigned (has the MAO given it to a
+     |                   technician), from assigned_technician_id
+     |   planting match  Matching Record Found / No Matching Planting Record / No Planting Record Found, worked out by
+     |                   App\Support\PlantingMatch
+     |   validation      the technician's inspection and the final decision
+     ------------------------------------------------------------------ */
+
+    public function getIsAssignedAttribute(): bool
+    {
+        return $this->assigned_technician_id !== null;
+    }
+
+    public function getAssignmentLabelAttribute(): string
+    {
+        return $this->is_assigned ? 'Assigned' : 'Not Assigned';
+    }
+
+    public function scopeAssignment($query, ?string $which)
+    {
+        return match ($which) {
+            'assigned'   => $query->whereNotNull('assigned_technician_id'),
+            'unassigned' => $query->whereNull('assigned_technician_id'),
+            default      => $query,
+        };
+    }
+
+    /** Reports with at least one crop line that has no matching planting record, or no crop lines at all. */
+    public function scopeNoPlantingMatch($query)
+    {
+        return $query->where(fn ($q) => $q
+            ->whereHas('crops', fn ($c) => $c->whereRaw(\App\Support\PlantingMatch::unmatchedLineSql()))
+            ->orWhereDoesntHave('crops'));
+    }
+
+    /** Reports where every crop line has a matching planting record. */
+    public function scopePlantingMatched($query)
+    {
+        return $query->whereHas('crops')
+            ->whereDoesntHave('crops', fn ($c) => $c->whereRaw(\App\Support\PlantingMatch::unmatchedLineSql()));
+    }
+
+    /**
+     * The three planting-match results as a list filter: 'matched',
+     * 'mismatch' (the farmer has planting records but none matches) or
+     * 'none' (the farmer has no planting records at all). Anything else is
+     * no filter. Mirrors PlantingMatch::annotate().
+     */
+    public function scopePlantingResult($query, ?string $state)
+    {
+        return match ($state) {
+            'matched'  => $query->plantingMatched(),
+            'none'     => $query->whereRaw('NOT ' . \App\Support\PlantingMatch::farmerHasRecordsSql()),
+            'mismatch' => $query->whereRaw(\App\Support\PlantingMatch::farmerHasRecordsSql())
+                ->noPlantingMatch(),
+            default    => $query,
+        };
+    }
+
+    /**
+     * Review statuses for a submitted assessment (Oct 2026). 'verified' is
+     * what the technician's submission leaves behind and 'flagged' is the
+     * retired second-look state; both mean the office has not decided yet.
+     */
+    public const PENDING_REVIEW = ['verified', 'flagged'];
+
+    public function getReviewStateAttribute(): string
+    {
+        return match ($this->status) {
+            'approved' => 'approved',
+            'rejected' => 'rejected',
+            default    => 'pending_review',
+        };
+    }
+
+    /**
+     * May the office still hand this report to a technician (or to a
+     * different one)? Not once an inspection exists: the inspection row is
+     * one per report, so a second technician could not record theirs, and
+     * "who inspected this" must not change after the fact.
+     */
+    public function getCanBeAssignedAttribute(): bool
+    {
+        if (! in_array($this->status, ['pending', 'assigned'], true)) {
+            return false;
+        }
+
+        return $this->relationLoaded('validation')
+            ? $this->validation === null
+            : $this->validation()->doesntExist();
     }
 
     /**

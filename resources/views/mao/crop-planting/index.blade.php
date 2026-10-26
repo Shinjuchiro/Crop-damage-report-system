@@ -286,67 +286,14 @@
         </div>
 
         {{-- DETAIL --}}
-        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" class="mt-5 lg:mt-0"
+        <x-ui.detail-panel :selected="$selected" :back-url="$backUrl" :wide="true" class="mt-5 lg:mt-0"
                             empty-text="Select a record from the list to view its full details.">
             @if ($selected)
-                @php $plantingRecord = $selected; $farmer = $plantingRecord->farmer; @endphp
+                {{-- The same wide modal the association sees (monitor/_planting-modal),
+                     so both roles read a planting report the same way. --}}
+                @include('monitor._planting-modal', ['record' => $selected, 'relatedDamage' => $relatedDamage, 'role' => 'mao'])
 
-                <div class="mb-4 flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Planting Record &middot; Submitted {{ $plantingRecord->date_submitted?->format('M d, Y') }}
-                        </p>
-                        <h3 class="mt-0.5 text-lg font-bold text-foreground">
-                            <a href="{{ route('mao.farmers.index', ['selected' => $farmer->id]) }}" class="hover:underline">
-                                {{ $farmer->full_name }}
-                            </a>
-                        </h3>
-                        <p class="text-sm text-muted-foreground">
-                            {{ $farmer->association?->name ?? 'No association' }} &middot; {{ $farmer->barangay?->name ?? 'No barangay' }}
-                        </p>
-
-                        <x-ui.open-full-page :href="route('mao.crop-planting.show', $plantingRecord)" />
-                    </div>
-                </div>
-
-                <div class="border-t border-border pt-4">
-                    <div class="mb-2 flex items-center justify-between">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Crops Planted</p>
-                        <p class="text-xs text-muted-foreground">
-                            Total: <span class="font-semibold text-foreground">{{ number_format($plantingRecord->crops->sum('area_hectares'), 2) }} ha</span>
-                        </p>
-                    </div>
-                    @foreach ($plantingRecord->crops as $recordCrop)
-                        <div class="mb-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                            <p class="font-medium text-foreground">
-                                {{ $recordCrop->crop?->name ?? '-' }}
-                                @if ($recordCrop->crop_specify) ({{ $recordCrop->crop_specify }}) @endif
-                            </p>
-                            <p class="text-muted-foreground">
-                                Planted {{ $recordCrop->date_planted?->format('M d, Y') }} &middot; {{ $recordCrop->area_hectares }} ha
-                            </p>
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="border-t border-border pt-4">
-                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Photos</p>
-                    @if ($plantingRecord->photos->isNotEmpty())
-                        <div class="grid grid-cols-3 gap-2">
-                            @foreach ($plantingRecord->photos as $photo)
-                                <a href="{{ $photo->url }}" target="_blank"
-                                   class="block overflow-hidden rounded-lg border border-border">
-                                    <img src="{{ $photo->url }}" alt="Planting photo"
-                                         class="h-16 w-full object-cover transition hover:scale-105">
-                                </a>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-xs text-muted-foreground">No photos were attached to this record.</p>
-                    @endif
-                </div>
-
-            @php
+                @php
                     $historyRows = $history->map(fn ($h) => [
                         'label'   => 'Planting record, ' . $h->date_submitted?->format('M d, Y'),
                         'meta'    => $h->crops->map(fn ($c) => $c->crop?->name)->filter()->implode(', '),

@@ -157,4 +157,26 @@ class Validation extends Model
 
         return '#94a3b8';
     }
+
+    /**
+     * The severity band a bare percentage falls in: 'slight', 'moderate' or
+     * 'total'. Used to show a severity beside the FARMER'S estimate, before
+     * any technician has assessed the report. It is a reading of the figure
+     * against the same bands, never a stored verdict, and the technician's
+     * own severity is always shown separately.
+     */
+    public static function severityKeyForPercent(float|int|null $percent): ?string
+    {
+        if ($percent === null || $percent < 1) {
+            return null;
+        }
+
+        foreach (array_reverse(self::SEVERITY_SCALE, true) as $key => $band) {
+            if ($percent >= $band['min']) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
 }
