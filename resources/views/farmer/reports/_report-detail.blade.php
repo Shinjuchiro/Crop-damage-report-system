@@ -28,7 +28,10 @@
         {{ $report->disasters->pluck('name')->join(', ') ?: 'No disaster recorded' }}
     </h3>
     <p class="text-sm text-muted-foreground">
-        Submitted {{ $report->created_at?->format('F d, Y') }}
+        Submitted {{ ($report->submitted_at ?? $report->created_at)?->format('F d, Y') }}
+        @if ($report->date_damaged)
+            &middot; Crop damaged {{ $report->date_damaged->format('F d, Y') }}
+        @endif
     </p>
 
     <div class="mt-2 flex flex-wrap gap-2">

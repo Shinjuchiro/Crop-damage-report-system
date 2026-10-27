@@ -35,8 +35,9 @@
         'id'    => $disaster->id,
         'label' => $disaster->name,
         'rawType' => $disaster->type,                                        // matches damage_cause
-        'type'  => ucwords(str_replace('_', ' ', $disaster->type)),
+        'type'  => $disaster->type_label,
         'when'  => $disaster->date_start?->format('M d, Y'),
+        'date'  => $disaster->date_start?->toDateString(),                   // the official disaster date
     ])->values();
 
     // Weather causes are the only ones the office ever declares an event for.
@@ -61,6 +62,7 @@
             'key'                      => uniqid('c', true),
             'crop_id'                  => (string) ($crop['crop_id'] ?? ''),
             'crop_specify'             => $crop['crop_specify'] ?? '',
+            'record_id'                => (string) ($crop['planting_record_crop_id'] ?? ''),
             'damaged_area_hectares'    => $crop['damaged_area_hectares'] ?? '',
             'date_planted'             => $crop['date_planted'] ?? '',
             'estimated_damage_percent' => $crop['estimated_damage_percent'] ?? '',
@@ -84,7 +86,8 @@
         @js($causes),
         @js($weatherCauses),
         @js(array_values(array_intersect($causesWithEvents, $weatherCauses))),
-        @js($maxCrops)
+        @js($maxCrops),
+        @js($plantingOptions)
      )">
 
     @if ($errors->any())
@@ -167,13 +170,57 @@
 
                             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 
+                                {{-- Pick the crop from the farmer's own Crop Planted reports, and
+                                     its real planting date comes with it. Meant for the farmer who
+                                     cannot remember the date. --}}
+                                <input type="hidden" :name="`crops[${index}][planting_record_crop_id]`" :value="row.record_id">
+
+                                <div class="space-y-1.5 sm:col-span-2 xl:col-span-3" x-show="plantingList.length" x-cloak>
+                                    <label class="block text-sm font-medium">
+                                        Choose from your Crop Planted reports
+                                        <span class="block text-xs font-normal text-muted-foreground">
+                                            Piliin mula sa inyong naitalang pagtatanim. Kusa nitong ilalagay ang petsa ng pagtatanim.
+                                        </span>
+                                    </label>
+                                    <select x-model="row.record_id" @change="pickRecord(row)"
+                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                                        <option value="">My planting is not listed, I will enter it myself</option>
+                                        <template x-for="p in availablePlantings(row)" :key="p.id">
+                                            <option :value="String(p.id)"
+                                                    x-text="p.crop_name + ' - planted ' + p.date_label + ' (' + Number(p.area).toFixed(2) + ' ha) ' + p.reference"></option>
+                                        </template>
+                                    </select>
+
+                                    {{-- What was picked, spelled out: the planting date used is the
+                                         ACTUAL planting date, never the day the record was made. --}}
+                                    <div x-show="recordOf(row)" x-cloak
+                                         class="rounded-lg bg-card px-3 py-2.5 text-xs text-muted-foreground">
+                                        <template x-if="recordOf(row)">
+                                            <dl class="space-y-0.5">
+                                                <div class="flex justify-between gap-3"><dt>Record</dt><dd class="font-medium text-foreground" x-text="recordOf(row).reference"></dd></div>
+                                                <div class="flex justify-between gap-3"><dt>Actual planting date</dt><dd class="font-medium text-foreground" x-text="recordOf(row).date_label"></dd></div>
+                                                <div class="flex justify-between gap-3"><dt>Planted area</dt><dd class="font-medium text-foreground" x-text="Number(recordOf(row).area).toFixed(2) + ' ha'"></dd></div>
+                                                <div class="flex justify-between gap-3" x-show="recordOf(row).farm"><dt>Farm</dt><dd class="text-right font-medium text-foreground" x-text="recordOf(row).farm"></dd></div>
+                                                <div class="flex justify-between gap-3" x-show="recordOf(row).recorded"><dt>Recorded in the system on</dt><dd class="font-medium text-foreground" x-text="recordOf(row).recorded"></dd></div>
+                                            </dl>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <p x-show="! plantingList.length" class="text-xs text-muted-foreground sm:col-span-2 xl:col-span-3">
+                                    No existing planting record was found. You may continue with the Crop Damage Report by completing the required fields.
+                                    If you cannot remember the planting date, record your planting under Crop Planted first.
+                                </p>
+
                                 <div class="space-y-1.5 sm:col-span-2 xl:col-span-3">
                                     <label class="block text-sm font-medium">
                                         Crop Type <span class="text-destructive">*</span>
                                         <span class="block text-xs font-normal text-muted-foreground">Uri ng pananim</span>
                                     </label>
-                                    <select :name="`crops[${index}][crop_id]`" x-model="row.crop_id" required
-                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                                    <input type="hidden" :name="`crops[${index}][crop_id]`" :value="row.crop_id" x-show="false" :disabled="! row.record_id">
+                                    <select :name="row.record_id ? null : `crops[${index}][crop_id]`" x-model="row.crop_id"
+                                            :required="! row.record_id" :disabled="!! row.record_id"
+                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm disabled:bg-muted disabled:text-muted-foreground">
                                         <option value="">Select a crop</option>
                                         <template x-for="crop in cropList" :key="crop.id">
                                             <option :value="crop.id" x-text="crop.name"></option>
@@ -189,7 +236,7 @@
                                         </span>
                                     </label>
                                     <input type="text" :name="`crops[${index}][crop_specify]`"
-                                           x-model="row.crop_specify" maxlength="100"
+                                           x-model="row.crop_specify" maxlength="100" :readonly="!! row.record_id"
                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
                                 </div>
 
@@ -213,8 +260,33 @@
                                         <span class="block text-xs font-normal text-muted-foreground">Petsa ng pagtatanim</span>
                                     </label>
                                     <input type="date" :name="`crops[${index}][date_planted]`"
-                                           x-model="row.date_planted" required max="{{ now()->toDateString() }}"
-                                           class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                                           x-model="row.date_planted" required
+                                           :readonly="!! row.record_id" :max="row.record_id ? null : (plantedMax() || null)"
+                                           class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm read-only:bg-muted read-only:text-muted-foreground">
+
+                                    <p x-show="row.record_id" x-cloak class="text-xs text-muted-foreground">
+                                        Taken from your Crop Planted report. To change it, correct that report or choose
+                                        "I will enter it myself".
+                                    </p>
+                                    <p x-show="! row.record_id && ! officialDate()" class="text-xs text-muted-foreground">
+                                        Choose the event in the next section and this date is checked against its official date.
+                                    </p>
+                                    <p x-show="! row.record_id && officialDate()" x-cloak class="text-xs text-muted-foreground">
+                                        Must be before the disaster date,
+                                        <span x-text="fmt(officialDate())"></span>.
+                                    </p>
+                                    <p x-show="! row.record_id && plantedTooLate(row)" x-cloak class="text-xs font-medium text-destructive">
+                                        The actual planting date must be before the disaster date.
+                                    </p>
+                                </div>
+
+                                {{-- A date that came from a record is never refused, but a
+                                     disagreement is not hidden either. --}}
+                                <div x-show="row.record_id && recordConflict(row)" x-cloak
+                                     class="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/60 px-4 py-3 text-xs text-amber-900 dark:text-amber-200 sm:col-span-2 xl:col-span-3">
+                                    <span class="block font-semibold">This record contains a date inconsistency and requires MAO review.</span>
+                                    <span x-text="recordConflict(row)"></span>
+                                    Your report will still be submitted. The Municipal Agriculture Office will review the dates.
                                 </div>
 
                                 <div class="space-y-1.5 sm:col-span-2 xl:col-span-3">
@@ -343,13 +415,17 @@
             {{-- =============================================================
                  3. CAUSE OF DAMAGE
 
+                 The official disaster date of the event chosen here is what the
+                 planting dates above and the damage date below are checked
+                 against, in whichever order the farmer fills them in.
+
                  The cause is asked first and is always answerable. Linking to
                  a declared event only appears underneath when the cause is
                  weather AND the office has actually declared an event of that
                  kind, because for pests, disease and heat there is nothing to
                  link to and asking would just be a dead end.
             ============================================================== --}}
-            <x-ui.card title="3. What caused the damage?"
+            <x-ui.card title="3. What caused the damage, and when?"
                        description="Ano ang sanhi ng pinsala?">
 
                 <fieldset>
@@ -408,6 +484,23 @@
                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
                 </div>
 
+                {{-- A typhoon report has to say which typhoon it was. Required
+                     whenever Typhoon is the chosen cause. --}}
+                <div x-show="cause === 'typhoon'" x-cloak class="mt-4">
+                    <label for="typhoon_name" class="mb-1.5 block text-sm font-medium">
+                        Name of the typhoon <span class="text-destructive">*</span>
+                        <span class="block text-xs font-normal text-muted-foreground">
+                            Pangalan ng bagyo
+                        </span>
+                    </label>
+                    {{-- Seeded through typhoonName in the x-data, like the
+                         "Other" field above, so it survives a failed submit. --}}
+                    <input id="typhoon_name" type="text" name="typhoon_name" maxlength="120"
+                           x-model="typhoonName" :required="cause === 'typhoon'"
+                           placeholder="e.g. Egay, Odette, Kristine"
+                           class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                </div>
+
                 {{-- ---------- Declared events ---------- --}}
                 <div x-show="needsEvent()" x-cloak class="mt-5 border-t border-border pt-5">
                     <p class="text-sm font-semibold">
@@ -439,7 +532,7 @@
                                 {{-- Filtered to events that match the chosen cause.
                                      Showing every typhoon on record when the farmer
                                      said "flood" just makes the list harder to read. --}}
-                                <select :name="`disasters[${index}]`" x-model="row.id"
+                                <select :name="`disasters[${index}]`" x-model="row.id" :disabled="! needsEvent()"
                                         class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
                                     <option value="">Select an event</option>
                                     <template x-for="disaster in eventsForCause()" :key="disaster.id">
@@ -461,7 +554,61 @@
                             </svg>
                             Add another event
                         </button>
+
+                        {{-- Several events: which one is the main one? Never required,
+                             and never stops the report. --}}
+                        <div x-show="severalEvents()" x-cloak class="rounded-xl border border-border bg-muted/40 p-4">
+                            <p class="text-sm font-semibold">Which one is the main event?</p>
+                            <p class="mt-0.5 text-xs text-muted-foreground">
+                                Your dates are checked against the main event's disaster date. If you are not sure,
+                                leave it blank: your report will still be submitted and the office will review the dates.
+                            </p>
+                            <div class="mt-2 space-y-1.5">
+                                <template x-for="d in chosenEvents()" :key="d.id">
+                                    <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+                                        <input type="radio" name="primary_disaster" :value="d.id" x-model="primaryId"
+                                               class="h-4 w-4 accent-[var(--primary)]">
+                                        <span x-text="d.label + (d.when ? ' (' + d.when + ')' : '')"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                {{-- ---------- When it was damaged ----------
+                     The ACTUAL date of the damage. The date this form is sent is
+                     recorded separately, by the server. Only the official disaster
+                     date limits this field; today's date does not. --}}
+                <div class="mt-5 border-t border-border pt-5">
+                    <label for="date_damaged" class="mb-1.5 block text-sm font-medium">
+                        Date the crop was damaged <span class="text-destructive">*</span>
+                        <span class="block text-xs font-normal text-muted-foreground">
+                            Petsa kung kailan nasira ang pananim
+                        </span>
+                    </label>
+                    <input id="date_damaged" type="date" name="date_damaged" x-model="dateDamaged" required
+                           :min="damageMin() || null"
+                           class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm sm:max-w-xs">
+
+                    <p x-show="officialDate()" x-cloak class="mt-1.5 text-xs text-muted-foreground">
+                        Disaster date recorded by the office: <strong x-text="fmt(officialDate())"></strong>.
+                        The actual crop damage date must be after it.
+                    </p>
+                    <p x-show="severalEvents() && ! officialDate()" x-cloak class="mt-1.5 text-xs text-amber-700 dark:text-amber-300">
+                        You chose more than one event and no main event, so the dates cannot be checked against a disaster date.
+                        Your report will still be submitted and the office will review the dates.
+                    </p>
+                    <p x-show="needsEvent() && ! chosenEvents().length" x-cloak class="mt-1.5 text-xs text-muted-foreground">
+                        Please select the relevant recorded disaster to validate the crop damage date.
+                        You can still submit without choosing one; the office will review the dates.
+                    </p>
+                    <p x-show="! officialDate() && ! severalEvents() && ! (needsEvent() && ! chosenEvents().length)" class="mt-1.5 text-xs text-muted-foreground">
+                        The day the damage happened, not the day you are filling in this form.
+                    </p>
+                    <p x-show="damageDateTooEarly()" x-cloak class="mt-1.5 text-xs font-medium text-destructive">
+                        The actual crop damage date must be after the disaster date.
+                    </p>
                 </div>
 
                 {{-- Weather cause, but the office has not declared anything of
@@ -710,9 +857,10 @@
 
 @push('scripts')
 <script>
-    function damageReportForm(cropList, disasterList, farmSize, causeList, weatherCauses, causesWithEvents, maxCrops) {
+    function damageReportForm(cropList, disasterList, farmSize, causeList, weatherCauses, causesWithEvents, maxCrops, plantingList) {
         return {
             cropList,
+            plantingList,
             disasterList,
             farmSize,
 
@@ -730,6 +878,13 @@
 
             cause: @js(old('damage_cause', '')),
             causeOther: @js(old('damage_cause_other', '')),
+            typhoonName: @js(old('typhoon_name', '')),
+
+            // The MAIN event, when more than one is chosen: the one the dates are checked against.
+            primaryId: @js((string) old('primary_disaster', '')),
+
+            // When the crop was actually damaged. The send date is recorded by the server.
+            dateDamaged: @js(old('date_damaged', '')),
 
             /* ---------- where the farm is (section 37) ----------
              |
@@ -782,6 +937,10 @@
             causeLabel() {
                 if (this.cause === 'other') {
                     return this.causeOther || 'Other';
+                }
+
+                if (this.cause === 'typhoon' && this.typhoonName) {
+                    return (this.causeList.typhoon || 'Typhoon') + ' (' + this.typhoonName + ')';
                 }
 
                 // The stored labels read "Typhoon / Bagyo".
@@ -857,6 +1016,145 @@
             },
 
             previews: [],
+
+            /* ---------- dates ----------
+               The rules, against the official date of the disaster recorded by
+               the office (never today's date):
+                 planting date  must be BEFORE it
+                 damage date    must be AFTER it (the disaster date itself fails both)
+               With one event, that is the disaster. With several, the dates are
+               checked against the MAIN event the farmer marks; none is picked for
+               them, and if they do not mark one the report is still accepted
+               and the office is told instead.
+               Plain YYYY-MM-DD strings compare correctly, so no Date objects. */
+            chosenEvents() {
+                if (! this.needsEvent()) {
+                    return [];
+                }
+
+                const valid = this.eventsForCause().map(d => String(d.id));
+
+                return this.disasters
+                    .filter(row => valid.includes(String(row.id)))
+                    .map(row => this.disasterList.find(d => String(d.id) === String(row.id)))
+                    .filter(Boolean);
+            },
+
+            severalEvents() {
+                return this.chosenEvents().length > 1;
+            },
+
+            /** The disaster date the dates are checked against: the one event, or the main one. */
+            mainEvent() {
+                const events = this.chosenEvents();
+
+                if (events.length === 1) {
+                    return events[0];
+                }
+
+                return events.find(d => String(d.id) === String(this.primaryId)) || null;
+            },
+
+            officialDate() {
+                return this.mainEvent()?.date || '';
+            },
+
+            shiftDay(iso, days) {
+                const [y, m, d] = iso.split('-').map(Number);
+                const moved = new Date(y, m - 1, d + days);
+
+                return moved.getFullYear() + '-' + String(moved.getMonth() + 1).padStart(2, '0')
+                    + '-' + String(moved.getDate()).padStart(2, '0');
+            },
+
+            fmt(iso) {
+                if (! iso) {
+                    return '';
+                }
+
+                const [y, m, d] = iso.split('-').map(Number);
+
+                return new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            },
+
+            /** The latest planting date a typed date may have: the day before the disaster. */
+            plantedMax() {
+                const official = this.officialDate();
+
+                if (official) {
+                    return this.shiftDay(official, -1);
+                }
+
+                return this.dateDamaged || '';
+            },
+
+            /** The earliest damage date the picker offers: the day after the disaster. */
+            damageMin() {
+                const official = this.officialDate();
+
+                return official ? this.shiftDay(official, 1) : '';
+            },
+
+            damageDateTooEarly() {
+                const official = this.officialDate();
+
+                return !! (official && this.dateDamaged && this.dateDamaged <= official);
+            },
+
+            plantedTooLate(row) {
+                const max = this.plantedMax();
+
+                return !! (max && row.date_planted && row.date_planted > max);
+            },
+
+            /* Crop Planted lines not already used by another crop block. */
+            availablePlantings(row) {
+                const taken = this.crops
+                    .filter(other => other !== row && other.record_id)
+                    .map(other => String(other.record_id));
+
+                return this.plantingList.filter(p => ! taken.includes(String(p.id)));
+            },
+
+            recordOf(row) {
+                return row.record_id
+                    ? this.plantingList.find(x => String(x.id) === String(row.record_id))
+                    : null;
+            },
+
+            pickRecord(row) {
+                const p = this.plantingList.find(x => String(x.id) === String(row.record_id));
+
+                if (p) {
+                    row.crop_id = String(p.crop_id);
+                    row.crop_specify = p.specify || '';
+                    row.date_planted = p.date || '';
+                } else {
+                    row.record_id = '';
+                    row.date_planted = '';
+                }
+            },
+
+            /** Why a record's date disagrees with the event, in a sentence; '' when it does not. */
+            recordConflict(row) {
+                if (! row.date_planted) {
+                    return '';
+                }
+
+                const official = this.officialDate();
+
+                if (official && row.date_planted >= official) {
+                    return 'The planting date on this Crop Planted report (' + this.fmt(row.date_planted)
+                        + ') is not before the disaster date (' + this.fmt(official) + ').';
+                }
+
+                if (this.dateDamaged && row.date_planted > this.dateDamaged) {
+                    return 'The planting date on this Crop Planted report (' + this.fmt(row.date_planted)
+                        + ') is after the date the crop was damaged.';
+                }
+
+                return '';
+            },
 
             /* ---------- crops ---------- */
 
@@ -994,6 +1292,11 @@
 
                     rows.push({ label: label, value: name });
                     rows.push({
+                        label: label + ' date planted',
+                        value: (row.date_planted ? this.fmt(row.date_planted) : 'Not set')
+                            + (row.record_id ? ' (from your Crop Planted report)' : ''),
+                    });
+                    rows.push({
                         label: label + ' damaged area',
                         value: (parseFloat(row.damaged_area_hectares) || 0).toFixed(2) + ' ha',
                     });
@@ -1019,6 +1322,11 @@
                 // one answer that decides how the office reads everything else.
                 rows.push({ label: 'Cause of damage', value: this.causeLabel() });
 
+                if (this.officialDate()) {
+                    rows.push({ label: 'Disaster date', value: this.fmt(this.officialDate()) });
+                }
+                rows.push({ label: 'Date the crop was damaged', value: this.dateDamaged ? this.fmt(this.dateDamaged) : 'Not set' });
+
                 const chosen = this.disasters
                     .map(row => this.disasterList.find(d => String(d.id) === String(row.id)))
                     .filter(Boolean)
@@ -1026,6 +1334,9 @@
 
                 if (chosen.length) {
                     rows.push({ label: 'Declared event(s)', value: chosen.join(', ') });
+                }
+                if (this.severalEvents()) {
+                    rows.push({ label: 'Main event', value: this.mainEvent() ? this.mainEvent().label : 'Not chosen' });
                 }
 
                 rows.push({ label: 'Total damaged area', value: this.totalArea().toFixed(2) + ' ha' });
@@ -1045,6 +1356,7 @@
             key: Math.random().toString(36).slice(2),
             crop_id: '',
             crop_specify: '',
+            record_id: '',
             damaged_area_hectares: '',
             date_planted: '',
 

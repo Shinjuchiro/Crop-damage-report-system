@@ -104,7 +104,7 @@ class AnnouncementController extends Controller
             'title'    => ['required', 'string', 'max:255'],
             'message'  => ['required', 'string', 'max:2000'],
             'category' => ['required', Rule::in(array_keys(self::CATEGORIES))],
-            'priority' => ['required', Rule::in(array_keys(NotificationBroadcast::PRIORITIES))],
+            'priority' => ['required', Rule::in(array_keys(NotificationBroadcast::selectablePriorities()))],
         ], [], [
             'category' => 'announcement type',
         ]);

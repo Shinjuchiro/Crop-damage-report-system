@@ -4,7 +4,9 @@ namespace App\Http\Controllers\MAO;
 
 use App\Http\Controllers\Controller;
 use App\Models\Association;
+use App\Models\CropPlantingRecord;
 use App\Models\DamageReport;
+use App\Models\Farmer;
 use App\Models\Validation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -47,74 +49,58 @@ class DashboardController extends Controller
 
         /*
         |------------------------------------------------------------------
-        | Headline figures
+        | Headline figures (Oct 2026 revision: six cards)
         |------------------------------------------------------------------
+        | The "this month" cards are always the current calendar month. They
+        | do not follow the period dropdown, which now only drives the
+        | severity chart below. Every figure is counted live.
+        |
+        | WHICH DATE DECIDES THE MONTH
+        |   planting records   the date the record was filed (date_submitted)
+        |   damage reports     the date the report was filed (submitted_at,
+        |                      falling back to created_at on older rows)
+        |   validated reports  the date the technician submitted the
+        |                      inspection (validations.validated_at)
+        | Archived and deleted records are left out, the same as every list.
         */
-        /* active() is what keeps this page agreeing with the lists it
-           summarises: it drops archived and deleted reports, the same way
-           Damage Reports, Validation, the Map and the monthly report all do
-           (Oct 2026 decision). Without it the dashboard was the one screen
-           in the system still counting records the office had taken out of
-           circulation, so a figure here could be higher than the list it
-           sits above. */
-        $reportsInPeriod = DamageReport::query()
+        $monthStart = Carbon::now()->startOfMonth();
+        $monthEnd   = Carbon::now()->endOfMonth();
+
+        $totalAssociations = Association::active()->count();
+
+        // "Registered" = the same farmers the Farmers page lists as verified:
+        // an approved (active) account that has not been deleted.
+        $registeredFarmers = Farmer::notDeleted()
+            ->whereHas('user', fn ($user) => $user->where('status', 'active'))
+            ->count();
+
+        $plantingThisMonth = CropPlantingRecord::active()
+            ->whereBetween('date_submitted', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->count();
+
+        $damageThisMonth = DamageReport::query()
             ->active()
-            ->when($since, fn ($query) => $query->where('created_at', '>=', $since));
-
-        $totalReports = (clone $reportsInPeriod)->count();
-
-        $affectedFarmers = (clone $reportsInPeriod)->distinct('farmer_id')->count('farmer_id');
-
-        $activeReports = (clone $reportsInPeriod)
-            ->whereIn('status', ['pending', 'assigned', 'under_verification', 'flagged'])
+            ->whereBetween(DB::raw('COALESCE(submitted_at, created_at)'), [$monthStart, $monthEnd])
             ->count();
 
-        $validatedReports = (clone $reportsInPeriod)
-            ->whereIn('status', ['verified', 'approved'])
+        $validatedThisMonth = Validation::query()
+            ->whereHas('damageReport', fn ($report) => $report->active())
+            ->whereNotNull('validated_at')
+            ->whereBetween('validated_at', [$monthStart, $monthEnd])
             ->count();
 
-        /* THE NUMERATOR HAS TO COME OUT OF THE DENOMINATOR
-           (fixed Oct 2026: the card read 200%)
+        /* ASSISTANCE RECEIPT RATE
+           Farmers who confirmed receiving assistance, out of the farmers
+           whose distribution has been recorded. Counted per farmer, so a
+           farmer with two distributions is one person, and the rate can
+           never pass 100%. All time, not just this month. No distribution
+           recorded yet shows "no data" rather than a misleading 0%. */
+        $withDistribution = DB::table('assistance_distributions')
+            ->distinct('farmer_id')->count('farmer_id');
 
-           This counts the farmers behind "Assistance Distributed", which the
-           card prints as a percentage "of affected farmers". For that
-           sentence to be true, every farmer counted here has to also be one
-           of the $affectedFarmers above - same period, same set of reports.
-
-           It used to be neither. The old version counted every confirmed
-           receipt the office had ever recorded, with no period and no link
-           back to the reports in view, and divided it by the farmers
-           affected in the selected period. In a month with one affected
-           farmer and two historical receipts on file, that is 200%, which
-           is what the office saw. It is not a rounding problem: the two
-           populations were different in kind, because a farmer can receive
-           assistance for a report filed months before the one in view.
-
-           Joining through damage_reports fixes it at the root rather than
-           by clamping the result at 100, which would have hidden the
-           mismatch instead of removing it. The period filter and the
-           archived/deleted exclusions come along for free, because they are
-           the ones already applied to $reportsInPeriod.
-
-           Two details that make this provably a subset rather than merely
-           a closer guess. The join is an inner one and loses nothing:
-           damage_report_id on assistance_distributions is NOT NULL and
-           constrained (migration 2024_01_01_000020), so every distribution
-           has exactly one report behind it - "which report made them
-           eligible", in that migration's own words. And it counts
-           dr.farmer_id, not ad.farmer_id: those should always be the same
-           person, but it is dr.farmer_id that $affectedFarmers counted, so
-           taking it from the same column is what guarantees the ratio
-           cannot climb above 100% even if a row is ever written with the
-           two disagreeing. */
-        $beneficiaries = DB::table('assistance_distributions as ad')
-            ->join('damage_reports as dr', 'dr.id', '=', 'ad.damage_report_id')
-            ->whereNull('dr.archived_at')
-            ->whereNull('dr.deleted_at')
-            ->where('ad.receipt_status', 'confirmed_received')
-            ->when($since, fn ($query) => $query->where('dr.created_at', '>=', $since))
-            ->distinct('dr.farmer_id')
-            ->count('dr.farmer_id');
+        $confirmedReceipt = DB::table('assistance_distributions')
+            ->where('receipt_status', 'confirmed_received')
+            ->distinct('farmer_id')->count('farmer_id');
 
         // Office-wide, not scoped to the period filter above - a dispute
         // from three months ago is just as unresolved today as a new one.
@@ -125,11 +111,15 @@ class DashboardController extends Controller
             ->count();
 
         $headline = [
-            'affected_farmers' => $affectedFarmers,
-            'active_reports'   => $activeReports,
-            'validated_rate'   => $totalReports > 0 ? round($validatedReports / $totalReports * 100) : 0,
-            'assistance_rate'  => $affectedFarmers > 0 ? round($beneficiaries / $affectedFarmers * 100) : 0,
-            'period_label'     => self::PERIODS[$period],
+            'associations'       => $totalAssociations,
+            'farmers'            => $registeredFarmers,
+            'planting_month'     => $plantingThisMonth,
+            'damage_month'       => $damageThisMonth,
+            'validated_month'    => $validatedThisMonth,
+            'receipt_rate'       => $withDistribution > 0 ? (int) round($confirmedReceipt / $withDistribution * 100) : null,
+            'receipt_confirmed'  => $confirmedReceipt,
+            'receipt_recorded'   => $withDistribution,
+            'month_label'        => $monthStart->format('F Y'),
         ];
 
         /*

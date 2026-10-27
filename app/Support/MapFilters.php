@@ -32,13 +32,24 @@ class MapFilters
         'custom'     => 'Custom Date Range',
     ];
 
-    /** Matches DamageReport.damage_cause; 'other' also covers pests, disease and heat. */
+    /**
+     * Matches DamageReport.damage_cause. 'other' also covers anything not
+     * listed here, including reports filed under the retired pest infestation
+     * and plant disease causes.
+     */
     public const DISASTERS = [
-        'typhoon'      => 'Typhoon',
-        'flood'        => 'Flood',
-        'drought'      => 'Drought',
-        'strong_winds' => 'Strong Winds',
-        'other'        => 'Other',
+        'typhoon'               => 'Typhoon',
+        'flood'                 => 'Flood',
+        'drought'               => 'Drought',
+        'storm_surge'           => 'Storm Surge',
+        'soil_erosion'          => 'Soil Erosion',
+        'landslide'             => 'Landslide',
+        'saltwater_intrusion'   => 'Saltwater Intrusion',
+        'sea_level_rise'        => 'Sea Level Rise',
+        'heat_stress'           => 'Extreme Heat',
+        'pest_disease_outbreak' => 'Pest and Disease Outbreak',
+        'strong_winds'          => 'Strong Winds',
+        'other'                 => 'Other',
     ];
 
     /** Technician only. Each label covers the report statuses the technician map already groups together. */
@@ -98,12 +109,13 @@ class MapFilters
         [$from, $to] = self::window($f);
 
         return $query
-            ->when($from, fn ($q) => $q->where('damage_reports.created_at', '>=', $from))
-            ->when($to, fn ($q) => $q->where('damage_reports.created_at', '<=', $to))
+            // By the day the damage happened (the filing day only for older
+            // reports that have no damage date) - see scopeOccurredBetween().
+            ->occurredBetween($from, $to)
             ->when($f['disaster'] !== '', function ($q) use ($f) {
                 $f['disaster'] === 'other'
                     ? $q->where(fn ($w) => $w->whereNull('damage_reports.damage_cause')
-                        ->orWhereNotIn('damage_reports.damage_cause', ['typhoon', 'flood', 'drought', 'strong_winds']))
+                        ->orWhereNotIn('damage_reports.damage_cause', array_diff(array_keys(self::DISASTERS), ['other'])))
                     : $q->where('damage_reports.damage_cause', $f['disaster']);
             })
             ->when($f['severity'] !== '', fn ($q) => $q

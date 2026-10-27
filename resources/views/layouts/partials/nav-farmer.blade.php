@@ -58,6 +58,15 @@
             'badge'       => $reportsNeedingAttention,
             'badge_label' => 'with a status update',
         ],
+        /* One plain history of everything filed, planting and damage together.
+           A look-up page: farmers cannot generate, print or export reports. */
+        [
+            'label'   => 'My Reports',
+            'filipino'=> 'Aking mga Ulat',
+            'route'   => 'farmer.my-reports.index',
+            'pattern' => 'farmer.my-reports.*',
+            'icon'    => 'M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4',
+        ],
         /* My Profile has no entry here: it is in the account menu at the top
            right (with Account Settings and Log Out), so a second link in the
            sidebar only repeated it. The Membership Application record is

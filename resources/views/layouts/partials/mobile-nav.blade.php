@@ -103,6 +103,7 @@
                this role in line with the other three, which have always been
                four tabs plus More. */
             'more' => [
+                ['label' => 'My Reports',             'fil' => 'Aking mga Ulat',          'route' => 'farmer.my-reports.index',  'icon' => $ico['reports']],
                 ['label' => 'Need Help',              'fil' => 'Kailangan ng Tulong',     'route' => 'help',                     'icon' => $ico['help']],
             ],
         ],

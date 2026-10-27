@@ -67,6 +67,7 @@ class ValidationMonitorController extends Controller
             : $inspected->latest()->paginate(15)->withQueryString();
 
         \App\Support\PlantingMatch::annotate($reports->getCollection());
+        \App\Support\DateCheck::annotate($reports->getCollection());
 
         // The same definitions as the dashboard cards (App\Support\MonitorStats),
         // so this row can never disagree with the dashboard or with the list.
@@ -83,6 +84,7 @@ class ValidationMonitorController extends Controller
 
         if ($selected) {
             \App\Support\PlantingMatch::annotate([$selected]);
+            \App\Support\DateCheck::annotate([$selected]);
         }
 
         return view('mao.validations.index', [
@@ -117,6 +119,7 @@ class ValidationMonitorController extends Controller
             ->get();
 
         \App\Support\PlantingMatch::annotate($reports);
+        \App\Support\DateCheck::annotate($reports);
 
         $rows = $reports->map(function ($report) {
             $validation = $report->validation;

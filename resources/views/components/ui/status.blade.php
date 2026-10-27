@@ -122,8 +122,8 @@
         // Alert priority
         'normal'             => ['outline', 'Normal'],
         'important'          => ['neutral', 'Important'],
-        'urgent'             => ['warning', 'Urgent'],
-        'critical'           => ['danger',  'Critical'],
+        'urgent'             => ['warning', 'Urgent / Critical'],
+        'critical'           => ['danger',  'Urgent / Critical'],
     ];
 
     [$variant, $label] = $map[$key] ?? ['default', ucwords(str_replace('_', ' ', (string) $value))];

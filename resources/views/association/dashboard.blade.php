@@ -35,12 +35,13 @@
          so the rows are always even (3 + 3) and no card is stretched wider. --}}
     <div class="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <x-ui.stat label="Total Members" :value="number_format($summary['total_members'])"
-                   hint="Kabuuang kasapi"
+                   hint="Farmers in your association"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9"
                    :href="route('association.members.index')" />
 
         <x-ui.stat label="Active Members" :value="number_format($summary['active_members'])"
-                   tone="primary" :hint="'Active in the last ' . \App\Models\Farmer::INACTIVITY_MONTHS . ' months'"
+                   tone="primary"
+                   :hint="'Planting activity within the last ' . \App\Models\Farmer::INACTIVITY_MONTHS . ' months'"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6"
                    :href="route('association.members.index', ['status' => 'active'])" />
 
@@ -49,18 +50,23 @@
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM17 11h5"
                    :href="route('association.members.index', ['status' => 'inactive'])" />
 
-        <x-ui.stat label="Affected Members" :value="number_format($summary['affected_members'])"
-                   tone="warning" hint="Have filed a damage report"
-                   icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z"
-                   :href="route('association.members.index', ['affected' => 'yes'])" />
+        <x-ui.stat label="Members with Planting Records This Month"
+                   :value="number_format($summary['members_planting_month'])"
+                   :suffix="'of ' . number_format($summary['total_members'])"
+                   hint="Submitted a planting record this month"
+                   icon="M12 21v-8m0 0C12 9 9 6 5 6c0 4 3 7 7 7zm0 0c0-4 3-7 7-7 0 4-3 7-7 7z"
+                   :href="route('association.planting.index')" />
 
-        <x-ui.stat label="Damage Reports" :value="number_format($summary['total_reports'])"
-                   icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01"
+        <x-ui.stat label="Members Reporting Damage This Month"
+                   :value="number_format($summary['members_damage_month'])"
+                   :suffix="'of ' . number_format($summary['total_members'])"
+                   tone="warning" hint="Submitted a damage report this month"
+                   icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z"
                    :href="route('association.reports.index')" />
 
-
-        <x-ui.stat label="Verified Reports" :value="number_format($summary['verified_reports'])"
-                   tone="primary" hint="Eligible for assistance"
+        <x-ui.stat label="Verified Damage Reports This Month"
+                   :value="number_format($summary['verified_month'])"
+                   tone="primary" hint="Technical validation completed this month"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"
                    :href="route('association.reports.index', ['status' => 'verified'])" />
     </div>

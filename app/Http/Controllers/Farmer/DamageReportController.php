@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Barangay;
 use App\Models\Crop;
 use App\Models\DamageReport;
+use App\Models\CropPlantingRecordCrop;
 use App\Models\Disaster;
 use App\Models\Farmer;
 use App\Models\NotificationBroadcast;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -127,21 +129,56 @@ class DamageReportController extends Controller
             // The farmer only chooses from them. Archived items are retired
             // from these lists (see app/Models/Concerns/Archivable.php).
             'crops'     => Crop::active()->inDisplayOrder()->get(),
-            'disasters' => Disaster::active()->orderByDesc('date_start')->orderBy('name')->get(),
+            'disasters' => Disaster::offeredToFarmers()->orderByDesc('date_start')->orderBy('name')->get(),
             'barangays' => Barangay::orderBy('name')->get(),
 
             // The cause list lives on the model, not in the database, because
             // it is a fixed vocabulary and not something the office edits.
-            'causes' => DamageReport::CAUSES,
+            'causes' => DamageReport::formCauses(),
 
             // Which causes currently have a declared event to link to. Used by
             // the form to decide whether to ask for one at all.
-            'causesWithEvents' => Disaster::distinct()->pluck('type')->all(),
+            'causesWithEvents' => Disaster::offeredToFarmers()->distinct()->pluck('type')->all(),
 
             // So the form stops at the same number the validation does. One
             // constant, two places that need it.
             'maxCrops' => self::MAX_CROPS,
+
+            // The farmer's own Crop Planted entries, so a crop (and the date
+            // they actually planted it) can be picked instead of remembered.
+            'plantingOptions' => $this->plantingOptions($farmer),
         ]);
+    }
+
+    /**
+     * The farmer's Crop Planted lines, shaped for the form's picker. Archived
+     * and deleted records are left out, and nobody else's are ever included.
+     */
+    private function plantingOptions(Farmer $farmer): array
+    {
+        return CropPlantingRecordCrop::query()
+            ->with('crop', 'plantingRecord')
+            ->whereHas('plantingRecord', fn ($q) => $q->where('farmer_id', $farmer->id)->active())
+            ->orderByDesc('date_planted')
+            ->get()
+            ->map(fn ($row) => [
+                'id'         => $row->id,
+                'crop_id'    => $row->crop_id,
+                'specify'    => $row->crop_specify,
+                'crop_name'  => $row->crop_specify ?: ($row->crop?->name ?? 'Crop'),
+                'date'       => $row->date_planted?->toDateString(),
+                'date_label' => $row->date_planted?->format('M d, Y'),
+                'area'       => $row->area_hectares,
+                // When it was RECORDED in the system, kept apart from the date
+                // the crop was actually planted (date / date_label above).
+                'recorded'   => $row->plantingRecord?->date_submitted?->format('M d, Y'),
+                // The system holds one registered farm per farmer, so that is
+                // the farm detail there is to show.
+                'farm'       => collect([$farmer->barangay?->name, $farmer->address])->filter()->implode(', '),
+                'reference'  => 'REC-' . str_pad((string) $row->crop_planting_record_id, 4, '0', STR_PAD_LEFT),
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -166,6 +203,15 @@ class DamageReportController extends Controller
                 'damage_cause'       => $data['damage_cause'],
                 'damage_cause_other' => $data['damage_cause'] === 'other'
                                             ? ($data['damage_cause_other'] ?? null) : null,
+                // The typhoon's name, only when the cause is a typhoon.
+                'typhoon_name'       => $data['damage_cause'] === 'typhoon'
+                                            ? trim($data['typhoon_name'] ?? '') : null,
+
+                /* Two dates, two columns. date_damaged is when the crop was
+                   actually damaged; submitted_at is when this form was sent.
+                   Neither is ever derived from the other. */
+                'date_damaged' => $data['date_damaged'],
+                'submitted_at' => now(),
 
                 'farm_location_description' => $data['farm_location_description'],
 
@@ -204,6 +250,9 @@ class DamageReportController extends Controller
             foreach ($data['crops'] as $crop) {
                 $report->crops()->create([
                     'crop_id'                  => $crop['crop_id'],
+                    // Set when the line was picked from a Crop Planted report;
+                    // the date below is then that record's own date.
+                    'crop_planting_record_crop_id' => $crop['planting_record_crop_id'] ?? null,
                     'crop_specify'             => $crop['crop_specify'] ?? null,
                     'damaged_area_hectares'    => $crop['damaged_area_hectares'],
                     'date_planted'             => $crop['date_planted'],
@@ -229,12 +278,19 @@ class DamageReportController extends Controller
             // Each row is tagged as farmer-linked so a technician correcting
             // or adding to this list later (Technician\InspectionController)
             // can tell which ones were the farmer's own choice.
+            // is_primary marks the MAIN event, the one the dates are checked
+            // against. With one event that is it; with several it is the one the
+            // farmer chose, if they chose.
+            $linked  = collect($data['disasters'] ?? []);
+            $primary = $this->primaryEventId($data);
+
             $report->disasters()->sync(
-                collect($data['disasters'] ?? [])->mapWithKeys(fn ($disasterId) => [
+                $linked->mapWithKeys(fn ($disasterId) => [
                     $disasterId => [
                         'linked_by'      => Auth::id(),
                         'linked_by_role' => 'farmer',
                         'created_at'     => now(),
+                        'is_primary'     => $primary !== null && (int) $disasterId === $primary,
                     ],
                 ])->all()
             );
@@ -365,10 +421,14 @@ class DamageReportController extends Controller
      */
     private function validated(Request $request): array
     {
+        // A line picked from the farmer's own Crop Planted reports takes its
+        // crop and planting date from that record, never from the browser.
+        $crops = $this->applyPlantingRecords($request->input('crops', []));
+
         // Same idea as the planting form. Crop 2 and Disaster 2 are
         // optional, so empty blocks are removed before validation runs.
         $request->merge([
-            'crops' => collect($request->input('crops', []))
+            'crops' => collect($crops)
                 ->filter(fn ($crop) => filled($crop['crop_id'] ?? null))
                 ->values()
                 ->all(),
@@ -384,11 +444,21 @@ class DamageReportController extends Controller
             // What ruined the crop. Required on every report, and always
             // answerable: the list covers pests, disease and heat as well as
             // the weather events the office declares.
-            'damage_cause'       => ['required', Rule::in(array_keys(DamageReport::CAUSES))],
+            'damage_cause'       => ['required', Rule::in(array_keys(DamageReport::formCauses()))],
+            // A typhoon report has to say which typhoon it was.
+            'typhoon_name'       => [
+                Rule::requiredIf(fn () => $request->input('damage_cause') === 'typhoon'),
+                'nullable', 'string', 'max:120',
+            ],
             'damage_cause_other' => [
                 Rule::requiredIf(fn () => $request->input('damage_cause') === 'other'),
                 'nullable', 'string', 'max:120',
             ],
+
+            /* The ACTUAL date the crop was damaged. Not capped at today: only the
+               official disaster date limits it (checked in assertDatesFollowEvent,
+               since that date comes from the event the farmer picked). */
+            'date_damaged'      => ['required', 'date', 'after_or_equal:2000-01-01'],
 
             'farm_location_description' => ['required', 'string', 'max:500'],
             'reported_barangay_id'      => ['nullable', Rule::exists('barangays', 'id')],
@@ -420,8 +490,10 @@ class DamageReportController extends Controller
             'crops'                            => ['required', 'array', 'min:1', 'max:' . self::MAX_CROPS],
             'crops.*.crop_id'                  => ['required', Rule::exists('crops', 'id')->whereNull('archived_at')],
             'crops.*.crop_specify'             => ['nullable', 'string', 'max:100'],
+            'crops.*.planting_record_crop_id'  => ['nullable', 'integer'],
             'crops.*.damaged_area_hectares'    => ['required', 'numeric', 'min:0.01', 'max:9999'],
-            'crops.*.date_planted'             => ['required', 'date', 'before_or_equal:today'],
+            // No "before today" cap any more: the limit is the disaster date.
+            'crops.*.date_planted'             => ['required', 'date', 'after_or_equal:2000-01-01'],
             'crops.*.estimated_damage_percent' => ['required', 'numeric', 'min:1', 'max:100'],
             'crops.*.production_cost'          => ['required', 'numeric', 'min:0', 'max:99999999'],
             'crops.*.farmgate_price_per_kg'    => ['required', 'numeric', 'min:0', 'max:99999'],
@@ -431,7 +503,19 @@ class DamageReportController extends Controller
             // assertDisasterLinkedWhenDeclared() below for the rule that
             // replaced it.
             'disasters'   => ['nullable', 'array'],
-            'disasters.*' => [Rule::exists('disasters', 'id')->whereNull('archived_at')],
+            // The main event, when several are linked. Optional: leaving it out
+            // never blocks a report (it is flagged for the office instead).
+            'primary_disaster' => ['nullable', 'integer'],
+            'disasters.*' => [
+                Rule::exists('disasters', 'id')->whereNull('archived_at'),
+                // Only events a farmer is actually offered: not one whose
+                // advisory is still scheduled or never went out.
+                function ($attribute, $value, $fail) {
+                    if (! Disaster::offeredToFarmers()->whereKey($value)->exists()) {
+                        $fail('That disaster event is not open for reports yet. Please choose another.');
+                    }
+                },
+            ],
 
             // Section 35: validate file type and size before storing anything.
             'photos'   => ['nullable', 'array', 'max:' . self::MAX_PHOTOS],
@@ -441,6 +525,8 @@ class DamageReportController extends Controller
             'crops.required'                            => 'Please add at least one damaged crop.',
             'crops.max'                                 => 'One report can cover up to ' . self::MAX_CROPS
                 . ' crops. Please submit the rest as a separate report.',
+            'date_damaged.required'                     => 'Please enter the date the crop was damaged.',
+            'crops.*.date_planted.required'             => 'Please enter the date you planted this crop, or choose it from your Crop Planted reports.',
             'crops.*.crop_id.required'                  => 'Please choose the damaged crop.',
             'crops.*.damaged_area_hectares.required'    => 'Please give the damaged area in hectares.',
             'crops.*.estimated_damage_percent.required' => 'Please give your estimate of the damage.',
@@ -448,6 +534,7 @@ class DamageReportController extends Controller
             'crops.*.farmgate_price_per_kg.required'    => 'Please give the farmgate price per kilogram.',
             'damage_cause.required'                     => 'Please choose what caused the damage.',
             'damage_cause_other.required'               => 'Please say briefly what caused the damage.',
+            'typhoon_name.required'                     => 'Please give the name of the typhoon, for example Egay or Odette.',
             'photos.max'                                => 'Please upload no more than ' . self::MAX_PHOTOS . ' photos.',
             'photos.*.image'                            => 'Each file must be a photo.',
             'photos.*.max'                              => 'Each photo must be 5 MB or smaller.',
@@ -462,55 +549,166 @@ class DamageReportController extends Controller
         $this->assertHvccSpecified($validated['crops']);
         $this->assertDamagedAreaFits($validated['crops']);
         $this->assertDisasterLinkedWhenDeclared($validated);
+        $this->assertDisasterMatchesCause($validated);
+        $this->assertDatesFollowEvent($validated);
 
         return $validated;
     }
 
     /**
-     * Link the report to a declared event, but only when there is one.
+     * Fill in crop, specify and planting date for every line that was picked
+     * from a Crop Planted report.
      *
-     * This is what replaced "Disaster 1 is required" from section 33.
-     *
-     * The old rule blocked every report until the MAO had created a disaster
-     * record, which meant a farmer losing corn to army worm could not file at
-     * all. But the office still wants typhoon and flood reports grouped under
-     * the event they belong to, otherwise the monthly report cannot say how
-     * much damage Typhoon Kristine did.
-     *
-     * So: if the farmer says the cause was weather, AND the office has
-     * actually declared an event of that kind, they have to say which one.
-     * In every other case the cause on the report is the whole answer and
-     * nothing is blocked.
+     * A line may only point at a record that belongs to THIS farmer and is not
+     * archived or deleted. Anything else is refused. The record's date is
+     * copied as it stands, even when it disagrees with the disaster date: the
+     * report is not rejected for that (it is flagged for the MAO instead, see
+     * App\Support\DateCheck).
      */
-    private function assertDisasterLinkedWhenDeclared(array $validated): void
+    private function applyPlantingRecords(array $crops): array
     {
-        $cause = $validated['damage_cause'];
+        $ids = collect($crops)->pluck('planting_record_crop_id')->filter()->unique()->values();
 
-        if (! in_array($cause, DamageReport::WEATHER_CAUSES, true)) {
-            return;                       // pest, disease, heat, other
+        if ($ids->isEmpty()) {
+            return $crops;
         }
 
-        if (filled($validated['disasters'] ?? [])) {
-            return;                       // they already linked one
+        $farmerId = $this->farmer()->id;
+
+        $records = CropPlantingRecordCrop::query()
+            ->whereIn('id', $ids)
+            ->whereHas('plantingRecord', fn ($q) => $q->where('farmer_id', $farmerId)->active())
+            ->get()
+            ->keyBy('id');
+
+        foreach ($crops as $index => $crop) {
+            $id = $crop['planting_record_crop_id'] ?? null;
+
+            if (blank($id)) {
+                $crops[$index]['planting_record_crop_id'] = null;
+                continue;
+            }
+
+            $record = $records->get((int) $id);
+
+            if (! $record) {
+                throw ValidationException::withMessages([
+                    "crops.{$index}.planting_record_crop_id" =>
+                        'That Crop Planted report could not be found. Please choose it again or enter the planting date yourself.',
+                ]);
+            }
+
+            $crops[$index]['planting_record_crop_id'] = $record->id;
+            $crops[$index]['crop_id']       = $record->crop_id;
+            $crops[$index]['crop_specify']  = $record->crop_specify;
+            $crops[$index]['date_planted']  = $record->date_planted?->toDateString();
         }
 
-        // Nothing declared of this kind yet, so there is nothing to link to
-        // and the report goes through as it is. An archived event does not
-        // count either: it is exactly what happens once the office archives
-        // last season's typhoon, and new reports should not be forced to
-        // link to a closed-out record.
-        if (! Disaster::active()->where('type', $cause)->exists()) {
+        return $crops;
+    }
+
+    /**
+     * The id of the report's MAIN event: the only linked event, or the one the
+     * farmer marked when several are linked. Null when none (or several and
+     * none marked, or a mark that is not one of the linked events).
+     */
+    private function primaryEventId(array $data): ?int
+    {
+        $linked = collect($data['disasters'] ?? [])->map(fn ($id) => (int) $id)->values();
+
+        if ($linked->count() === 1) {
+            return $linked->first();
+        }
+
+        $chosen = isset($data['primary_disaster']) && $data['primary_disaster'] !== ''
+            ? (int) $data['primary_disaster'] : null;
+
+        return $chosen !== null && $linked->contains($chosen) ? $chosen : null;
+    }
+
+    /**
+     * The two date rules, against the official disaster date.
+     *
+     *   planting date  must be BEFORE the disaster date (strictly earlier)
+     *   damage date    must be AFTER the disaster date (strictly later)
+     *
+     * The disaster date itself fails both. It is always the date recorded on
+     * the disaster the farmer linked: never today, and never the day an
+     * advisory was written or sent, so a report filed months later is held to
+     * the same dates.
+     *
+     * Only NEW typed dates are refused. A planting date copied from a Crop
+     * Planted report is accepted whatever it says, so a report is never
+     * rejected because an old planting record has a wrong date; the
+     * disagreement is flagged for the MAO instead (App\Support\DateCheck).
+     *
+     * WHICH DISASTER? A report can be linked to several events. The dates are
+     * checked against its MAIN event: the only one, or the one the farmer marked
+     * as the main one. If there are several and none is marked, no date is picked
+     * for them: the report is still accepted and DateCheck flags it for the MAO.
+     *
+     * With no linked event there is no disaster date to compare to, so the one
+     * thing left to check is that a typed planting date is not after the
+     * damage date.
+     */
+    private function assertDatesFollowEvent(array $validated): void
+    {
+        $damaged  = Carbon::parse($validated['date_damaged'])->startOfDay();
+        $noEvent  = blank($validated['disasters'] ?? []);
+        $mainId   = $this->primaryEventId($validated);
+        $mainDate = $mainId ? Disaster::whereKey($mainId)->value('date_start') : null;
+        $official = $mainDate ? Carbon::parse($mainDate)->startOfDay() : null;
+
+        $errors = [];
+
+        if ($official && $damaged->lte($official)) {
+            $errors['date_damaged'] = 'The actual crop damage date must be after the disaster date. '
+                . 'The disaster date is ' . $official->format('F j, Y') . '.';
+        }
+
+        foreach ($validated['crops'] as $index => $crop) {
+            if (! empty($crop['planting_record_crop_id'])) {
+                continue;                 // from a record: accepted, flagged later
+            }
+
+            $planted = Carbon::parse($crop['date_planted'])->startOfDay();
+
+            if ($official && $planted->gte($official)) {
+                $errors["crops.{$index}.date_planted"] = 'The actual planting date must be before the disaster date. '
+                    . 'The disaster date is ' . $official->format('F j, Y') . '.';
+            } elseif ($noEvent && $planted->gt($damaged)) {
+                $errors["crops.{$index}.date_planted"] = 'The planting date cannot be after the date the crop was damaged.';
+            }
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * A linked disaster has to be of the kind the farmer said caused the damage.
+     *
+     * The form only offers events that match the chosen cause, so this only
+     * ever refuses a form that was edited or left half-changed (cause switched
+     * after an event was picked). Without it, a typhoon's date could end up
+     * judging a drought report.
+     */
+    private function assertDisasterMatchesCause(array $validated): void
+    {
+        if (blank($validated['disasters'] ?? [])) {
             return;
         }
 
-        // The labels read "Typhoon / Bagyo", so take the English half for
-        // the middle of a sentence.
-        $label = strtolower(explode(' / ', DamageReport::CAUSES[$cause])[0]);
+        $mismatch = Disaster::whereIn('id', $validated['disasters'])
+            ->where('type', '!=', $validated['damage_cause'])
+            ->exists();
 
-        throw ValidationException::withMessages([
-            'disasters' => 'The office has already recorded ' . $label
-                . ' events. Please choose the one that damaged your crop, so your report is counted with it.',
-        ]);
+        if ($mismatch) {
+            throw ValidationException::withMessages([
+                'disasters' => 'The disaster event you chose does not match the cause of damage. Please choose an event of the same kind.',
+            ]);
+        }
     }
 
     /**

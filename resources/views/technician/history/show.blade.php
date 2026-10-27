@@ -6,6 +6,7 @@
 @section('subheading', 'Planted, reported, inspected. The whole chain in the order it happened.')
 
 @section('header-actions')
+    <x-ui.button variant="outline" :href="route('technician.history.pdf', $validation)">Print / Download PDF</x-ui.button>
     <x-ui.button variant="outline" :href="route('technician.history.index')">Back to Inspection History</x-ui.button>
 @endsection
 

@@ -48,25 +48,25 @@
     <div class="stagger mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <x-ui.stat label="Planting Records"
                    :value="number_format($plantingCount)"
-                   hint="Mga naitalang pagtatanim"
+                   :hint="'You have submitted ' . number_format($plantingCount) . ' crop planting ' . ($plantingCount === 1 ? 'record' : 'records')"
                    icon="M12 21v-8m0 0C12 9 9 6 5 6c0 4 3 7 7 7zm0 0c0-4 3-7 7-7 0 4-3 7-7 7z"
                    :href="route('farmer.planting.index')" />
 
         <x-ui.stat label="Damage Reports"
                    :value="number_format($reportTotal)"
-                   hint="Mga isinumiteng ulat"
+                   :hint="'You have submitted ' . number_format($reportTotal) . ' crop damage ' . ($reportTotal === 1 ? 'report' : 'reports')"
                    icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
 
         <x-ui.stat label="Awaiting Verification"
                    :value="number_format($pendingReports)"
                    tone="warning"
-                   hint="Hinihintay ang technician"
+                   :hint="number_format($pendingReports) . ' of your ' . number_format($reportTotal) . ' damage ' . ($reportTotal === 1 ? 'report is' : 'reports are') . ' awaiting technical verification'"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2" />
 
         <x-ui.stat label="Verified Reports"
                    :value="number_format($verifiedReports)"
                    tone="primary"
-                   hint="Nasuri na ng technician"
+                   :hint="number_format($verifiedReports) . ' of your damage ' . ($verifiedReports === 1 ? 'report has' : 'reports have') . ' completed technical assessment'"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
     </div>
 

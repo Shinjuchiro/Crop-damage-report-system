@@ -105,6 +105,12 @@
                                      :options="['unassigned' => 'Not Assigned', 'assigned' => 'Assigned']"
                                      :selected="request('assignment')" class="sm:w-44" />
 
+                        {{-- Dates against the official disaster date. Separate from
+                             the planting match: this is about the dates, not the record. --}}
+                        <x-ui.select name="date_review" placeholder="Any Dates" onchange="this.form.submit()"
+                                     :options="['review' => 'Dates Need Review', 'reviewed' => 'Dates Reviewed']"
+                                     :selected="request('date_review')" class="sm:w-48" />
+
                         <x-ui.select name="planting_match" placeholder="Any Crop Planting" onchange="this.form.submit()"
                                      :options="['matched' => 'Matching Record Found', 'mismatch' => 'No Matching Planting Record', 'none' => 'No Planting Record Found']"
                                      :selected="request('planting_match')" class="sm:w-60" />
@@ -125,7 +131,7 @@
                                           placeholder:text-muted-foreground focus:border-primary focus:outline-none">
                         </div>
 
-                        @if (request()->hasAny(['search', 'association_id', 'disaster_id', 'assignment', 'planting_match']))
+                        @if (request()->hasAny(['search', 'association_id', 'disaster_id', 'assignment', 'planting_match', 'date_review']))
                             <a href="{{ route('mao.damage-reports.index') }}" class="text-sm text-muted-foreground hover:text-foreground">Clear</a>
                         @endif
                     </form>
@@ -278,6 +284,9 @@
                                     </td>
                                     <td class="px-4 py-4 text-center">
                                         <x-monitor.badge kind="match" :value="$report->planting_match" />
+                                        @if (in_array($report->date_check ?? null, [\App\Support\DateCheck::REVIEW, \App\Support\DateCheck::REVIEWED], true))
+                                            <div class="mt-1"><x-monitor.badge kind="dates" :value="$report->date_check" /></div>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-4">
                                         <div class="flex justify-end gap-2">

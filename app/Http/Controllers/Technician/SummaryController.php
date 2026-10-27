@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Technician;
 
 use App\Http\Controllers\Controller;
+use App\Models\DamageReport;
 use App\Models\Validation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -27,25 +28,28 @@ class SummaryController extends Controller
      * longer stretch than the dashboard's day-to-day queue is.
      */
     public const PERIODS = [
-        'this_month' => 'This Month',
-        'last_month' => 'Last Month',
-        'this_year'  => 'This Year',
-        'all'        => 'All Time',
+        'this_year'     => 'This Year',
+        'last_6_months' => 'Last 6 Months',
     ];
 
     public function index(Request $request)
     {
         $technicianId = Auth::id();
 
-        $period = array_key_exists((string) $request->query('period'), self::PERIODS)
-            ? $request->query('period')
-            : 'this_year';
+        $period = $this->periodOf($request);
 
         [$from, $to] = $this->periodRange($period);
 
         $base = Validation::where('technician_id', $technicianId)
             ->whereNotNull('validated_at')
-            ->when($from, fn ($q) => $q->whereBetween('validated_at', [$from, $to]));
+            ->whereHas('damageReport', fn ($report) => $report->active())
+            ->whereBetween('validated_at', [$from, $to]);
+
+        // Not period based: it is the work on this technician right now.
+        $pendingValidation = DamageReport::active()
+            ->where('assigned_technician_id', $technicianId)
+            ->whereIn('status', ['assigned', 'under_verification'])
+            ->count();
 
         $completed = (clone $base)->count();
 
@@ -62,24 +66,6 @@ class SummaryController extends Controller
             ->whereNotNull('inspection_started_at')
             ->get(['inspection_started_at', 'validated_at'])
             ->map(fn ($v) => $v->inspection_started_at->diffInHours($v->validated_at))
-            ->avg();
-
-        /*
-        |----------------------------------------------------------------
-        | How far this technician's assessments tend to sit from what the
-        | farmer originally estimated. Not a score - just a fact worth
-        | seeing about their own pattern of assessment.
-        |----------------------------------------------------------------
-        */
-        $avgGap = (clone $base)
-            ->with('damageReport.crops')
-            ->get()
-            ->map(function ($v) {
-                $estimate = $v->damageReport?->crops->avg('estimated_damage_percent');
-
-                return $estimate === null ? null : abs($estimate - (float) $v->assessed_damage_percent);
-            })
-            ->filter(fn ($gap) => $gap !== null)
             ->avg();
 
         /*
@@ -101,19 +87,18 @@ class SummaryController extends Controller
 
         /*
         |----------------------------------------------------------------
-        | Inspections completed by month, the last 6 calendar months.
-        |
-        | Deliberately not filtered by the period selector above - this
-        | chart's whole purpose is to show the trend across months, which
-        | a "this month only" filter would erase.
+        | Inspections completed by month, for the selected period: the
+        | 12 months of this year, or the last 6 calendar months.
         |----------------------------------------------------------------
         */
-        $months = collect(range(5, 0))
-            ->map(fn ($i) => Carbon::now()->subMonthsNoOverflow($i)->startOfMonth());
+        $months = $period === 'last_6_months'
+            ? collect(range(5, 0))->map(fn ($i) => Carbon::now()->subMonthsNoOverflow($i)->startOfMonth())
+            : collect(range(1, 12))->map(fn ($m) => Carbon::create(Carbon::now()->year, $m, 1)->startOfMonth());
 
         $monthlyCounts = Validation::where('technician_id', $technicianId)
             ->whereNotNull('validated_at')
-            ->where('validated_at', '>=', $months->first())
+            ->whereHas('damageReport', fn ($report) => $report->active())
+            ->whereBetween('validated_at', [$months->first(), $months->last()->copy()->endOfMonth()])
             ->select(
                 DB::raw('YEAR(validated_at) as y'),
                 DB::raw('MONTH(validated_at) as m'),
@@ -138,7 +123,7 @@ class SummaryController extends Controller
             'summary' => [
                 'completed' => $completed,
                 'avg_hours' => $avgHours,
-                'avg_gap'   => $avgGap,
+                'pending'   => $pendingValidation,
             ],
             'severityBreakdown' => $severityBreakdown,
             'byMonth'           => $byMonth,
@@ -148,13 +133,108 @@ class SummaryController extends Controller
     private function periodRange(string $period): array
     {
         return match ($period) {
-            'last_month' => [
-                Carbon::now()->subMonthNoOverflow()->startOfMonth(),
-                Carbon::now()->subMonthNoOverflow()->endOfMonth(),
-            ],
-            'this_year' => [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()],
-            'all'       => [null, null],
-            default     => [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()],
+            'last_6_months' => [Carbon::now()->subMonthsNoOverflow(5)->startOfMonth(), Carbon::now()->endOfMonth()],
+            default         => [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()],
         };
+    }
+
+    private function periodOf(Request $request): string
+    {
+        return array_key_exists((string) $request->query('period'), self::PERIODS)
+            ? $request->query('period')
+            : 'this_year';
+    }
+
+    /**
+     * Optional export: a spreadsheet of this technician's OWN completed
+     * inspections for the selected period. Only their own rows, so it never
+     * becomes a municipal report (those are the MAO's).
+     */
+    public function exportSummary(Request $request)
+    {
+        $period = $this->periodOf($request);
+        [$from, $to] = $this->periodRange($period);
+
+        $rows = Validation::where('technician_id', Auth::id())
+            ->whereNotNull('validated_at')
+            ->whereBetween('validated_at', [$from, $to])
+            ->whereHas('damageReport', fn ($report) => $report->active())
+            ->with(['damageReport.farmer.barangay', 'damageReport.reportedBarangay', 'damageReport.crops'])
+            ->orderBy('validated_at')
+            ->get();
+
+        $sheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $ws    = $sheet->getActiveSheet()->setTitle('My inspections');
+        $ws->fromArray([[
+            'Report', 'Farmer', 'Barangay', 'Inspection started', 'Submitted',
+            'Hours', 'Farmer estimate %', 'Assessed %', 'Severity',
+        ]], null, 'A1');
+
+        $line = 2;
+        foreach ($rows as $v) {
+            $report   = $v->damageReport;
+            $estimate = $report?->crops->avg('estimated_damage_percent');
+
+            $ws->fromArray([[
+                $report?->full_reference,
+                $report?->farmer?->full_name,
+                $report?->reportedBarangay?->name ?? $report?->farmer?->barangay?->name,
+                $v->inspection_started_at?->format('Y-m-d H:i'),
+                $v->validated_at?->format('Y-m-d H:i'),
+                $v->inspection_started_at ? $v->inspection_started_at->diffInHours($v->validated_at) : null,
+                $estimate !== null ? round($estimate) : null,
+                $v->assessed_damage_percent !== null ? round($v->assessed_damage_percent) : null,
+                Validation::severityLabel($v->severity),
+            ]], null, 'A' . $line++);
+        }
+
+        foreach (range('A', 'I') as $col) {
+            $ws->getColumnDimension($col)->setAutoSize(true);
+        }
+        $ws->getStyle('A1:I1')->getFont()->setBold(true);
+
+        $filename = 'my-inspections-' . str_replace('_', '-', $period) . '.xlsx';
+
+        return response()->streamDownload(function () use ($sheet) {
+            (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($sheet))->save('php://output');
+        }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    /**
+     * Print or save ONE inspection assessment as a PDF. The technician can
+     * only open their own submitted inspections.
+     */
+    public function assessmentPdf(Validation $validation)
+    {
+        abort_unless($validation->technician_id === Auth::id(), 403);
+        abort_if($validation->validated_at === null, 404);
+
+        $validation->load([
+            'technician',
+            'damageReport.farmer.barangay',
+            'damageReport.farmer.association',
+            'damageReport.reportedBarangay',
+            'damageReport.crops.crop',
+            'damageReport.disasters',
+        ]);
+
+        $options = new \Dompdf\Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'Helvetica');
+
+        $dompdf = new \Dompdf\Dompdf($options);
+        $dompdf->loadHtml(view('technician.history.pdf', [
+            'validation' => $validation,
+            'report'     => $validation->damageReport,
+        ])->render());
+        $dompdf->setPaper('a4', 'portrait');
+        $dompdf->render();
+
+        $filename = 'inspection-' . str($validation->damageReport?->reference ?? $validation->id)->slug() . '.pdf';
+
+        return response($dompdf->output(), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 }

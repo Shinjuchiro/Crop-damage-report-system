@@ -8,6 +8,7 @@ use App\Models\Association;
 use App\Models\AuditLog;
 use App\Models\Barangay;
 use App\Models\DamageReport;
+use App\Models\DamageReportDateReview;
 use App\Models\Disaster;
 use App\Models\Farmer;
 use App\Models\NotificationBroadcast;
@@ -87,6 +88,7 @@ class DamageReportMonitorController extends Controller
 
         // The planting-match result for every row on this page, in one query.
         \App\Support\PlantingMatch::annotate($reports->getCollection());
+        \App\Support\DateCheck::annotate($reports->getCollection());
 
         /* THREE SEPARATE FACTS, NOT ONE STATUS
 
@@ -139,6 +141,7 @@ class DamageReportMonitorController extends Controller
 
         if ($selected) {
             \App\Support\PlantingMatch::annotate([$selected]);
+            \App\Support\DateCheck::annotate([$selected]);
         }
 
         return view('mao.damage-reports.index', [
@@ -179,6 +182,7 @@ class DamageReportMonitorController extends Controller
     {
         $reports = $this->baseQuery($request)->latest()->get();
         \App\Support\PlantingMatch::annotate($reports);
+        \App\Support\DateCheck::annotate($reports);
 
         $rows = $reports->map(fn ($report) => [
             $report->full_reference,
@@ -463,9 +467,16 @@ class DamageReportMonitorController extends Controller
         $data = $request->validate([
             'disasters'   => ['nullable', 'array'],
             'disasters.*' => [Rule::exists('disasters', 'id')->whereNull('archived_at')],
+            // Which linked event is the main one, when there are several.
+            'primary_disaster' => ['nullable', 'integer'],
         ]);
 
-        $this->syncDisasterLinks($damageReport, $data['disasters'] ?? [], 'mao');
+        $this->syncDisasterLinks(
+            $damageReport,
+            $data['disasters'] ?? [],
+            'mao',
+            filled($data['primary_disaster'] ?? null) ? (int) $data['primary_disaster'] : null
+        );
 
         return back()->with('status', 'Disaster events updated.');
     }
@@ -477,6 +488,48 @@ class DamageReportMonitorController extends Controller
      * at all (a farmer's report is corrected via the farmer's own report, or
      * via updateDisasters() above for the one field MAO itself can fix).
      */
+    /**
+     * Record that the office has reviewed a report's date discrepancies.
+     *
+     * Adds a review row (who, when, remarks, and the reasons as they were
+     * shown). The report, its planting date and the planting record are not
+     * touched, and the report's status is not changed: a date discrepancy is
+     * something to look at, never a reason to reject.
+     */
+    public function reviewDates(Request $request, DamageReport $damageReport)
+    {
+        $data = $request->validate([
+            'remarks' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        \App\Support\DateCheck::annotate([$damageReport]);
+
+        if ($damageReport->date_flags->isEmpty()) {
+            return back()->withErrors(['damageReport' => 'This report has no date discrepancies to review.']);
+        }
+
+        DB::transaction(function () use ($damageReport, $data) {
+            DamageReportDateReview::create([
+                'damage_report_id' => $damageReport->id,
+                'reviewed_by'      => Auth::id(),
+                'remarks'          => filled($data['remarks'] ?? null) ? trim($data['remarks']) : null,
+                'flags_snapshot'   => $damageReport->date_flags->all(),
+                'official_date'    => $damageReport->official_date?->toDateString(),
+                'reviewed_at'      => now(),
+            ]);
+
+            AuditLog::create([
+                'user_id'      => Auth::id(),
+                'action'       => 'Reviewed date discrepancies on damage report ' . $damageReport->full_reference,
+                'target_table' => 'damage_reports',
+                'target_id'    => $damageReport->id,
+                'created_at'   => now(),
+            ]);
+        });
+
+        return back()->with('status', 'Date review recorded.');
+    }
+
     public function archive(DamageReport $damageReport)
     {
         $damageReport->archive(Auth::id());
@@ -590,6 +643,9 @@ class DamageReportMonitorController extends Controller
                 fn ($query) => $query->assignment($request->assignment === 'assigned' ? 'assigned' : 'unassigned'))
             ->when(in_array($request->planting_match, ['matched', 'mismatch', 'none'], true),
                 fn ($query) => $query->plantingResult($request->planting_match))
+            // Dates against the official disaster date: not reviewed yet, or reviewed.
+            ->when($request->date_review === 'review', fn ($query) => $query->dateReview())
+            ->when($request->date_review === 'reviewed', fn ($query) => $query->dateReviewed())
             ->when($request->filled('disaster_id'), fn ($query) => $query
                 ->whereHas('disasters', fn ($disaster) => $disaster->where('disasters.id', $request->disaster_id)))
             ->when($request->filled('technician_id'), function ($query) use ($request) {

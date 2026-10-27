@@ -92,7 +92,10 @@
                          'Crops', $report->crops->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)->join(', ') ?: 'Not set'],
 
                         ['M3 10h18M8 3v4M16 3v4M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z',
-                         'Reported', $report->created_at?->format('F d, Y')],
+                         'Reported', ($report->submitted_at ?? $report->created_at)?->format('F d, Y')],
+
+                        ['M3 10h18M8 3v4M16 3v4M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z',
+                         'Crop damaged', $report->date_damaged?->format('F d, Y') ?? 'Not recorded'],
                     ];
                 @endphp
 
@@ -304,7 +307,7 @@
                             <li>
                                 <p class="text-sm font-medium">{{ $disaster->name }}</p>
                                 <p class="text-xs text-muted-foreground">
-                                    {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
+                                    {{ $disaster->type_label }}
                                     @if ($disaster->date_start)
                                         &middot; {{ $disaster->date_start->format('M d, Y') }}
                                     @endif

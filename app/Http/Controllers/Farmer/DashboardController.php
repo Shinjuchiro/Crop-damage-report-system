@@ -47,6 +47,10 @@ class DashboardController extends Controller
         // running a separate count for every status.
         $reportCounts = DB::table('damage_reports')
             ->where('farmer_id', $farmer->id)
+            // Archived and deleted reports are not on the farmer's list, so
+            // they are not in these counts either.
+            ->whereNull('archived_at')
+            ->whereNull('deleted_at')
             ->select('status', DB::raw('COUNT(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -58,7 +62,7 @@ class DashboardController extends Controller
 
         return view('farmer.dashboard', [
             'farmer'         => $farmer,
-            'plantingCount'  => $farmer->plantingRecords()->count(),
+            'plantingCount'  => $farmer->plantingRecords()->active()->count(),
             'reportTotal'    => (int) $reportCounts->sum(),
 
             // "Still waiting" means nobody has finished inspecting it yet,

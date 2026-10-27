@@ -5,6 +5,11 @@
 @section('subheading', 'Farmers select these events when reporting crop damage.')
 
 @section('content')
+@php
+    $typeLabels = collect($types)->mapWithKeys(fn ($t) => [
+        $t => explode(' / ', \App\Models\DamageReport::CAUSES[$t] ?? ucwords(str_replace('_', ' ', $t)))[0],
+    ]);
+@endphp
 <div>
 
     @if ($errors->any())
@@ -26,7 +31,8 @@
               dateEnd: @js(old('date_end', $disaster?->date_end?->toDateString() ?? '')),
               typeLabel() {
                   if (! this.type) return '-';
-                  return this.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                  const labels = @js($typeLabels);
+                  return labels[this.type] || this.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
               },
           }">
         @csrf
@@ -41,7 +47,7 @@
                         class="w-full rounded-lg border border-input px-3.5 py-2.5 text-sm focus:border-green-600 focus:ring-1 focus:ring-green-600">
                     <option value="">Select type</option>
                     @foreach ($types as $type)
-                        <option value="{{ $type }}">{{ ucwords(str_replace('_', ' ', $type)) }}</option>
+                        <option value="{{ $type }}">{{ $typeLabels[$type] }}</option>
                     @endforeach
                 </select>
             </div>
@@ -110,7 +116,7 @@
                         <div class="border-t border-border pt-3">
                             <p class="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Previously</p>
                             <p class="text-xs text-muted-foreground">
-                                {{ ucwords(str_replace('_', ' ', $disaster->type)) }} &middot; {{ $disaster->name }}
+                                {{ $disaster->type_label }} &middot; {{ $disaster->name }}
                                 &middot; {{ $disaster->date_start?->format('M d, Y') }}@if ($disaster->date_end) to {{ $disaster->date_end->format('M d, Y') }}@endif
                             </p>
                         </div>

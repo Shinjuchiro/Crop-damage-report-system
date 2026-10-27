@@ -255,14 +255,17 @@
                 {{-- ---------- Compose ---------- --}}
                 <div x-show="step === 'compose'" class="space-y-5 px-6 py-5">
 
-                    {{-- A shortcut, not a field: nothing here is submitted. Choosing a
-                         hazard fills the alert type, title and message below, which stay
-                         fully editable. --}}
+                    {{-- Choosing a hazard fills the alert type, title and message below,
+                         which stay fully editable. The hazard itself IS submitted now:
+                         a Disaster Advisory records it, with the official disaster date,
+                         as a disaster event that the damage report form reads. --}}
                     <div class="rounded-lg border border-border bg-muted/40 p-4">
                         <label class="mb-1.5 block text-sm font-medium text-foreground">
-                            Risk or hazard <span class="font-normal text-muted-foreground">(optional)</span>
+                            Risk or hazard
+                            <span x-show="isAdvisory()" x-cloak class="text-red-500">*</span>
+                            <span x-show="! isAdvisory()" class="font-normal text-muted-foreground">(optional)</span>
                         </label>
-                        <select x-model="hazard" @change="applyHazard()"
+                        <select name="hazard" x-model="hazard" @change="applyHazard()" :required="isAdvisory()"
                                 class="w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
                             <option value="">Write my own announcement</option>
                             @foreach ($broadcast::HAZARDS as $key => $hazard)
@@ -299,15 +302,48 @@
                             </label>
                             <select name="priority" x-model="f.priority" required
                                     class="w-full rounded-lg border border-input px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
-                                @foreach ($broadcast::PRIORITIES as $key => $meta)
+                                @foreach ($broadcast::selectablePriorities() as $key => $meta)
                                     <option value="{{ $key }}">{{ $meta['label'] }}</option>
                                 @endforeach
                             </select>
                             <p class="mt-1.5 text-xs" :class="sendsSms() ? 'text-amber-700' : 'text-muted-foreground'"
                                x-text="sendsSms()
-                                    ? 'Urgent and Critical alerts are also sent via SMS to each recipient\'s phone number.'
+                                    ? 'Urgent / Critical alerts are also sent via SMS to each recipient\'s phone number.'
                                     : 'Delivered in-app only.'"></p>
                         </div>
+                    </div>
+
+                    {{-- The official disaster record. Required for a Disaster Advisory,
+                         optional (all or nothing) for other alerts that name a hazard. --}}
+                    <div x-show="isAdvisory() || hazard" x-cloak
+                         class="rounded-lg border border-red-200 bg-red-50/60 dark:border-red-900 dark:bg-red-950/30 p-4">
+                        <p class="text-sm font-semibold text-foreground">Official disaster record</p>
+                        <p class="mb-3 mt-0.5 text-xs text-muted-foreground">
+                            Saved as a disaster record linked to this advisory. Farmers pick it when reporting crop damage, and the
+                            planting and damage dates on their reports are checked against this date.
+                        </p>
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-foreground">
+                                    Disaster name <span class="font-normal text-muted-foreground">(optional)</span>
+                                </label>
+                                <input type="text" name="event_name" x-model="f.event_name" maxlength="255"
+                                       placeholder="e.g. Typhoon Uwan, if it has a name"
+                                       class="w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-sm font-medium text-foreground">
+                                    Official disaster date
+                                    <span x-show="isAdvisory()" x-cloak class="text-red-500">*</span>
+                                </label>
+                                <input type="date" name="disaster_date" x-model="f.disaster_date"
+                                       :required="isAdvisory()"
+                                       class="w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-ring">
+                            </div>
+                        </div>
+                        <p class="mt-2 text-xs text-muted-foreground">
+                            Planting must be before this date. Crop damage must be on or after it.
+                        </p>
                     </div>
 
                     <div>
@@ -425,6 +461,16 @@
                             <dt class="shrink-0 text-muted-foreground">Type</dt>
                             <dd class="min-w-0 text-right font-medium text-foreground" x-text="label('categories', f.category)"></dd>
                         </div>
+                        <div class="flex justify-between gap-4" x-show="hazard" x-cloak>
+                            <dt class="shrink-0 text-muted-foreground">Hazard</dt>
+                            <dd class="min-w-0 text-right font-medium text-foreground"
+                                x-text="hazards[hazard] ? hazards[hazard].label : '-'"></dd>
+                        </div>
+                        <div class="flex justify-between gap-4" x-show="f.event_name || f.disaster_date" x-cloak>
+                            <dt class="shrink-0 text-muted-foreground">Disaster event</dt>
+                            <dd class="min-w-0 text-right font-medium text-foreground"
+                                x-text="(f.event_name || (hazards[hazard] ? hazards[hazard].label : 'Unnamed')) + ' (' + (f.disaster_date || 'no date') + ')'"></dd>
+                        </div>
                         <div class="flex justify-between gap-4">
                             <dt class="shrink-0 text-muted-foreground">Priority</dt>
                             <dd class="min-w-0 text-right font-medium text-foreground" x-text="label('priorities', f.priority)"></dd>
@@ -526,6 +572,12 @@
                 target_type: 'all_farmers',
                 target_id: '',
                 scheduled_for: '',
+                event_name: '',
+                disaster_date: '',
+            },
+
+            isAdvisory() {
+                return this.f.category === 'disaster_alert';
             },
 
             applyHazard() {

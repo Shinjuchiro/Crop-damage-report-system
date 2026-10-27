@@ -27,7 +27,7 @@ class SmsHistoryController extends Controller
             ->when($request->filled('status'), fn ($q) => $q->where('sms_status', $request->status))
             ->when($request->filled('priority'), fn ($q) => $q->whereHas(
                 'broadcast',
-                fn ($b) => $b->where('priority', $request->priority)
+                fn ($b) => $b->whereIn('priority', $request->priority === 'urgent' ? ['urgent', 'critical'] : [$request->priority])
             ))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = '%' . $request->search . '%';

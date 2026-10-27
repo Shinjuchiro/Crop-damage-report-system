@@ -149,25 +149,31 @@
     {{-- Two across on a phone, not one. With the compact stat card these fit
          side by side, so all three figures are on screen at once instead of
          being scrolled past one at a time. --}}
-    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
+    <div class="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+
+        <x-ui.stat label="Assigned Today"
+                   :value="number_format($summary['assigned_today'])"
+                   hint="Damage reports assigned to you today"
+                   icon="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4"
+                   :href="route('technician.reports.index', ['status' => 'assigned'])" />
 
         <x-ui.stat label="Pending Validation"
                    :value="number_format($summary['pending_validation'])"
                    tone="warning"
-                   hint="Waiting for your inspection"
+                   hint="Assigned reports awaiting technical validation"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6.5V12l3.5 2.2"
                    :href="route('technician.validation.index')" />
 
-        <x-ui.stat label="Assigned Today"
-                   :value="number_format($summary['assigned_today'])"
-                   hint="Bago ngayong araw"
-                   icon="M9 4H7a2 2 0 00-2 2v13a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2m-6.5 9.5l2 2 4-4"
-                   :href="route('technician.reports.index', ['status' => 'assigned'])" />
+        <x-ui.stat label="Inspections Completed Today"
+                   :value="number_format($summary['completed_today'])"
+                   hint="Field inspections you completed today"
+                   icon="M17.5 21a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM20 16.5l1.5 1.5M10 17H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v4"
+                   :href="route('technician.history.index')" />
 
-        <x-ui.stat label="Validation Reports"
-                   :value="number_format($summary['validation_reports'])"
+        <x-ui.stat label="Validated Reports This Month"
+                   :value="number_format($summary['validated_month'])"
                    tone="primary"
-                   :hint="'Submitted, ' . strtolower($periods[$period])"
+                   hint="Reports you completed this month"
                    icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"
                    :href="route('technician.history.index')" />
     </div>

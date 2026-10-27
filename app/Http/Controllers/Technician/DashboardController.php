@@ -62,12 +62,31 @@ class DashboardController extends Controller
          | because you changed a dropdown to last month.
          ============================================================== */
 
-        $pendingValidation = DamageReport::where('assigned_technician_id', $technicianId)
+        $pendingValidation = DamageReport::active()->where('assigned_technician_id', $technicianId)
             ->whereIn('status', ['assigned', 'under_verification'])
             ->count();
 
-        $assignedToday = DamageReport::where('assigned_technician_id', $technicianId)
+        $assignedToday = DamageReport::active()->where('assigned_technician_id', $technicianId)
             ->whereDate('assigned_at', Carbon::today())
+            ->count();
+
+        /* THE FOUR CARDS (Oct 2026 revision)
+           Everything here is this technician's own work, and none of it
+           follows the period dropdown (that filters the table below).
+           "Completed" is counted from the inspection the technician
+           submitted (validated_at), so a report the office has since
+           approved still counts. Archived and deleted reports are left out,
+           like the Validation list. */
+        $myValidations = fn () => Validation::where('technician_id', $technicianId)
+            ->whereNotNull('validated_at')
+            ->whereHas('damageReport', fn ($report) => $report->active());
+
+        $completedToday = $myValidations()
+            ->whereBetween('validated_at', [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()])
+            ->count();
+
+        $validatedThisMonth = $myValidations()
+            ->whereBetween('validated_at', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])
             ->count();
 
         // Inspections this technician actually submitted. Counted from the
@@ -187,6 +206,8 @@ class DashboardController extends Controller
                 'pending_validation' => $pendingValidation,
                 'assigned_today'     => $assignedToday,
                 'validation_reports' => $validationReports,
+                'completed_today'    => $completedToday,
+                'validated_month'    => $validatedThisMonth,
             ],
 
             'donut' => [

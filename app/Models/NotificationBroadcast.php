@@ -63,16 +63,45 @@ class NotificationBroadcast extends Model
     ];
 
     /**
+     * Which disaster-event type each advisory hazard creates. The event types
+     * use the same keys as the damage causes on a damage report, so the two
+     * stay in step; only these two differ in name from the advisory list.
+     */
+    public const HAZARD_EVENT_TYPE = [
+        'typhoon'             => 'typhoon',
+        'flood'               => 'flood',
+        'drought'             => 'drought',
+        'storm_surge'         => 'storm_surge',
+        'soil_erosion'        => 'soil_erosion',
+        'landslide'           => 'landslide',
+        'saltwater_intrusion' => 'saltwater_intrusion',
+        'sea_level_rise'      => 'sea_level_rise',
+        'extreme_heat'        => 'heat_stress',
+        'pest_disease'        => 'pest_disease_outbreak',
+    ];
+
+    /**
      * Priority decides how an alert is delivered.
-     * Normal and Important are in-app only. Urgent and Critical are also queued
-     * for SMS, because those are the ones a farmer must see today.
+     * Normal and Important are in-app only. Urgent / Critical is also sent as
+     * SMS, because those are the ones a farmer must see today.
+     *
+     * Urgent and Critical were two choices that did the same thing, so the form
+     * now offers one: "Urgent / Critical" (stored as 'urgent'). 'critical' stays
+     * in this list, hidden from the form, so alerts saved earlier under that
+     * name still read and filter correctly.
      */
     public const PRIORITIES = [
-        'normal'    => ['label' => 'Normal',    'sms' => false],
-        'important' => ['label' => 'Important', 'sms' => false],
-        'urgent'    => ['label' => 'Urgent',    'sms' => true],
-        'critical'  => ['label' => 'Critical',  'sms' => true],
+        'normal'    => ['label' => 'Normal',            'sms' => false],
+        'important' => ['label' => 'Important',         'sms' => false],
+        'urgent'    => ['label' => 'Urgent / Critical', 'sms' => true],
+        'critical'  => ['label' => 'Urgent / Critical', 'sms' => true, 'hidden' => true],
     ];
+
+    /** The priorities a person can pick on the form (no legacy ones). */
+    public static function selectablePriorities(): array
+    {
+        return array_filter(self::PRIORITIES, fn ($meta) => empty($meta['hidden']));
+    }
 
     /** Who an alert can be addressed to. */
     public const AUDIENCES = [
@@ -107,7 +136,7 @@ class NotificationBroadcast extends Model
     protected $table = 'notification_broadcasts';
 
     protected $fillable = [
-        'title', 'message', 'category', 'priority',
+        'title', 'message', 'category', 'hazard', 'disaster_id', 'priority',
         'target_type', 'target_id', 'link_type', 'link_id',
         'attachment_path', 'status', 'scheduled_for', 'created_by', 'sent_at',
     ];
@@ -148,6 +177,15 @@ class NotificationBroadcast extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * The disaster event a Disaster Advisory created. Its date_start is the
+     * official disaster date the Crop Damage Report form checks dates against.
+     */
+    public function disaster()
+    {
+        return $this->belongsTo(Disaster::class);
     }
 
     public function notifications()

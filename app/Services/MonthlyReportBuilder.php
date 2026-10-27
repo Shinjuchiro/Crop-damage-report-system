@@ -256,10 +256,11 @@ class MonthlyReportBuilder
                 'farmer.user', 'farmer.barangay', 'farmer.association',
                 'crops.crop', 'disasters', 'assignedTechnician', 'validation',
             ])
-            ->whereBetween('created_at', [$start, $end])
+            ->occurredBetween($start, $end)
             ->when($associationId, fn ($q) => $q
                 ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
-            ->orderBy('created_at')
+            ->orderByRaw('COALESCE(damage_reports.date_damaged, DATE(damage_reports.created_at))')
+            ->orderBy('damage_reports.created_at')
             ->get()
             ->map(function ($report) {
                 $production = (float) $report->crops->sum('production_cost');
@@ -271,7 +272,8 @@ class MonthlyReportBuilder
                     $report->farmer?->user?->phone_number ?: '-',
                     $report->farmer?->barangay?->name ?? '-',
                     $report->farmer?->association?->name ?? '-',
-                    $report->created_at?->format('d M Y') ?? '-',
+                    ($report->submitted_at ?? $report->created_at)?->format('d M Y') ?? '-',
+                    $report->date_damaged?->format('d M Y') ?? 'Not recorded',
                     DamageReport::CAUSES[$report->damage_cause]
                         ?? ucwords(str_replace('_', ' ', (string) $report->damage_cause)),
                     $report->disasters->pluck('name')->implode('; ') ?: '-',
@@ -294,7 +296,7 @@ class MonthlyReportBuilder
         return [
             'title'    => 'Damage Reports',
             'headings' => ['Report ID', 'Farmer', 'Contact', 'Barangay', 'Association',
-                           'Date Reported', 'Cause', 'Disaster Event', 'Crops',
+                           'Date Reported', 'Date of Damage', 'Cause', 'Disaster Event', 'Crops',
                            'Damaged Area (ha)', 'Farmer Estimate (%)',
                            'Production Cost', 'Estimated Damage Cost',
                            'Status', 'Technician', 'Assessed Damage (%)', 'Severity'],
@@ -479,7 +481,7 @@ class MonthlyReportBuilder
             'new_registrations' => Farmer::notDeleted()->whereBetween('created_at', [$start, $end])
                 ->when($associationId, fn ($q) => $q->where('association_id', $associationId))
                 ->count(),
-            'affected_farmers'  => DamageReport::active()->whereBetween('created_at', [$start, $end])
+            'affected_farmers'  => DamageReport::active()->occurredBetween($start, $end)
                 ->when($associationId, fn ($q) => $q
                     ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
                 ->distinct('farmer_id')->count('farmer_id'),
@@ -553,7 +555,7 @@ class MonthlyReportBuilder
            the affected-farmer count and the area total - off archived and
            deleted reports. */
         $reportIds = DamageReport::active()
-            ->whereBetween('created_at', [$start, $end])
+            ->occurredBetween($start, $end)
             ->when($associationId, fn ($q) => $q
                 ->whereHas('farmer', fn ($farmer) => $farmer->where('association_id', $associationId)))
             ->pluck('id');

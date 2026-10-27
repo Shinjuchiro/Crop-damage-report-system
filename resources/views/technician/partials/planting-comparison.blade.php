@@ -120,6 +120,32 @@
         </div>
     @endforeach
 
+    {{-- The dates, side by side and never merged: the actual damage date, the day
+         the report was filed, and the disaster date they are checked against.
+         Read-only. The technician does not change any of them. --}}
+    @php $dates = $comparison['dates'] ?? null; @endphp
+    @if ($dates)
+        <div class="overflow-hidden rounded-lg border {{ $dates['flags'] ? 'border-amber-300 dark:border-amber-800' : 'border-border' }}">
+            <div class="border-b border-border bg-muted/50 px-3.5 py-2">
+                <p class="text-sm font-semibold text-foreground">Dates</p>
+            </div>
+            <dl class="space-y-1 px-3.5 py-3 text-xs">
+                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Disaster date</dt><dd class="font-medium text-foreground">{{ $dates['official_date']?->format('M d, Y') ?? 'Not matched to one disaster' }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Crop damaged on</dt><dd class="font-medium text-foreground">{{ $dates['damage_date']?->format('M d, Y') ?? 'Not recorded' }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Report filed</dt><dd class="font-medium text-foreground">{{ $dates['submitted']?->format('M d, Y') ?? '-' }}</dd></div>
+            </dl>
+            @foreach ($dates['flags'] as $flag)
+                <p class="flex items-start gap-2 border-t border-border bg-amber-50 px-3.5 py-2.5 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                    <svg class="mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 9v4.5M12 17h.01M12 3.5L2.8 19.2A1 1 0 003.7 20.7h16.6a1 1 0 00.9-1.5L12 3.5z"/>
+                    </svg>
+                    {{ $flag }} The office will review it.
+                </p>
+            @endforeach
+        </div>
+    @endif
+
     {{-- Totals, but only when there is more than one crop to add up --}}
     @if (count($comparison['rows']) > 1)
         <div class="grid grid-cols-2 divide-x divide-border rounded-lg border border-border bg-muted/40">

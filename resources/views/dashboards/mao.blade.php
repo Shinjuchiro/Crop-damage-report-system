@@ -56,31 +56,50 @@
     @endif
 
     {{-- ===================== HEADLINE FIGURES ===================== --}}
-    {{-- Two across on a phone, not one, now that the stat card is compact
-         below sm: all four headline figures fit on one screen. --}}
-    <div class="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <x-ui.stat label="Total Affected Farmers"
-                     :value="number_format($headline['affected_farmers'])"
-                     :hint="'Farmers with a damage report, ' . strtolower($headline['period_label'])"
-                     icon="M12 9.5v4M12 17h.01M10.3 3.9L2.5 17.5A1.7 1.7 0 004 20h16a1.7 1.7 0 001.5-2.5L13.7 3.9a1.7 1.7 0 00-3 0z" />
+    {{-- Six cards (Oct 2026 revision), two across on a phone, three from sm up,
+         so the rows are always even. The "this month" cards are the current
+         calendar month and ignore the period dropdown, which drives only the
+         severity chart. Every figure is a live count. --}}
+    <div class="stagger mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <x-ui.stat label="Total Associations"
+                   :value="number_format($headline['associations'])"
+                   hint="Registered farmers' associations"
+                   icon="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6M9 11h.01M15 11h.01"
+                   :href="route('mao.associations.index')" />
 
-        <x-ui.stat label="Active Reports"
-                     :value="number_format($headline['active_reports'])"
-                     :suffix="strtolower($headline['period_label'])"
-                     hint="Not yet verified or closed"
-                     icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01" />
+        <x-ui.stat label="Registered Farmers"
+                   :value="number_format($headline['farmers'])"
+                   hint="Across all associations"
+                   icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9"
+                   :href="route('mao.farmers.index')" />
 
-        <x-ui.stat label="Validated Reports"
-                     :value="$headline['validated_rate'] . '%'"
-                     :suffix="strtolower($headline['period_label'])"
-                     hint="Share of reports a technician has verified"
-                     icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8" />
+        <x-ui.stat label="Planting Records This Month"
+                   :value="number_format($headline['planting_month'])"
+                   :hint="'Filed in ' . $headline['month_label']"
+                   icon="M12 21v-8m0 0C12 9 9 6 5 6c0 4 3 7 7 7zm0 0c0-4 3-7 7-7 0 4-3 7-7 7z"
+                   :href="route('mao.crop-planting.index')" />
 
-        <x-ui.stat label="Assistance Distributed"
-                     :value="$headline['assistance_rate'] . '%'"
-                     suffix="of affected farmers"
-                     hint="Farmers who confirmed they received assistance"
-                     icon="M20 7.5l-8-4.5-8 4.5m16 0v9l-8 4.5-8-4.5v-9m16 0l-8 4.5m0 0l-8-4.5m8 4.5V21" />
+        <x-ui.stat label="Damage Reports This Month"
+                   :value="number_format($headline['damage_month'])"
+                   tone="warning"
+                   :hint="'Filed in ' . $headline['month_label']"
+                   icon="M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM12 11v3.5M12 17.5h.01"
+                   :href="route('mao.damage-reports.index')" />
+
+        <x-ui.stat label="Validated Reports This Month"
+                   :value="number_format($headline['validated_month'])"
+                   tone="primary"
+                   hint="Technical validation completed"
+                   icon="M12 22a10 10 0 100-20 10 10 0 000 20zM8.5 12.2l2.4 2.4 4.6-4.8"
+                   :href="route('mao.validations.index')" />
+
+        <x-ui.stat label="Assistance Receipt Rate"
+                   :value="$headline['receipt_rate'] === null ? 'No data' : $headline['receipt_rate'] . '%'"
+                   :hint="$headline['receipt_rate'] === null
+                        ? 'No distribution recorded yet'
+                        : $headline['receipt_confirmed'] . ' of ' . $headline['receipt_recorded'] . ' farmers confirmed receiving it'"
+                   icon="M20 7.5l-8-4.5-8 4.5m16 0v9l-8 4.5-8-4.5v-9m16 0l-8 4.5m0 0l-8-4.5m8 4.5V21"
+                   :href="route('mao.assistance-allocations.index')" />
     </div>
 
     {{-- ===================== DAMAGE MAP ===================== --}}
@@ -100,7 +119,7 @@
             </a>
         </div>
 
-        <div id="dashboardMap" class="h-[15rem] w-full"
+        <div id="dashboardMap" class="h-80 w-full sm:h-96"
              data-geojson="{{ asset('geo/tanza-barangays.json') }}"
              data-associations="{{ $mapAssociations->toJson() }}"
              data-center-lat="{{ $mapCenter['lat'] }}"
@@ -294,9 +313,11 @@
 
                         map.invalidateSize({ animate: false });
 
-                        // Open a little closer than "all of Tanza just fits";
-                        // it can be dragged to the edges.
-                        const zoom = map.getBoundsZoom(bounds, false, L.point(16, 16)) + 1.25;
+                        // The same view as the Technician's dashboard map: the whole
+                        // municipality fitted with 12px of margin (24px across each
+                        // axis), then three-quarters of a zoom level closer, in a box
+                        // of the same size. It can be dragged to the edges.
+                        const zoom = map.getBoundsZoom(bounds, false, L.point(24, 24)) + 0.75;
 
                         map.setView(bounds.getCenter(), zoom, { animate: false });
                     }

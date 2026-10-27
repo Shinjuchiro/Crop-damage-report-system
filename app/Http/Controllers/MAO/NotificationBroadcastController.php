@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MAO;
 use App\Http\Controllers\Controller;
 use App\Models\Association;
 use App\Models\AuditLog;
+use App\Models\Disaster;
 use App\Models\Farmer;
 use App\Models\NotificationBroadcast;
 use App\Models\User;
@@ -82,23 +83,81 @@ class NotificationBroadcastController extends Controller
             'title'         => ['required', 'string', 'max:255'],
             'message'       => ['required', 'string', 'max:2000'],
             'category'      => ['required', Rule::in(array_keys(NotificationBroadcast::CATEGORIES))],
-            'priority'      => ['required', Rule::in(array_keys(NotificationBroadcast::PRIORITIES))],
+            'priority'      => ['required', Rule::in(array_keys(NotificationBroadcast::selectablePriorities()))],
             'target_type'   => ['required', Rule::in(array_keys(NotificationBroadcast::AUDIENCES))],
             'target_id'     => [
                 Rule::requiredIf(fn () => str_starts_with((string) $request->target_type, 'specific_')),
                 'nullable', 'integer',
             ],
             'scheduled_for' => ['nullable', 'date', 'after:now'],
-        ], [], [
+
+            /* The official disaster record. A Disaster Advisory must carry all
+               three; any other alert may name a hazard, and if it gives a date
+               it must give the name too (and the other way round). */
+            'hazard'        => [
+                Rule::requiredIf(fn () => $request->category === 'disaster_alert'),
+                'nullable', Rule::in(array_keys(NotificationBroadcast::HAZARDS)),
+            ],
+            // The disaster name is optional (not every event has an official
+            // name). Without one the record is named after the hazard and date.
+            'event_name'    => ['nullable', 'string', 'max:255'],
+            'disaster_date' => [
+                Rule::requiredIf(fn () => $request->category === 'disaster_alert' || $request->filled('event_name')),
+                'nullable', 'date', 'after_or_equal:2000-01-01',
+            ],
+        ], [
+            'hazard.required'        => 'Choose the hazard this Disaster Advisory is about.',
+            'disaster_date.required' => 'Enter the official disaster date.',
+        ], [
             'target_type'   => 'audience',
             'target_id'     => 'recipient',
             'scheduled_for' => 'schedule',
+            'disaster_date' => 'official disaster date',
+            'event_name'    => 'disaster name',
         ]);
 
         $scheduled = ! empty($data['scheduled_for']);
 
         $alert = DB::transaction(function () use ($data, $scheduled) {
+            /* The structured record behind the advisory. The same event is
+               reused if the office announces it again (same type, name and
+               date), so a follow-up advisory does not create a duplicate. */
+            $event = null;
+
+            if (! empty($data['hazard']) && ! empty($data['disaster_date'])) {
+                $type = NotificationBroadcast::HAZARD_EVENT_TYPE[$data['hazard']];
+                $date = \Illuminate\Support\Carbon::parse($data['disaster_date']);
+
+                // No official name given: "Flood (October 15, 2026)".
+                $eventName = trim((string) ($data['event_name'] ?? ''))
+                    ?: NotificationBroadcast::HAZARDS[$data['hazard']][0] . ' (' . $date->format('F j, Y') . ')';
+
+                $event = Disaster::active()
+                    ->where('type', $type)
+                    ->where('name', $eventName)
+                    ->whereDate('date_start', $data['disaster_date'])
+                    ->first()
+                    ?? Disaster::create([
+                        'type'       => $type,
+                        'name'       => $eventName,
+                        'date_start' => $data['disaster_date'],
+                    ]);
+
+                if ($event->wasRecentlyCreated) {
+                    AuditLog::create([
+                        'user_id'      => Auth::id(),
+                        'action'       => 'Recorded disaster event from advisory: ' . $event->name
+                            . ' (' . $event->date_start->toDateString() . ')',
+                        'target_table' => 'disasters',
+                        'target_id'    => $event->id,
+                        'created_at'   => now(),
+                    ]);
+                }
+            }
+
             $alert = NotificationBroadcast::create([
+                'hazard'        => $data['hazard'] ?? null,
+                'disaster_id'   => $event?->id,
                 'title'         => $data['title'],
                 'message'       => $data['message'],
                 'category'      => $data['category'],

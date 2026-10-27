@@ -250,6 +250,7 @@ Route::middleware(['auth', 'active', 'role:farmer'])
         Route::put('/planting/{planting}', [FarmerPlantingController::class, 'update'])->name('planting.update');
 
         /* ---------- Crop damage reporting ---------- */
+        Route::get('/my-reports', [\App\Http\Controllers\Farmer\MyReportsController::class, 'index'])->name('my-reports.index');
         Route::get('/reports', [FarmerDamageReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/create', [FarmerDamageReportController::class, 'create'])->name('reports.create');
         Route::post('/reports', [FarmerDamageReportController::class, 'store'])->name('reports.store');
@@ -325,6 +326,8 @@ Route::middleware(['auth', 'active', 'role:technician'])
            farmer's damage report, then what the technician assessed. */
         Route::get('/history/{validation}', [TechnicianAssignmentController::class, 'historyShow'])
             ->name('history.show');
+        Route::get('/history/{validation}/pdf', [TechnicianSummaryController::class, 'assessmentPdf'])
+            ->name('history.pdf');
 
         /* ---------- Field inspection ----------
            The technician works ON an existing damage report, so every route
@@ -381,6 +384,7 @@ Route::middleware(['auth', 'active', 'role:technician'])
            On screen only. Not to be confused with the MAO's Monthly Reports
            module, which covers the whole office and exports PDF/Excel. */
         Route::get('/summary', [TechnicianSummaryController::class, 'index'])->name('summaries.index');
+        Route::get('/summary/export', [TechnicianSummaryController::class, 'exportSummary'])->name('summaries.export');
 
         /* ---------- Archive ----------
            Reports no longer in this technician's queue: reassigned away
@@ -605,6 +609,8 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('damage-reports.decide');
         Route::put('/damage-reports/{damageReport}/disasters', [DamageReportMonitorController::class, 'updateDisasters'])
             ->name('damage-reports.disasters.update');
+        Route::post('/damage-reports/{damageReport}/date-review', [DamageReportMonitorController::class, 'reviewDates'])
+            ->name('damage-reports.date-review');
         Route::put('/damage-reports/{damageReport}/archive', [DamageReportMonitorController::class, 'archive'])
             ->name('damage-reports.archive');
         Route::put('/damage-reports/{damageReport}/restore', [DamageReportMonitorController::class, 'restore'])

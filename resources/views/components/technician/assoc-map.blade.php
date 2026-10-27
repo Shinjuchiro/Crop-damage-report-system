@@ -43,6 +43,15 @@
             .assoc-pop .tip-sep { border-top:1px solid #1e293b; margin:8px 0 7px; }
             .assoc-pop a.tip-btn { display:block; margin-top:10px; text-align:center; background:#15803d; color:#fff !important;
                 border-radius:8px; padding:6px 10px; font-weight:600; text-decoration:none; }
+            /* Hover card, same as the office's dashboard map. */
+            .assoc-tip { background:#0f172a; border:0; border-radius:12px; color:#fff; padding:12px 15px;
+                box-shadow:0 10px 24px -12px rgb(15 23 42 / .6); white-space:normal; width:250px; max-width:250px; }
+            .assoc-tip::before { border-top-color:#0f172a; }
+            .assoc-tip .tip-kicker { color:#a5b4fc; font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
+            .assoc-tip .tip-name { font-size:13.5px; font-weight:700; line-height:1.35; margin:3px 0 9px; white-space:normal; overflow-wrap:anywhere; }
+            .assoc-tip .tip-row { display:flex; align-items:flex-start; gap:7px; font-size:12px; line-height:1.5; color:#cbd5e1; white-space:normal; }
+            .assoc-tip .tip-dot { width:9px; height:9px; border-radius:9999px; display:inline-block; flex:none; margin-top:5px; }
+            .assoc-tip .tip-sep { border-top:1px solid #1e293b; margin:8px 0 7px; }
             .assoc-count { display:flex; align-items:center; justify-content:center; border-radius:9999px; color:#fff;
                 font-weight:700; border:2px solid #fff; box-shadow:0 2px 6px rgb(0 0 0 / .3); }
         </style>
@@ -58,6 +67,8 @@
                     if (typeof L === 'undefined') return;
                     const bubbles = JSON.parse(el.dataset.bubbles);
                     const shading = el.dataset.shading || 'count';
+                    // A mouse can hover; a phone cannot.
+                    const canHover = window.matchMedia('(hover: hover)').matches;
                     const pinData = JSON.parse(el.dataset.pins || '[]');
                     // Light fills (the low end of the count ramp) need dark text.
                     const ink = (hex) => {
@@ -127,13 +138,15 @@
                             if (i > 0) { const a = (i - 1) * (Math.PI * 2 / 3); lat += Math.cos(a) * 0.008; lng += Math.sin(a) * 0.008; }
 
                             const size = Math.round(26 + Math.sqrt(b.total) * 8);
-                            L.marker([lat, lng], {
+                            const marker = L.marker([lat, lng], {
                                 icon: L.divIcon({
                                     className: '',
                                     html: '<div class="assoc-count" style="width:' + size + 'px;height:' + size + 'px;background:' + colour(b) + ';color:' + ink(colour(b)) + '">' + b.total + '</div>',
                                     iconSize: [size, size],
                                 }),
-                            }).bindPopup(
+                            }).addTo(map);
+
+                            const info =
                                 '<span class="tip-kicker">' + (el.dataset.kicker || 'Farmers\' Association') + '</span>' +
                                 '<div class="tip-name">' + b.name + '</div>' +
                                 '<div class="tip-row"><span class="tip-dot" style="background:' + colour(b) + '"></span><span>' +
@@ -142,10 +155,18 @@
                                 '<div class="tip-sep"></div>' +
                                 row('#facc15', 'Awaiting Inspection', b.awaiting) +
                                 row('#3b82f6', 'Inspection Under Way', b.underway) +
-                                row('#22c55e', 'Verified', b.verified) +
-                                '<a class="tip-btn" href="' + b.url + '">View Details</a>',
-                                { className: 'assoc-pop' }
-                            ).addTo(map);
+                                row('#22c55e', 'Verified', b.verified);
+
+                            if (canHover) {
+                                // A mouse: the details show on hover, like the office's map,
+                                // and a click opens the list.
+                                marker.bindTooltip(info + '<div class="tip-sep"></div><div class="tip-row" style="color:#a5b4fc">Click to view details</div>',
+                                    { direction: 'top', offset: [0, -Math.round(size / 2)], className: 'assoc-tip' });
+                                marker.on('click', function () { window.location.href = b.url; });
+                            } else {
+                                // A touch screen has no hover, so a tap opens the card with its button.
+                                marker.bindPopup(info + '<a class="tip-btn" href="' + b.url + '">View Details</a>', { className: 'assoc-pop' });
+                            }
                         });
                     }).catch(function () {
                         el.insertAdjacentHTML('beforeend', '<div style="position:absolute;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#64748b;font-size:13px;padding:24px">Map could not be loaded.</div>');

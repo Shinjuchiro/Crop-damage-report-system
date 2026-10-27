@@ -191,13 +191,13 @@
                             </label>
                             <select id="ann-priority" name="priority" x-model="f.priority" required
                                     class="w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-sm focus:border-primary">
-                                @foreach (\App\Models\NotificationBroadcast::PRIORITIES as $key => $meta)
+                                @foreach (\App\Models\NotificationBroadcast::selectablePriorities() as $key => $meta)
                                     <option value="{{ $key }}">{{ $meta['label'] }}</option>
                                 @endforeach
                             </select>
                             <p class="mt-1.5 text-xs" :class="sendsSms() ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'"
                                x-text="sendsSms()
-                                    ? 'Urgent and Critical also send a text message to every member with a phone number.'
+                                    ? 'Urgent / Critical also sends a text message to every member with a phone number.'
                                     : 'Delivered in the app only.'"></p>
                         </div>
                     </div>

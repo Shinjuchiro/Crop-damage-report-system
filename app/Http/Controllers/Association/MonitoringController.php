@@ -292,6 +292,7 @@ class MonitoringController extends Controller
             : $this->filteredDamage($request, $association)->orderByDesc('created_at')->paginate(15)->withQueryString();
 
         PlantingMatch::annotate($reports->getCollection());
+        \App\Support\DateCheck::annotate($reports->getCollection());
 
         // Same definitions as the office's dashboard, for this association only.
         $summary = MonitorStats::damage($association->id);
@@ -328,6 +329,7 @@ class MonitoringController extends Controller
             : $inspected->orderByDesc('created_at')->paginate(15)->withQueryString();
 
         PlantingMatch::annotate($reports->getCollection());
+        \App\Support\DateCheck::annotate($reports->getCollection());
 
         // Same definitions as the office's dashboard, for this association only.
         $summary = MonitorStats::validation($association->id);
@@ -377,6 +379,7 @@ class MonitoringController extends Controller
 
         if ($report) {
             PlantingMatch::annotate([$report]);
+            \App\Support\DateCheck::annotate([$report]);
         }
 
         return $report;
@@ -398,6 +401,7 @@ class MonitoringController extends Controller
             ->get();
 
         PlantingMatch::annotate($reports);
+        \App\Support\DateCheck::annotate($reports);
 
         $rows = $reports
             ->map(function ($report) {

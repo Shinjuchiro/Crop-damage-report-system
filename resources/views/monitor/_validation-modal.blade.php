@@ -62,6 +62,9 @@
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <x-monitor.badge kind="match" :value="$match" />
+            @if (in_array($report->date_check ?? null, [\App\Support\DateCheck::REVIEW, \App\Support\DateCheck::REVIEWED], true))
+                <x-monitor.badge kind="dates" :value="$report->date_check" />
+            @endif
             @if ($submitted)
                 <x-monitor.badge kind="validation" :value="$reviewState" />
             @else
@@ -80,12 +83,33 @@
 
             <dl class="space-y-1.5">
                 <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Damage Report ID</dt><dd class="text-right font-medium text-foreground">{{ $report->full_reference }}</dd></div>
-                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date Submitted</dt><dd class="text-right font-medium text-foreground">{{ $report->created_at?->format('F d, Y') }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date Submitted</dt><dd class="text-right font-medium text-foreground">{{ ($report->submitted_at ?? $report->created_at)?->format('F d, Y') }}</dd></div>
+                <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date of Damage</dt><dd class="text-right font-medium text-foreground">{{ $report->date_damaged?->format('F d, Y') ?? 'Not recorded' }}</dd></div>
+                @if ($report->official_date ?? null)
+                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Official Disaster Date</dt><dd class="text-right font-medium text-foreground">{{ $report->official_date->format('F d, Y') }}</dd></div>
+                @endif
                 <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Disaster Type</dt><dd class="text-right font-medium text-foreground">{{ $report->damage_cause_label }}</dd></div>
                 <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Declared Event(s)</dt><dd class="text-right font-medium text-foreground">{{ $report->disasters->pluck('name')->implode(', ') ?: 'None attached' }}</dd></div>
                 <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Reported Damaged Area</dt><dd class="text-right font-medium text-foreground">{{ number_format($report->crops->sum('damaged_area_hectares'), 2) }} ha</dd></div>
                 <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Farmer Estimated Damage</dt><dd class="text-right font-medium text-foreground">{{ $estimate !== null ? round($estimate) . '%' : '-' }}</dd></div>
             </dl>
+
+            @if (($report->date_flags ?? collect())->isNotEmpty())
+                <div class="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/60 px-3 py-2.5 text-xs text-amber-900 dark:text-amber-200">
+                    <p class="font-semibold">Date check: dates need review</p>
+                    <p class="mt-0.5">This record contains a date inconsistency and requires MAO review.</p>
+                    <ul class="mt-1 list-inside list-disc space-y-0.5">
+                        @foreach ($report->date_flags as $flag)<li>{{ $flag }}</li>@endforeach
+                    </ul>
+                    <p class="mt-1.5 text-amber-800 dark:text-amber-300">The report is kept as filed and was not rejected for this.</p>
+                    @if ($report->date_review ?? null)
+                        <p class="mt-1.5 text-muted-foreground">
+                            Reviewed by {{ $report->date_review->reviewer?->full_name ?? $report->date_review->reviewer?->username ?? 'the office' }}
+                            on {{ $report->date_review->reviewed_at?->format('M d, Y') }}@if ($report->date_review->remarks): &ldquo;{{ $report->date_review->remarks }}&rdquo;@endif
+                        </p>
+                    @endif
+                </div>
+            @endif
 
             <div class="border-t border-border pt-3">
                 <p class="mb-2 text-xs text-muted-foreground">Reported crops</p>

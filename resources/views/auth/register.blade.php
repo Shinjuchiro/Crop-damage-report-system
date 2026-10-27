@@ -615,7 +615,8 @@
                                 <ul class="mt-3 space-y-2 sm:max-w-sm" x-show="supportMeta.length" x-cloak>
                                     <template x-for="(doc, index) in supportMeta" :key="doc.name + index">
                                         <li class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 text-xs">
-                                            <span class="min-w-0 truncate font-medium text-foreground" x-text="doc.name"></span>
+                                            <a :href="doc.url" target="_blank" rel="noopener" title="Open to check this file"
+                                               class="min-w-0 truncate font-medium text-primary hover:underline" x-text="doc.name"></a>
                                             <span class="flex shrink-0 items-center gap-3">
                                                 <span class="text-muted-foreground" x-text="doc.size"></span>
                                                 <button type="button" @click="removeSupportingDocument(index)"
@@ -788,14 +789,19 @@
 
                                 {{-- The files the farmer chose, by name, so the review
                                      shows the uploaded documents rather than leaving
-                                     them out of sight. --}}
+                                     them out of sight. Each name opens the file in a
+                                     new tab so the farmer can check it before submitting. --}}
                                 <template x-if="f.ownership_type === 'tenant'">
                                     <div class="sm:col-span-2 xl:col-span-3"><dt class="text-xs text-muted-foreground">Supporting Documents</dt>
                                          <dd class="text-sm font-medium text-foreground">
                                              <template x-if="supportMeta.length === 0"><span>No file selected</span></template>
                                              <ul class="space-y-0.5">
                                                  <template x-for="doc in supportMeta" :key="doc.name">
-                                                     <li x-text="doc.name + (doc.size ? ' (' + doc.size + ')' : '')"></li>
+                                                     <li>
+                                                         <a :href="doc.url" target="_blank" rel="noopener"
+                                                            class="font-medium text-primary underline hover:no-underline"
+                                                            x-text="doc.name + (doc.size ? ' (' + doc.size + ')' : '')"></a>
+                                                     </li>
                                                  </template>
                                              </ul>
                                          </dd></div>
@@ -983,6 +989,7 @@
             // by syncSupportingDocuments().
             supportMeta: [],
             supportFiles: [],
+            supportUrls: [],
 
             // True while the server is being asked whether a username or an
             // email is still free. The Continue button is disabled and says so,
@@ -1352,8 +1359,15 @@
                     this.$refs.supportInput.files = transfer.files;
                 }
 
-                this.supportMeta = this.supportFiles.map(file => ({
+                // A preview address for each chosen file, so the farmer can open
+                // it and check it again (the file has not been uploaded yet).
+                // The old addresses are released first so they do not pile up.
+                (this.supportUrls || []).forEach(url => URL.revokeObjectURL(url));
+                this.supportUrls = this.supportFiles.map(file => URL.createObjectURL(file));
+
+                this.supportMeta = this.supportFiles.map((file, index) => ({
                     name: file.name,
+                    url: this.supportUrls[index],
                     size: file.size >= 1048576
                         ? (file.size / 1048576).toFixed(1) + ' MB'
                         : Math.max(1, Math.round(file.size / 1024)) + ' KB',

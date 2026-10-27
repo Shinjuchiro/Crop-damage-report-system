@@ -7,8 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\AssistanceAllocation;
 use App\Models\AssistanceAllocationBeneficiary;
 use App\Models\AssistanceDistribution;
+use App\Models\CropPlantingRecord;
 use App\Models\DamageReport;
 use App\Models\Farmer;
+use App\Models\Validation;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -41,11 +44,44 @@ class DashboardController extends Controller
         // Farmer::sweepInactive().
         Farmer::sweepInactive();
 
-        $membersByStatus = DB::table('farmers')
+        /* Members = the farmers on the Members page: approved accounts of
+           this association that have not been deleted. */
+        $membersByStatus = Farmer::notDeleted()
             ->where('association_id', $association->id)
+            ->whereHas('user', fn ($user) => $user->where('status', 'active'))
             ->select('activity_status', DB::raw('COUNT(*) as total'))
             ->groupBy('activity_status')
             ->pluck('total', 'activity_status');
+
+        /* ---------- This month (Oct 2026 revision) ----------
+           Calendar month. Members are counted once however many records
+           they filed. Dates: planting = date the record was filed, damage =
+           date the report was filed, verified = date the technician
+           submitted the inspection. */
+        $monthStart = Carbon::now()->startOfMonth();
+        $monthEnd   = Carbon::now()->endOfMonth();
+
+        $memberIds = Farmer::notDeleted()
+            ->where('association_id', $association->id)
+            ->whereHas('user', fn ($user) => $user->where('status', 'active'))
+            ->select('id');
+
+        $membersPlanting = CropPlantingRecord::active()
+            ->whereIn('farmer_id', (clone $memberIds))
+            ->whereBetween('date_submitted', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->distinct('farmer_id')->count('farmer_id');
+
+        $membersDamage = DamageReport::active()
+            ->whereIn('farmer_id', (clone $memberIds))
+            ->whereBetween(DB::raw('COALESCE(submitted_at, created_at)'), [$monthStart, $monthEnd])
+            ->distinct('farmer_id')->count('farmer_id');
+
+        $verifiedThisMonth = Validation::query()
+            ->whereHas('damageReport', fn ($report) => $report->active()
+                ->whereIn('farmer_id', (clone $memberIds)))
+            ->whereNotNull('validated_at')
+            ->whereBetween('validated_at', [$monthStart, $monthEnd])
+            ->count();
 
         $totalMembers = (int) $membersByStatus->sum();
 
@@ -170,6 +206,10 @@ class DashboardController extends Controller
                                       + (int) ($reportsByStatus['under_verification'] ?? 0),
                 'verified_reports' => (int) ($reportsByStatus['verified'] ?? 0)
                                       + (int) ($reportsByStatus['approved'] ?? 0),
+
+                'members_planting_month' => $membersPlanting,
+                'members_damage_month'   => $membersDamage,
+                'verified_month'         => $verifiedThisMonth,
 
                 'open_allocations'      => $openAllocations,
                 'designated_members'    => $designatedMembers,

@@ -34,18 +34,35 @@ use Illuminate\Support\Facades\Auth;
  */
 trait SyncsDisasterLinks
 {
-    private function syncDisasterLinks(DamageReport $report, array $disasterIds, string $role): void
+    /**
+     * @param int|null $primaryId  The report's MAIN event (the one its dates are
+     *                             checked against). Null keeps whichever is
+     *                             already marked, if it is still linked. With a
+     *                             single event that event is the main one.
+     */
+    private function syncDisasterLinks(DamageReport $report, array $disasterIds, string $role, ?int $primaryId = null): void
     {
         $disasterIds = array_map('intval', $disasterIds);
 
         $existing = $report->disasters()->get()->keyBy('id');
         $before   = $existing->keys()->all();
 
+        $oldPrimary = $existing->first(fn ($d) => (bool) $d->pivot->is_primary)?->id;
+
+        $newPrimary = match (true) {
+            count($disasterIds) === 1                                  => $disasterIds[0],
+            $primaryId !== null && in_array($primaryId, $disasterIds, true) => $primaryId,
+            $oldPrimary !== null && in_array($oldPrimary, $disasterIds, true) => $oldPrimary,
+            default                                                    => null,
+        };
+
         sort($before);
         $sortedNew = $disasterIds;
         sort($sortedNew);
 
-        if ($before === $sortedNew) {
+        $primaryChanged = count($disasterIds) > 1 && $newPrimary !== $oldPrimary;
+
+        if ($before === $sortedNew && ! $primaryChanged) {
             return;   // nothing actually changed, nothing to log
         }
 
@@ -65,6 +82,8 @@ trait SyncsDisasterLinks
                     'linked_by_role' => $role,
                     'created_at'     => now(),
                 ];
+
+            $syncData[$id]['is_primary'] = $id === $newPrimary;
         }
 
         $report->disasters()->sync($syncData);
@@ -75,6 +94,9 @@ trait SyncsDisasterLinks
         $summary = collect([
             $added->isNotEmpty()   ? 'linked ' . $added->join(', ')     : null,
             $removed->isNotEmpty() ? 'unlinked ' . $removed->join(', ') : null,
+            count($disasterIds) > 1 && $primaryChanged
+                ? 'main event ' . ($newPrimary ? Disaster::whereKey($newPrimary)->value('name') : 'cleared')
+                : null,
         ])->filter()->join('; ');
 
         AuditLog::create([

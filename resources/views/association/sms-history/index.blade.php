@@ -2,7 +2,7 @@
 
 @section('title', 'SMS History')
 @section('heading', 'SMS History')
-@section('subheading', 'Every text sent for your association\'s Urgent and Critical announcements.')
+@section('subheading', 'Every text sent for your association\'s Urgent / Critical announcements.')
 
 @section('header-actions')
     <x-ui.button variant="outline" :href="route('association.announcements.index')">Back to Announcements</x-ui.button>
@@ -38,7 +38,7 @@
                              :selected="request('status')" class="sm:w-40" />
 
                 <x-ui.select name="priority" placeholder="All priorities" onchange="this.form.submit()"
-                             :options="collect($priorities)->filter(fn ($meta) => $meta['sms'])->map(fn ($meta) => $meta['label'])"
+                             :options="collect($priorities)->filter(fn ($meta) => $meta['sms'] && empty($meta['hidden']))->map(fn ($meta) => $meta['label'])"
                              :selected="request('priority')" class="sm:w-40" />
 
                 <x-ui.input type="text" name="search" value="{{ request('search') }}"
@@ -97,7 +97,7 @@
             <div class="px-6 py-16 text-center">
                 <p class="text-sm font-medium text-muted-foreground">No SMS activity yet</p>
                 <p class="mt-1 text-xs text-muted-foreground">
-                    Urgent and Critical announcements that reach a recipient with a phone number on file will show up here.
+                    Urgent / Critical announcements that reach a recipient with a phone number on file will show up here.
                 </p>
             </div>
         @endif

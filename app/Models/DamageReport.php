@@ -53,27 +53,56 @@ class DamageReport extends Model
      * a report can also be linked to the declared event when one exists.
      */
     public const CAUSES = [
-        'typhoon'          => 'Typhoon / Bagyo',
-        'flood'            => 'Flood / Baha',
-        'drought'          => 'Drought / Tagtuyot',
-        'strong_winds'     => 'Strong Winds / Malakas na Hangin',
-        'pest_infestation' => 'Pest Infestation / Peste o Insekto',
-        'plant_disease'    => 'Plant Disease / Sakit ng Halaman',
-        'heat_stress'      => 'Extreme Heat / Sobrang Init',
-        'other'            => 'Other / Iba pa',
+        'typhoon'             => 'Typhoon / Bagyo',
+        'flood'               => 'Flood / Baha',
+        'drought'             => 'Drought / Tagtuyot',
+        'storm_surge'         => 'Storm Surge / Daluyong ng Bagyo',
+        'soil_erosion'        => 'Soil Erosion / Pagkaagnas ng Lupa',
+        'landslide'           => 'Landslide / Pagguho ng Lupa',
+        'saltwater_intrusion' => 'Saltwater Intrusion / Pagpasok ng Tubig-Alat',
+        'sea_level_rise'      => 'Sea Level Rise / Pagtaas ng Dagat',
+        'heat_stress'         => 'Extreme Heat / Sobrang Init',
+        'pest_disease_outbreak' => 'Pest and Disease Outbreak / Peste at Sakit',
+        'strong_winds'        => 'Strong Winds / Malakas na Hangin',
+        'other'               => 'Other / Iba pa',
+
+        // No longer offered on the form (Pest and Disease Outbreak covers
+        // both), kept so reports already filed under them still read right.
+        'pest_infestation'    => 'Pest Infestation / Peste o Insekto',
+        'plant_disease'       => 'Plant Disease / Sakit ng Halaman',
     ];
 
+    /** Causes that stay in CAUSES for old reports but are not offered any more. */
+    public const RETIRED_CAUSES = ['pest_infestation', 'plant_disease'];
+
+    /** The causes a farmer can choose on the report form, in display order. */
+    public static function formCauses(): array
+    {
+        return array_diff_key(self::CAUSES, array_flip(self::RETIRED_CAUSES));
+    }
+
     /**
-     * The causes that the MAO declares as an event. For these, and only these,
-     * the farmer is asked to pick the declared event as well, and even then
-     * only when the office has actually declared one of that type.
+     * The causes that the MAO declares as an event (every cause except "Other").
+     * For these, and only these, the farmer is asked to pick the declared event
+     * as well, and even then only when the office has actually declared one of
+     * that type.
      */
-    public const WEATHER_CAUSES = ['typhoon', 'flood', 'drought', 'strong_winds'];
+    public const WEATHER_CAUSES = [
+        'typhoon', 'flood', 'drought', 'strong_winds',
+        // Added with the Disaster Advisory dates (Oct 2026): an advisory can now
+        // declare any of the hazards, and every one of them carries an official
+        // date that the planting and damage dates are checked against.
+        'storm_surge', 'soil_erosion', 'landslide', 'saltwater_intrusion',
+        'sea_level_rise', 'heat_stress', 'pest_disease_outbreak',
+    ];
 
     protected $table = 'damage_reports';
 
     protected $fillable = [
-        'farmer_id', 'farmer_report_no', 'damage_cause', 'damage_cause_other',
+        'farmer_id', 'farmer_report_no', 'damage_cause', 'damage_cause_other', 'typhoon_name',
+        // The ACTUAL date the crop was damaged, and when the report was filed.
+        // Two different things, kept in two columns.
+        'date_damaged', 'submitted_at',
         'assigned_technician_id', 'assigned_at', 'farm_location_description',
         'reported_barangay_id',
         // The farmer's own coordinates, set once when the report is filed.
@@ -89,6 +118,8 @@ class DamageReport extends Model
     protected function casts(): array
     {
         return [
+            'date_damaged' => 'date',
+            'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'reviewed_at' => 'datetime',
             // Set once, when the MAO hands the report to a technician.
@@ -139,7 +170,14 @@ class DamageReport extends Model
             return $this->damage_cause_other;
         }
 
-        return self::CAUSES[$this->damage_cause] ?? 'Not recorded';
+        $label = self::CAUSES[$this->damage_cause] ?? 'Not recorded';
+
+        // "Typhoon / Bagyo (Egay)": the name is part of what the cause is.
+        if ($this->damage_cause === 'typhoon' && filled($this->typhoon_name)) {
+            $label .= ' (' . $this->typhoon_name . ')';
+        }
+
+        return $label;
     }
 
     public function farmer()
@@ -184,7 +222,7 @@ class DamageReport extends Model
         // their own inspection (see migration 2024_01_09_000001 and
         // Technician\InspectionController::syncDisasterLinks()).
         return $this->belongsToMany(Disaster::class, 'damage_report_disasters')
-            ->withPivot(['linked_by', 'linked_by_role', 'created_at']);
+            ->withPivot(['linked_by', 'linked_by_role', 'created_at', 'is_primary']);
     }
 
     public function photos()
@@ -275,6 +313,46 @@ class DamageReport extends Model
         return $query->where(fn ($q) => $q
             ->whereHas('crops', fn ($c) => $c->whereRaw(\App\Support\PlantingMatch::unmatchedLineSql()))
             ->orWhereDoesntHave('crops'));
+    }
+
+    /** Reports whose dates disagree with their disaster event's official date (see DateCheck). */
+    public function scopeDateFlagged($query)
+    {
+        return $query->whereRaw(\App\Support\DateCheck::reviewSql());
+    }
+
+    /**
+     * Reports whose crop damage actually happened between two dates.
+     *
+     * Uses the actual damage date the farmer gave, not the day the report was
+     * filed. Reports from before that date was collected have none, so for
+     * them alone the day they were created stands in. Either bound may be null.
+     */
+    public function scopeOccurredBetween($query, $from, $to)
+    {
+        $when = 'COALESCE(damage_reports.date_damaged, DATE(damage_reports.created_at))';
+
+        return $query
+            ->when($from, fn ($q) => $q->whereRaw("{$when} >= ?", [\Illuminate\Support\Carbon::parse($from)->toDateString()]))
+            ->when($to, fn ($q) => $q->whereRaw("{$when} <= ?", [\Illuminate\Support\Carbon::parse($to)->toDateString()]));
+    }
+
+    /** Flagged, and nobody in the office has reviewed the dates yet. */
+    public function scopeDateReview($query)
+    {
+        return $query->dateFlagged()->whereDoesntHave('dateReviews');
+    }
+
+    /** Flagged, and the office has reviewed the dates. */
+    public function scopeDateReviewed($query)
+    {
+        return $query->dateFlagged()->whereHas('dateReviews');
+    }
+
+    /** The office's reviews of this report's dates, oldest first. */
+    public function dateReviews()
+    {
+        return $this->hasMany(DamageReportDateReview::class)->orderBy('reviewed_at')->orderBy('id');
     }
 
     /** Reports where every crop line has a matching planting record. */

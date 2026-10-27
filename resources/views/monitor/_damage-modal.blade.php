@@ -50,6 +50,7 @@
             editingDisasters: false,
             confirmingDisasters: false,
             disasterIds: @js($report->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()->all()),
+            primaryId: @js((string) ($report->disasters->first(fn ($d) => $d->pivot->is_primary)?->id ?? '')),
             disasterLabels: @js(collect($availableDisasters)->pluck('name', 'id')->all()),
         }"
      @endif>
@@ -70,6 +71,9 @@
         <div class="flex flex-wrap items-center gap-2">
             <x-monitor.badge kind="assignment" :value="$report->is_assigned ? 'assigned' : 'unassigned'" />
             <x-monitor.badge kind="match" :value="$report->planting_match" />
+            @if (in_array($report->date_check ?? null, [\App\Support\DateCheck::REVIEW, \App\Support\DateCheck::REVIEWED], true))
+                <x-monitor.badge kind="dates" :value="$report->date_check" />
+            @endif
         </div>
     </div>
 
@@ -83,10 +87,76 @@
                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Crop Damage Report</p>
                 <dl class="space-y-1.5">
                     <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Damage Report ID</dt><dd class="text-right font-medium text-foreground">{{ $report->full_reference }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date Submitted</dt><dd class="text-right font-medium text-foreground">{{ $report->created_at?->format('F d, Y') }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date Submitted</dt><dd class="text-right font-medium text-foreground">{{ ($report->submitted_at ?? $report->created_at)?->format('F d, Y') }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Date of Damage</dt><dd class="text-right font-medium text-foreground">{{ $report->date_damaged?->format('F d, Y') ?? 'Not recorded' }}</dd></div>
+                    @if ($report->official_date ?? null)
+                        <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Official Disaster Date</dt><dd class="text-right font-medium text-foreground">{{ $report->official_date->format('F d, Y') }}</dd></div>
+                    @endif
                     <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Total Damaged Area</dt><dd class="text-right font-medium text-foreground">{{ number_format($report->crops->sum('damaged_area_hectares'), 2) }} ha</dd></div>
                 </dl>
             </div>
+
+            {{-- Dates against the official disaster date. Shown only when something
+                 disagrees; the report is kept exactly as filed. The office can record
+                 that it has reviewed them (nothing about the report changes). --}}
+            @if (($report->date_flags ?? collect())->isNotEmpty())
+                @php $review = $report->date_review ?? null; @endphp
+                <div x-data="{ confirming: false, remarks: '' }"
+                     class="rounded-lg border px-3 py-2.5 text-xs {{ $review ? 'border-border bg-muted text-foreground' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200' }}">
+                    <p class="font-semibold">Date check: {{ $review ? 'dates reviewed' : 'dates need review' }}</p>
+                    @unless ($review)<p class="mt-0.5">This record contains a date inconsistency and requires MAO review.</p>@endunless
+                    <ul class="mt-1 list-inside list-disc space-y-0.5">
+                        @foreach ($report->date_flags as $flag)<li>{{ $flag }}</li>@endforeach
+                    </ul>
+
+                    @if ($review)
+                        <p class="mt-2 text-muted-foreground">
+                            Reviewed by <span class="font-medium text-foreground">{{ $review->reviewer?->full_name ?? $review->reviewer?->username ?? 'the office' }}</span>
+                            on {{ $review->reviewed_at?->format('M d, Y g:i A') }}.
+                            @if ($review->remarks) <span class="block text-foreground">&ldquo;{{ $review->remarks }}&rdquo;</span> @endif
+                        </p>
+                        @if ($report->date_review_stale ?? false)
+                            <p class="mt-1.5 font-medium text-amber-800 dark:text-amber-300">The reasons above have changed since that review.</p>
+                        @endif
+                    @else
+                        <p class="mt-1.5 text-amber-800 dark:text-amber-300">
+                            The report is kept as filed and was not rejected for this. If the disaster date itself was entered wrongly,
+                            correct it in Disaster Management and this check updates.
+                        </p>
+                    @endif
+
+                    @if ($isMao && (! $review || ($report->date_review_stale ?? false)))
+                        <button type="button" @click="confirming = true"
+                                class="mt-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110">
+                            {{ $review ? 'Review again' : 'Mark as reviewed' }}
+                        </button>
+
+                        <div x-show="confirming" x-cloak class="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+                            <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 text-sm text-foreground shadow-xl">
+                                <h3 class="mb-1 text-lg font-semibold">Mark these dates as reviewed?</h3>
+                                <p class="mb-3 text-muted-foreground">
+                                    This records that you looked at the dates below. The report, its planting date and its status stay exactly as they are.
+                                </p>
+                                <ul class="mb-3 list-inside list-disc space-y-0.5 rounded-lg bg-muted p-3 text-xs">
+                                    @foreach ($report->date_flags as $flag)<li>{{ $flag }}</li>@endforeach
+                                </ul>
+                                <form method="POST" action="{{ route('mao.damage-reports.date-review', $report) }}">
+                                    @csrf
+                                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Remarks (optional)</label>
+                                    <textarea name="remarks" x-model="remarks" rows="3" maxlength="500"
+                                              class="mb-4 w-full rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring"></textarea>
+                                    <div class="flex gap-3">
+                                        <button type="button" @click="confirming = false"
+                                                class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-muted/60">Cancel</button>
+                                        <button type="submit"
+                                                class="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">Confirm review</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endif
 
             {{-- Disaster type + declared events --}}
             <div class="border-t border-border pt-4">
@@ -107,7 +177,7 @@
                     <template x-if="! editingDisasters">
                         <div>
                             @forelse ($report->disasters as $disaster)
-                                <p class="text-xs text-foreground">{{ $disaster->name }} <span class="text-muted-foreground">({{ ucwords(str_replace('_', ' ', $disaster->type)) }})</span></p>
+                                <p class="text-xs text-foreground">{{ $disaster->name }} <span class="text-muted-foreground">({{ $disaster->type_label }})</span>@if ($report->disasters->count() > 1 && $disaster->pivot->is_primary) <span class="font-semibold text-green-800">main event</span>@endif</p>
                             @empty
                                 <p class="text-xs text-muted-foreground">No declared event attached.</p>
                             @endforelse
@@ -139,9 +209,18 @@
                             <p class="mb-4 text-sm text-muted-foreground">This report will now be linked to:</p>
                             <ul class="mb-4 space-y-1 text-sm text-foreground" x-show="disasterIds.length">
                                 <template x-for="id in disasterIds" :key="id">
-                                    <li class="rounded bg-muted px-3 py-1.5" x-text="disasterLabels[id]"></li>
+                                    <li class="rounded bg-muted px-3 py-1.5">
+                                        <label class="flex items-center gap-2" :class="disasterIds.length > 1 ? 'cursor-pointer' : ''">
+                                            <input type="radio" x-show="disasterIds.length > 1" :value="id" x-model="primaryId" class="h-3.5 w-3.5 accent-[var(--primary)]">
+                                            <span x-text="disasterLabels[id]"></span>
+                                        </label>
+                                    </li>
                                 </template>
                             </ul>
+                            <p class="mb-4 text-xs text-muted-foreground" x-show="disasterIds.length > 1">
+                                Select the main event: the planting and damage dates are checked against its disaster date.
+                                You can leave it unselected and the report is flagged for review instead.
+                            </p>
                             <p class="mb-4 text-sm text-muted-foreground" x-show="! disasterIds.length">
                                 No disaster event - only appropriate if the cause was pests, plant disease, or heat.
                             </p>
@@ -150,6 +229,7 @@
                                 <template x-for="id in disasterIds" :key="id">
                                     <input type="hidden" name="disasters[]" :value="id">
                                 </template>
+                                <input type="hidden" name="primary_disaster" :value="disasterIds.length > 1 && disasterIds.includes(primaryId) ? primaryId : ''">
                                 <div class="flex gap-3">
                                     <button type="button" @click="confirmingDisasters = false"
                                             class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/60">
@@ -165,7 +245,7 @@
                     </div>
                 @else
                     @forelse ($report->disasters as $disaster)
-                        <p class="text-xs text-foreground">{{ $disaster->name }} <span class="text-muted-foreground">({{ ucwords(str_replace('_', ' ', $disaster->type)) }})</span></p>
+                        <p class="text-xs text-foreground">{{ $disaster->name }} <span class="text-muted-foreground">({{ $disaster->type_label }})</span></p>
                     @empty
                         <p class="text-xs text-muted-foreground">No declared event attached.</p>
                     @endforelse

@@ -40,7 +40,7 @@
                      choosing a type, submits the form. --}}
                 <form method="GET" class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                     <x-ui.select name="type" placeholder="All types" onchange="this.form.submit()"
-                                 :options="collect($types)->mapWithKeys(fn ($t) => [$t => ucwords(str_replace('_', ' ', $t))])"
+                                 :options="collect($types)->mapWithKeys(fn ($t) => [$t => explode(' / ', \App\Models\DamageReport::CAUSES[$t] ?? ucwords(str_replace('_', ' ', $t)))[0]])"
                                  :selected="request('type')" class="sm:w-48" />
 
                     <x-ui.input type="text" name="search" value="{{ request('search') }}" placeholder="Search event name"
@@ -64,7 +64,7 @@
                     @forelse ($disasters as $disaster)
                         <li>
                             <x-ui.record-card :href="$viewUrl($disaster->id)"
-                                              :eyebrow="ucwords(str_replace('_', ' ', $disaster->type))"
+                                              :eyebrow="$disaster->type_label"
                                               :title="$disaster->name"
                                               :fields="[
                                                   'Damage reports' => $disaster->damage_reports_count ?: 'None',
@@ -105,7 +105,7 @@
                                         <td class="px-5 py-3 font-medium text-foreground">{{ $disaster->name }}</td>
                                         <td class="px-5 py-3">
                                             <span class="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
-                                                {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
+                                                {{ $disaster->type_label }}
                                             </span>
                                         </td>
                                         <td class="px-5 py-3 text-center">
@@ -149,7 +149,7 @@
                         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Disaster Event</p>
                         <h3 class="mt-0.5 text-lg font-bold text-foreground">{{ $selected->name }}</h3>
                         <span class="mt-1 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
-                            {{ ucwords(str_replace('_', ' ', $selected->type)) }}
+                            {{ $selected->type_label }}
                         </span>
                     </div>
                 </div>

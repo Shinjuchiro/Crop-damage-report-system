@@ -16,7 +16,12 @@ use Illuminate\Validation\Rule;
  */
 class DisasterController extends Controller
 {
-    public const TYPES = ['typhoon', 'flood', 'drought', 'strong_winds', 'other'];
+    /** Same keys as the damage causes, so a report's cause finds events of its own kind. */
+    public const TYPES = [
+        'typhoon', 'flood', 'drought', 'storm_surge', 'soil_erosion', 'landslide',
+        'saltwater_intrusion', 'sea_level_rise', 'heat_stress', 'pest_disease_outbreak',
+        'strong_winds', 'other',
+    ];
 
     public function index(Request $request)
     {

@@ -73,8 +73,13 @@
         </span>
 
         <p class="text-sm text-muted-foreground">
-            Reported <span class="font-medium text-foreground">{{ $damageReport->created_at?->format('M d, Y') }}</span>
+            Reported <span class="font-medium text-foreground">{{ ($damageReport->submitted_at ?? $damageReport->created_at)?->format('M d, Y') }}</span>
         </p>
+        @if ($damageReport->date_damaged)
+            <p class="text-sm text-muted-foreground">
+                Crop damaged <span class="font-medium text-foreground">{{ $damageReport->date_damaged->format('M d, Y') }}</span>
+            </p>
+        @endif
 
         @if ($damageReport->assignedTechnician)
             <p class="text-sm text-muted-foreground">
@@ -173,7 +178,7 @@
                             <div class="rounded-lg border border-border bg-muted px-4 py-3">
                                 <p class="text-sm font-medium text-foreground">{{ $disaster->name }}</p>
                                 <p class="text-xs text-muted-foreground">
-                                    {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
+                                    {{ $disaster->type_label }}
                                     &middot; {{ $disaster->date_start?->format('M d, Y') }}
                                     @if ($disaster->date_end) to {{ $disaster->date_end->format('M d, Y') }} @endif
                                     @if ($disaster->pivot?->linked_by_role)
@@ -214,7 +219,7 @@
                                 <span class="min-w-0 flex-1">
                                     <span class="text-sm font-medium">{{ $disaster->name }}</span>
                                     <span class="block text-xs text-muted-foreground">
-                                        {{ ucwords(str_replace('_', ' ', $disaster->type)) }}
+                                        {{ $disaster->type_label }}
                                         @if ($disaster->date_start)
                                             &middot; {{ $disaster->date_start->format('M d, Y') }}
                                             @if ($disaster->date_end) - {{ $disaster->date_end->format('M d, Y') }} @endif

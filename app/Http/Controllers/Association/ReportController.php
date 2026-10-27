@@ -100,7 +100,7 @@ class ReportController extends Controller
 
         return view('association.summaries.show', [
             'association' => $association,
-            'data'        => MonthlyReportBuilder::forPeriod($year, $month, $association->id, request()->query('types')),
+            'data'        => MonthlyReportBuilder::forPeriod($year, $month, $association->id, MonthlyReportBuilder::normalizeTypes((array) request()->query('types'))),
         ]);
     }
 
@@ -109,7 +109,7 @@ class ReportController extends Controller
         $this->assertValidPeriod($year, $month);
         $association = $this->association();
 
-        $data = MonthlyReportBuilder::forPeriod($year, $month, $association->id, request()->query('types'));
+        $data = MonthlyReportBuilder::forPeriod($year, $month, $association->id, MonthlyReportBuilder::normalizeTypes((array) request()->query('types')));
 
         $options = new Options();
         $options->set('isRemoteEnabled', false);
@@ -134,7 +134,7 @@ class ReportController extends Controller
         $this->assertValidPeriod($year, $month);
         $association = $this->association();
 
-        $data        = MonthlyReportBuilder::forPeriod($year, $month, $association->id, request()->query('types'));
+        $data        = MonthlyReportBuilder::forPeriod($year, $month, $association->id, MonthlyReportBuilder::normalizeTypes((array) request()->query('types')));
         $spreadsheet = MonthlyReportSpreadsheetBuilder::build($data);
         $filename    = 'monthly-report-' . str($association->name)->slug() . '-'
             . $year . '-' . str_pad((string) $month, 2, '0', STR_PAD_LEFT) . '.xlsx';
