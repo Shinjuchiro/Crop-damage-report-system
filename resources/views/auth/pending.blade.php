@@ -1,6 +1,6 @@
 @extends('layouts.guest')
 @section('title', 'Application Status')
-@php($hideBrandHeader = true)
+@php $hideBrandHeader = true; @endphp
 
 @php
     use App\Support\MembershipApplication;

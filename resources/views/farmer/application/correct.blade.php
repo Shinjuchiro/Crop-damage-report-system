@@ -1,7 +1,6 @@
 @extends('layouts.guest')
 @section('title', 'Correct My Application')
-@php($hideBrandHeader = true)
-@php($wide = true)
+@php $hideBrandHeader = true; $wide = true; @endphp
 
 @php
     /* CORRECTING A RETURNED APPLICATION (revision step 6)
