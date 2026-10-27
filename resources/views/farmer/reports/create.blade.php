@@ -231,20 +231,6 @@
 
                                 <div class="space-y-1.5">
                                     <label class="block text-sm font-medium">
-                                        Damaged Area <span class="text-destructive">*</span>
-                                        <span class="block text-xs font-normal text-muted-foreground">Laki ng nasira (hektarya)</span>
-                                    </label>
-                                    <div class="relative">
-                                        <input type="number" :name="`crops[${index}][damaged_area_hectares]`"
-                                               x-model="row.damaged_area_hectares" required step="0.01" min="0.01"
-                                               inputmode="decimal" placeholder="0.00"
-                                               class="h-12 w-full rounded-md border border-input bg-card px-3 pr-12 text-base shadow-sm">
-                                        <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">ha</span>
-                                    </div>
-                                </div>
-
-                                <div class="space-y-1.5">
-                                    <label class="block text-sm font-medium">
                                         Date Planted <span class="text-destructive">*</span>
                                         <span class="block text-xs font-normal text-muted-foreground">Petsa ng pagtatanim</span>
                                     </label>
@@ -269,6 +255,20 @@
                                     </p>
                                 </div>
 
+                                <div class="space-y-1.5">
+                                    <label class="block text-sm font-medium">
+                                        Damaged Area <span class="text-destructive">*</span>
+                                        <span class="block text-xs font-normal text-muted-foreground">Laki ng nasira (hektarya)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <input type="number" :name="`crops[${index}][damaged_area_hectares]`"
+                                               x-model="row.damaged_area_hectares" required step="0.01" min="0.01"
+                                               inputmode="decimal" placeholder="0.00"
+                                               class="h-12 w-full rounded-md border border-input bg-card px-3 pr-12 text-base shadow-sm">
+                                        <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">ha</span>
+                                    </div>
+                                </div>
+
                                 <div class="space-y-1.5 sm:col-span-2 lg:col-span-3" x-show="isHvcc(row)" x-cloak>
                                     <label class="block text-sm font-medium">
                                         Which high value crop? <span class="text-destructive">*</span>
@@ -281,7 +281,7 @@
                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
                                 </div>
 
-                                <div class="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                                <div class="space-y-1.5">
                                     <label class="block text-sm font-medium">
                                         Your Estimate of the Damage <span class="text-destructive">*</span>
                                         <span class="block text-xs font-normal text-muted-foreground">
@@ -295,7 +295,7 @@
                                          the server's own required rule rejects it,
                                          rather than silently recording a number
                                          nobody chose. --}}
-                                    <div class="flex items-center gap-4">
+                                    <div class="flex h-12 items-center gap-4">
                                         <input type="range"
                                                :name="row.damageTouched ? `crops[${index}][estimated_damage_percent]` : null"
                                                :value="row.estimated_damage_percent || 50"

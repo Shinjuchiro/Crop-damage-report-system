@@ -90,7 +90,7 @@
                     <x-ui.card :padded="false">
                         @foreach ($rows as $row)
                             <div class="border-b border-border last:border-0">
-                                <x-notification.row :notification="$row" :href="route($showRoute, $row)" :stamp="true" />
+                                <x-notification.row :notification="$row" :href="route($showRoute, $row)" />
                             </div>
                         @endforeach
                     </x-ui.card>

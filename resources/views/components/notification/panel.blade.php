@@ -145,7 +145,7 @@
                                 :notification="$item"
                                 :href="$showRoute ? route($showRoute, $item) : null"
                                 compact
-                                :stamp="true" />
+                                />
                         </div>
                     @endforeach
                 </div>
