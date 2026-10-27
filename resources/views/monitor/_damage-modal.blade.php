@@ -321,6 +321,7 @@
     @endpush
     @push('scripts')
         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+        <script src="{{ asset('js/tanza-mask.js') }}"></script>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 const el = document.getElementById('reportedMap-{{ $report->id }}');
@@ -334,6 +335,11 @@
                     maxZoom: 19,
                     attribution: '&copy; OpenStreetMap contributors',
                 }).addTo(map);
+
+                /* Tanza only: everything outside the municipality is covered
+                   and the view cannot be dragged away from it. */
+                maskOutsideTanza(map, @js(asset('geo/tanza-outline.json')))
+                    .then(b => { if (b) map.setMaxBounds(b.pad(0.05)); });
 
                 L.marker([lat, lng]).addTo(map).bindPopup(el.dataset.label).openPopup();
             });

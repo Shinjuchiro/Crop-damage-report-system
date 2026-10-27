@@ -19,13 +19,34 @@
             ->count()
         : 0;
 
-    // Assistance the association has recorded giving out, that this farmer
-    // hasn't yet confirmed receiving (see Farmer\AssistanceController).
-    $assistanceAwaitingConfirmation = $farmerId
-        ? \App\Models\AssistanceDistribution::where('farmer_id', $farmerId)
+    // New assistance for this farmer, counted the same way the Assistance
+    // page itself asks about it (Farmer\AssistanceController::index):
+    //
+    //   1. batches the office SELECTED them for that have no hand-over row
+    //      yet. This is the "new assistance" a farmer is told about, and it
+    //      used to carry no badge at all, so nothing in the menu said a
+    //      batch was waiting for their answer;
+    //   2. hand-overs on the record that they have not yet confirmed.
+    //
+    // Both leave the count the moment the farmer answers on that page.
+    $assistanceAwaitingConfirmation = 0;
+
+    if ($farmerId) {
+        $handedOver = \App\Models\AssistanceDistribution::where('farmer_id', $farmerId)
+            ->pluck('assistance_allocation_id');
+
+        $newSelections = \App\Models\AssistanceAllocationBeneficiary::where('farmer_id', $farmerId)
+            ->whereNotIn('assistance_allocation_id', $handedOver)
+            ->whereHas('allocation', fn ($a) => $a->where('status', '!=', 'cancelled'))
+            ->count();
+
+        $handOversToConfirm = \App\Models\AssistanceDistribution::where('farmer_id', $farmerId)
+            ->whereIn('distribution_status', ['distributed', 'completed'])
             ->where('receipt_status', 'pending_confirmation')
-            ->count()
-        : 0;
+            ->count();
+
+        $assistanceAwaitingConfirmation = $newSelections + $handOversToConfirm;
+    }
 
     $items = [
         [
@@ -79,7 +100,7 @@
             'icon'        => 'M12 8.2c1-1.7 3.6-1.5 3.6.6 0 1.7-2.1 3.4-3.6 4.6-1.5-1.2-3.6-2.9-3.6-4.6 0-2.1 2.6-2.3 3.6-.6zM3 21v-3.5l4.5-2.2L12 17.5l4.5-2.2L21 17.5V21',
             'badge'       => $assistanceAwaitingConfirmation,
             'badge_noun'  => 'item',
-            'badge_label' => 'awaiting your confirmation',
+            'badge_label' => 'new or awaiting your confirmation',
         ],
     ];
 

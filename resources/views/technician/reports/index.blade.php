@@ -54,66 +54,77 @@
                 @endforeach
             </ul>
 
-            {{-- ---------- TABLET AND UP: the table ---------- --}}
-            <div class="hidden lg:block">
-                <x-ui.table>
-                    <x-slot:head>
-                        <tr>
-                            <th>Report Id</th>
-                            <th>Farmer</th>
-                            <th>Barangay</th>
-                            <th>Submitted</th>
-                            <th>Status</th>
-                            <th class="text-right">Action</th>
-                        </tr>
-                    </x-slot:head>
+            {{-- ---------- TABLET AND UP: one folded row per farmer ----------
+                 Same shape as the MAO's Crop Management Report: FARMER ID |
+                 FARMER | ASSOCIATION | NUMBER OF REPORTS. Opening a farmer
+                 shows all of their reports to you. One is open at a time. --}}
+            @php
+                $rows   = $reports->getCollection();
+                $openId = $rows->pluck('farmer_id')->unique()->count() === 1 ? $rows->first()?->farmer_id : null;
+            @endphp
 
-                    @foreach ($reports as $report)
-                        @php
-                            $assessed = $report->validation?->assessed_damage_percent;
-                            $estimate = $report->crops->avg('estimated_damage_percent');
-                            $shown    = $assessed ?? $estimate;
-                        @endphp
-
-                        <tr>
-                            <td class="whitespace-nowrap font-medium">{{ $report->full_reference }}</td>
-
-                            <td>
-                                <span class="font-medium">{{ $report->farmer?->full_name ?? 'Unknown' }}</span>
-                                <span class="block text-xs text-muted-foreground">
-                                    {{ $report->farmer?->association?->name ?? 'No association' }}
-                                </span>
-                            </td>
-
-                            <td class="text-muted-foreground">
-                                {{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? '-' }}
-                            </td>
-
-                            <td class="whitespace-nowrap text-muted-foreground">
-                                {{ $report->created_at?->format('M d, Y') }}
-                            </td>
-
-                            <td><x-ui.status :value="$report->status" /></td>
-
-                            {{-- One action, always the same one. This page is
-                                 read only (technician module revision, Sept
-                                 2026): reviewing what the farmer submitted is
-                                 all it does, and recording an inspection is
-                                 Validation's job. --}}
-                            <td class="whitespace-nowrap text-right">
-                                <x-ui.button size="sm" variant="view"
-                                             :href="route('technician.reports.show', $report)">
-                                    View Details
-                                </x-ui.button>
-                            </td>
-                        </tr>
-                    @endforeach
-                </x-ui.table>
+            <div class="hidden p-4 sm:p-5 lg:block">
+                <div class="overflow-x-auto rounded-xl border border-border">
+                    <table class="w-full text-left">
+                        <thead class="bg-muted/70">
+                            <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                <th class="px-4 py-3">Farmer ID</th>
+                                <th class="px-4 py-3">Farmer</th>
+                                <th class="px-4 py-3">Association</th>
+                                <th class="px-4 py-3 text-center">Number of Reports</th>
+                                <th class="w-12 px-4 py-3"><span class="sr-only">Open</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
+                            @foreach ($rows->groupBy(fn ($row) => (int) $row->farmer_id) as $farmerId => $group)
+                                @php $farmer = $group->first()->farmer; @endphp
+                                <x-record.farmer-block :farmer="$farmer"
+                                                       :count="$group->count()"
+                                                       :group-id="$farmerId"
+                                                       :headers="[['Report ID'], ['Barangay'], ['Submitted'], ['Status'], ['Action', 'text-right']]">
+                                    @foreach ($group as $report)
+                                        <tr class="hover:bg-muted/60">
+                                            <td class="whitespace-nowrap px-4 py-4 font-medium text-foreground">{{ $report->full_reference }}</td>
+                                            <td class="px-4 py-4 text-muted-foreground">
+                                                {{ $report->reportedBarangay?->name ?? $report->farmer?->barangay?->name ?? '-' }}
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-4 text-muted-foreground">
+                                                {{ $report->created_at?->format('M d, Y') }}
+                                            </td>
+                                            <td class="px-4 py-4"><x-ui.status :value="$report->status" /></td>
+                                            {{-- One action, always the same one. This page is read
+                                                 only: reviewing what the farmer submitted is all
+                                                 it does, and recording an inspection is
+                                                 Validation's job. --}}
+                                            <td class="whitespace-nowrap px-4 py-4 text-right">
+                                                <x-ui.button size="sm" variant="view"
+                                                             :href="route('technician.reports.show', $report)">
+                                                    View Details
+                                                </x-ui.button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </x-record.farmer-block>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         @endif
 
-        @if ($reports->hasPages())
-            <x-slot:footer>{{ $reports->links() }}</x-slot:footer>
+        @if ($reports->isNotEmpty())
+            <x-slot:footer>
+                @php [$from, $to, $total] = \App\Support\FarmerGroups::range($reports); @endphp
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-muted-foreground">
+                        Showing {{ number_format($from) }} to {{ number_format($to) }}
+                        of {{ number_format($total) }} {{ \Illuminate\Support\Str::plural('farmer', $total) }}
+                    </p>
+                    @if ($reports->hasPages())
+                        <div>{{ $reports->links() }}</div>
+                    @endif
+                </div>
+            </x-slot:footer>
         @endif
     </x-ui.card>
 </div>

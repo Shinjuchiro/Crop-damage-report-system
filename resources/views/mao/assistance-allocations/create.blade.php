@@ -2,7 +2,7 @@
 
 @section('title', 'Create Assistance Distribution')
 @section('heading', 'Create Assistance Distribution')
-@section('subheading', 'Create a new distribution batch when assistance becomes available. Select eligible farmers based on MAO-verified crop damage reports and add the necessary details.')
+@section('subheading', 'Create a new distribution batch when assistance becomes available. Select eligible farmers based on MAO-approved crop damage reports and add the necessary details.')
 
 {{--
     CREATE ASSISTANCE DISTRIBUTION (Oct 2026 revision)
@@ -174,7 +174,7 @@
             <section class="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
                 <h2 class="text-lg font-semibold text-foreground">2. Select Beneficiaries</h2>
                 <p class="mb-4 mt-1 text-sm text-primary">
-                    Choose eligible farmers with MAO-verified crop damage reports. You can filter by association and severity, and use bulk selection.
+                    Choose eligible farmers with MAO-approved crop damage reports. You can filter by association and severity, and use bulk selection.
                 </p>
 
                 {{-- Filters --}}

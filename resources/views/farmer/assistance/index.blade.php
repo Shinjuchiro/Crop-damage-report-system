@@ -31,7 +31,7 @@
         <x-ui.alert variant="warning" title="Please confirm what you received">
             There {{ $awaiting === 1 ? 'is' : 'are' }} {{ $awaiting }}
             {{ $awaiting === 1 ? 'item' : 'items' }} below waiting for your answer. Tap
-            "View Details" on an item, then answer "I Have Received My Assistance" or "No, I did not receive it".
+            "View Details" on an item, then answer "I have received my assistance" or "No, I did not receive my assistance".
             <span class="mt-1 block">
                 Pakisagot po kung natanggap ninyo ang tulong. Mahalaga ito upang malaman ng opisina.
             </span>
@@ -170,12 +170,12 @@
                     <p class="text-sm font-semibold">Did you receive this?</p>
                     <p class="mt-0.5 text-sm text-muted-foreground">Natanggap po ba ninyo ito?</p>
 
-                    <div class="mt-3 flex flex-col gap-3 sm:flex-row">
+                    <div class="mt-3" style="display:flex;flex-direction:column;gap:0.75rem;">
 
                         {{-- YES --}}
                         <form method="POST"
                               action="{{ route('farmer.assistance.confirm', $distribution) }}"
-                              class="flex-1"
+                              class="w-full"
                               data-confirm="Please confirm that you have received this assistance. It is recorded with your name and the date, and the Municipal Agriculture Office can see it."
                               data-confirm-title="Confirm you received this?"
                               data-confirm-action="Yes, I received it">
@@ -183,19 +183,20 @@
                             @method('PUT')
                             <input type="hidden" name="receipt_status" value="confirmed_received">
 
-                            <x-ui.button size="lg" type="submit" class="w-full">
+                            <x-ui.button size="lg" type="submit" class="w-full text-center leading-tight" style="height:auto;min-height:2.75rem;padding-top:.5rem;padding-bottom:.5rem;">
                                 <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                                      stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>
-                                I Have Received My Assistance
+                                I have received my assistance
                             </x-ui.button>
                         </form>
 
                         {{-- NO. Opens a reason box rather than submitting
                              straight away, because "I did not get it" with no
                              explanation gives the office nothing to act on. --}}
-                        <x-ui.button size="lg" variant="outline" class="flex-1"
+                        <x-ui.button size="lg" variant="outline" class="w-full text-center leading-tight"
+                                     style="height:auto;min-height:2.75rem;padding-top:.5rem;padding-bottom:.5rem;"
                                      x-show="saying !== 'no'" @click="saying = 'no'">
-                            No, I did not receive it
+                            No, I did not receive my assistance
                         </x-ui.button>
                     </div>
 
@@ -313,10 +314,10 @@
                 <p class="text-sm font-semibold">Did you receive this?</p>
                 <p class="mt-0.5 text-sm text-muted-foreground">Natanggap po ba ninyo ito?</p>
 
-                <div class="mt-3 flex flex-col gap-3 sm:flex-row">
+                <div class="mt-3" style="display:flex;flex-direction:column;gap:0.75rem;">
                     <form method="POST"
                           action="{{ route('farmer.assistance.confirm-selection', $selection) }}"
-                          class="flex-1"
+                          class="w-full"
                           data-confirm="Please confirm that you have received this assistance. It is recorded with your name and the date, and the Municipal Agriculture Office can see it."
                           data-confirm-title="Confirm you received this?"
                           data-confirm-action="Yes, I received it">
@@ -324,16 +325,17 @@
                         @method('PUT')
                         <input type="hidden" name="receipt_status" value="confirmed_received">
 
-                        <x-ui.button size="lg" type="submit" class="w-full">
+                        <x-ui.button size="lg" type="submit" class="w-full text-center leading-tight" style="height:auto;min-height:2.75rem;padding-top:.5rem;padding-bottom:.5rem;">
                             <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                                  stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>
-                            I Have Received My Assistance
+                            I have received my assistance
                         </x-ui.button>
                     </form>
 
-                    <x-ui.button size="lg" variant="outline" class="flex-1"
+                    <x-ui.button size="lg" variant="outline" class="w-full text-center leading-tight"
+                                 style="height:auto;min-height:2.75rem;padding-top:.5rem;padding-bottom:.5rem;"
                                  x-show="saying !== 'no'" @click="saying = 'no'">
-                        No, I did not receive it
+                        No, I did not receive my assistance
                     </x-ui.button>
                 </div>
 

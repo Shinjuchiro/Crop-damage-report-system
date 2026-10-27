@@ -101,39 +101,32 @@ class AssistanceAllocationController extends Controller
     public const STATUSES = ['pending', 'allocated', 'distributed', 'completed', 'cancelled'];
 
     /**
-     * Reports still somewhere in the inspection pipeline: filed, assigned,
-     * being inspected, or flagged for another look. Nobody in here is
-     * eligible for assistance yet, because no technician has finished with
-     * them.
+     * Reports that are not eligible for assistance yet: still somewhere in
+     * the inspection pipeline (filed, assigned, being inspected, flagged), or
+     * inspected by the technician and waiting for the MAO to review that
+     * assessment ('verified').
      *
-     * THIS USED TO BE 'verified' (changed Oct 2026)
+     * ELIGIBILITY STARTS AT APPROVED (restored, Oct 2026)
      *
-     * Eligibility now starts at verified rather than at approved, which is
-     * the client's decision: a technician's completed inspection is enough,
-     * and waiting for the office's separate approval of the report was
-     * holding up assistance the office had already made its mind up about.
+     * It briefly started at 'verified', so a technician's completed
+     * inspection was enough on its own. The office has put the MAO's approval
+     * of the assessment back in front of eligibility: a farmer is eligible for
+     * allocation only after the MAO has approved the technician's assessment.
+     * A rejected assessment is never eligible.
      *
-     * That change forced this one. Section 31 fixed a bug where the first
-     * two stat cards counted the same reports, and the fix was to keep the
-     * two stages disjoint: stage one was 'verified', stage two 'approved'.
-     * Adding 'verified' to stage two would have put the overlap straight
-     * back. So stage one moved one step earlier, to everything BEFORE a
-     * completed inspection, and the two are disjoint again by construction:
-     * a report is either still being inspected or it is eligible, never
-     * both.
+     * The two stages stay disjoint (section 31): a report is either in here
+     * or in QUALIFYING_REPORT_STATUSES, never both.
      */
-    private const AWAITING_INSPECTION_STATUSES = ['pending', 'assigned', 'under_verification', 'flagged'];
+    private const AWAITING_INSPECTION_STATUSES = ['pending', 'assigned', 'under_verification', 'flagged', 'verified'];
 
     /**
-     * A damage report counts toward assistance eligibility once a
-     * technician has completed the inspection. 'approved' stays in the list
-     * because the office approving a report obviously does not make the
-     * farmer less eligible.
+     * A damage report counts toward assistance eligibility only once the MAO
+     * has approved the technician's assessment ('approved').
      *
      * Kept as one constant so the allocation modal, the stat cards and the
      * export can never disagree about who qualifies.
      */
-    private const QUALIFYING_REPORT_STATUSES = ['verified', 'approved'];
+    private const QUALIFYING_REPORT_STATUSES = ['approved'];
 
     /* =====================================================================
      | Assistance Allocation (the working screen)
@@ -352,7 +345,7 @@ class AssistanceAllocationController extends Controller
      * nothing about being unaffiliated makes their crop damage less real;
      * the association notice simply has nobody to go to for them.
      *
-     * Eligible means a technician has completed the inspection
+     * Eligible means the MAO has approved the technician's assessment
      * (self::QUALIFYING_REPORT_STATUSES) and the farmer is not already
      * designated on another live allocation. Both rules live in
      * qualifiedReports(), so this list and the server-side re-check in
@@ -440,7 +433,7 @@ class AssistanceAllocationController extends Controller
     private function casesAwaitingDecision(?int $disasterId): Collection
     {
         return DamageReport::query()
-            ->whereIn('status', ['verified', 'approved'])
+            ->whereIn('status', self::QUALIFYING_REPORT_STATUSES)
             ->whereDoesntHave('assistanceDecision')
             ->whereDoesntHave('allocationBeneficiaries', fn ($b) => $b
                 ->whereHas('allocation', fn ($a) => $a->where('status', '!=', 'cancelled')))
@@ -452,8 +445,9 @@ class AssistanceAllocationController extends Controller
     }
 
     /**
-     * Farmers whose report has not been inspected yet, or is being
-     * inspected, or was flagged. Nobody here is eligible, and that is the
+     * Farmers whose report has not been inspected yet, is being inspected,
+     * was flagged, or is inspected but not yet approved by the MAO. Nobody
+     * here is eligible, and that is the
      * point of the first stat card: it is the queue feeding the second one.
      *
      * Was pendingReviewReports(), which meant something different - see the
@@ -465,8 +459,8 @@ class AssistanceAllocationController extends Controller
     }
 
     /**
-     * Farmers who qualify for assistance right now: a technician has
-     * completed the inspection and the report is not already covered by
+     * Farmers who qualify for assistance right now: the MAO has approved the
+     * technician's assessment and the report is not already covered by
      * another active allocation. Feeds "Qualified Beneficiaries", the
      * per-association overview and the Allocate Assistance modal.
      */
@@ -654,7 +648,7 @@ class AssistanceAllocationController extends Controller
 
     /**
      * One row per farmer for the beneficiary table: their most recent
-     * verified or approved report, and whether that report is already
+     * approved report, and whether that report is already
      * spoken for by a live allocation.
      *
      * Already-designated farmers are LISTED, marked, and cannot be ticked
@@ -1269,7 +1263,7 @@ class AssistanceAllocationController extends Controller
 
         if (! in_array($report->status, self::QUALIFYING_REPORT_STATUSES, true)) {
             throw ValidationException::withMessages([
-                'damage_report_id' => 'Report ' . $report->full_reference . ' has not been inspected yet, '
+                'damage_report_id' => 'Report ' . $report->full_reference . ' has not been approved by the Municipal Agriculture Office yet, '
                     . 'so assistance cannot be recorded against it.',
             ]);
         }
@@ -1454,9 +1448,9 @@ class AssistanceAllocationController extends Controller
             ]);
         }
 
-        if (! in_array($damageReport->status, ['verified', 'approved'], true)) {
+        if (! in_array($damageReport->status, self::QUALIFYING_REPORT_STATUSES, true)) {
             return back()->withErrors([
-                'decision' => 'This report has not been verified by a technician yet, so there is nothing to decide on.',
+                'decision' => 'This report has not been approved by the Municipal Agriculture Office yet, so there is nothing to decide on.',
             ]);
         }
 

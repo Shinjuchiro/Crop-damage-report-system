@@ -36,12 +36,26 @@ class AssignmentController extends Controller
      */
     public function index(Request $request)
     {
-        $reports = $this->baseQuery($request)
-            // Not started, then in progress, then everything finished.
-            ->orderByRaw("FIELD(status, 'assigned', 'under_verification', 'flagged', 'verified', 'approved', 'rejected')")
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
+        /* One page is a handful of FARMERS, each with all of their reports
+           (the same by-farmer list the MAO's Crop Management Report uses).
+           Farmers with work still open come first, then whoever reported
+           most recently. Inside a farmer: not started, then in progress,
+           then everything finished. */
+        $statusOrder = "FIELD(damage_reports.status, 'assigned', 'under_verification', 'flagged', 'verified', 'approved', 'rejected')";
+
+        $reports = \App\Support\FarmerGroups::paginate(
+            $this->baseQuery($request),
+            fn ($q) => $q->select('damage_reports.farmer_id')
+                ->groupBy('damage_reports.farmer_id')
+                ->orderByRaw("MIN({$statusOrder})")
+                ->orderByRaw('MAX(damage_reports.created_at) DESC')
+                ->orderBy('damage_reports.farmer_id'),
+            fn ($q, $ids) => $q->whereIn('damage_reports.farmer_id', $ids)
+                ->orderByRaw($statusOrder)
+                ->latest('damage_reports.created_at')
+                ->orderByDesc('damage_reports.id'),
+            fn ($report) => $report->farmer_id
+        );
 
         // Section 62's cross-check: a match signal only, never an eligible/
         // ineligible label - a report with no matching planting record is

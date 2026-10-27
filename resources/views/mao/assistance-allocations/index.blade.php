@@ -8,7 +8,7 @@
     /* The Allocate modal asks one question now: WHO (Oct 2026, client
        decision). The association, the disaster, the assistance item, the
        start date and the crop all came off it. The office picks farmers
-       from every verified report in the municipality; what they are given
+       from every approved report in the municipality; what they are given
        is "assistance", with no name, no type and no figure; and the date is
        simply the day it is allocated, because the office cannot promise a
        collection date and the association arranges that afterwards.
@@ -61,8 +61,8 @@
              reports still being inspected. The two cards are disjoint by
              construction again, and they still read left to right as the
              queue feeding the eligible list. --}}
-        <x-ui.stat label="Awaiting Inspection" :value="number_format($stats['awaiting_inspection'])"
-                   :hint="'Not yet inspected · from ' . number_format($stats['awaiting_from_associations']) . ' association' . ($stats['awaiting_from_associations'] === 1 ? '' : 's')"
+        <x-ui.stat label="Not Yet Eligible" :value="number_format($stats['awaiting_inspection'])"
+                   :hint="'Not yet inspected or approved · from ' . number_format($stats['awaiting_from_associations']) . ' association' . ($stats['awaiting_from_associations'] === 1 ? '' : 's')"
                    tone="primary"
                    icon="M16 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M9 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM22 19v-1.5a4 4 0 00-3-3.9M16 2.7a4 4 0 010 7.6" />
 
