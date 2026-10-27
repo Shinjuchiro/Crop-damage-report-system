@@ -58,6 +58,11 @@
         crops: @js($seedCrops),
         hvcc: @js($crops->where('is_hvcc', true)->pluck('id')->map(fn ($id) => (string) $id)->values()),
         confirming: false,
+        removing: 0,
+        supportNames: [],
+        pickSupport(event) {
+            this.supportNames = Array.from(event.target.files).map(f => f.name);
+        },
         certName: '',
         certUrl: '',
         pickCert(event) {
@@ -214,7 +219,7 @@
 
             <div>
                 <label for="landowner_contact" class="{{ $labelClass }}">Land owner's contact number</label>
-                <input id="landowner_contact" type="text" name="landowner_contact" maxlength="20"
+                <input id="landowner_contact" type="text" name="landowner_contact" maxlength="11" inputmode="numeric" pattern="[0-9]{11}" placeholder="09171234567"
                        value="{{ old('landowner_contact', $farmer->landowner_contact) }}"
                        class="{{ $inputClass('landowner_contact') }}">
             </div>
@@ -289,7 +294,7 @@
             @endif
 
             <input id="supporting_documents" type="file" name="supporting_documents[]" multiple
-                   accept=".jpg,.jpeg,.png,.pdf"
+                   accept=".jpg,.jpeg,.png,.pdf" @change="pickSupport($event)"
                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm file:mr-3 file:rounded file:border-0 file:bg-green-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white">
             <p class="mt-1 text-xs text-slate-500">JPG, PNG or PDF, up to 5MB each, 5 files in total.</p>
         </div>
@@ -340,7 +345,7 @@
              assumption is that correcting it sends it back to whoever asked,
              and it does not: it always restarts at the association. --}}
         <div class="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row-reverse">
-            <button type="button" @click="confirming = true"
+            <button type="button" @click="removing = document.querySelectorAll('[name=\'remove_documents[]\']:checked').length; confirming = true"
                     class="rounded-lg bg-green-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-900">
                 Review &amp; Resubmit
             </button>
@@ -351,7 +356,8 @@
         </div>
 
         <div x-show="confirming" x-cloak
-             class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+             class="flex items-start justify-center overflow-y-auto p-4"
+             style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:rgba(0,0,0,0.4);">
             <div class="my-auto w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
                 <h3 class="mb-2 text-lg font-semibold text-slate-800">Resubmit your application?</h3>
                 <p class="mb-4 text-sm text-slate-600">
@@ -365,6 +371,12 @@
                     New Barangay Certificate:
                     <a :href="certUrl" target="_blank" rel="noopener"
                        class="font-medium text-green-800 underline hover:no-underline" x-text="certName"></a>
+                </p>
+                <p x-show="supportNames.length || removing" x-cloak class="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    Supporting documents:
+                    <span x-show="supportNames.length" x-text="supportNames.length + ' new (' + supportNames.join(', ') + ')'"></span>
+                    <span x-show="supportNames.length && removing">,</span>
+                    <span x-show="removing" x-text="removing + ' removed'"></span>
                 </p>
                 <div class="flex gap-3">
                     <button type="button" @click="confirming = false"

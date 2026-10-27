@@ -60,13 +60,17 @@ class FarmerCorrectionRequest extends FormRequest
             // cannot dial never reaches the database.
             'phone_number'  => ['required', 'digits:11'],
             'address'       => ['required', 'string', 'max:1000'],
-            'barangay_id'   => ['required', 'exists:barangays,id'],
+            /* Same rule as registration: a barangay the farmer's association
+               covers. The association itself cannot be changed here, so it is
+               read from the farmer on record rather than from the request. */
+            'barangay_id'   => ['required', $this->barangayRule()],
 
             // --- Farm ownership ---
             'ownership_type' => ['required', 'in:land_owner,tenant'],
 
             'landowner_name'     => ['required_if:ownership_type,tenant', 'nullable', 'string', 'max:255'],
-            'landowner_contact'  => ['nullable', 'string', 'max:20'],
+            // Same as registration: digits only, exactly 11, optional.
+            'landowner_contact'  => ['nullable', 'digits:11'],
             'landowner_location' => ['required_if:ownership_type,tenant', 'nullable', 'string', 'max:255'],
 
             /* Optional here, unlike registration. A land owner who already
@@ -103,6 +107,8 @@ class FarmerCorrectionRequest extends FormRequest
             'landowner_name.required_if'     => 'Please enter the land owner\'s full name.',
             'landowner_location.required_if' => 'Please enter the land owner\'s location.',
             'crops.required'                 => 'Please keep at least one main crop.',
+            'barangay_id.exists'             => 'That barangay is not covered by your Farmers\' Association. Please choose one from the list.',
+            'landowner_contact.digits'       => 'The land owner\'s contact number must be exactly 11 digits, numbers only, for example 09171234567.',
             'phone_number.digits'            => 'Please enter an 11-digit mobile number, for example 09171234567.',
             'phone_number.required'          => 'Please enter your mobile number.',
             'barangay_certificate.mimes'     => 'The certificate has to be a JPG, PNG or PDF file.',
@@ -112,5 +118,17 @@ class FarmerCorrectionRequest extends FormRequest
             'supporting_documents.*.max'     => 'Each supporting document must be 5MB or smaller.',
             'supporting_documents.*.file'    => 'One of the supporting documents could not be uploaded. Please choose it again.',
         ];
+    }
+
+    private function barangayRule()
+    {
+        $associationId = \App\Models\Farmer::query()
+            ->where('user_id', $this->user()?->id)
+            ->value('association_id');
+
+        // A farmer with no association has no coverage list to check against.
+        return $associationId
+            ? Rule::exists('association_barangay', 'barangay_id')->where('association_id', $associationId)
+            : 'exists:barangays,id';
     }
 }

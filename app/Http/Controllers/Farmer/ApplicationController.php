@@ -173,7 +173,14 @@ class ApplicationController extends Controller
 
         return view('farmer.application.correct', [
             'farmer'    => $farmer->load('mainCrops.crop', 'supportingDocuments'),
-            'barangays' => Barangay::orderBy('name')->get(),
+            /* Only the barangays the farmer's association covers (the same
+               list registration offered), plus the one already on their
+               record so a farmer is never shown a blank. */
+            'barangays' => $farmer->association
+                ? Barangay::whereIn('id', $farmer->association->coverage()->select('barangays.id'))
+                    ->orWhere('id', $farmer->barangay_id)
+                    ->orderBy('name')->get()
+                : Barangay::orderBy('name')->get(),
             // inDisplayOrder() so the pickers read Rice, Corn, HVCC like
             // everywhere else in the system (revision step 3).
             'crops'     => Crop::active()->inDisplayOrder()->get(),
