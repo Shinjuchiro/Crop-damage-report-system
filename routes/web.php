@@ -609,8 +609,6 @@ Route::middleware(['auth', 'active', 'role:mao'])
             ->name('damage-reports.decide');
         Route::put('/damage-reports/{damageReport}/disasters', [DamageReportMonitorController::class, 'updateDisasters'])
             ->name('damage-reports.disasters.update');
-        Route::post('/damage-reports/{damageReport}/date-review', [DamageReportMonitorController::class, 'reviewDates'])
-            ->name('damage-reports.date-review');
         Route::put('/damage-reports/{damageReport}/archive', [DamageReportMonitorController::class, 'archive'])
             ->name('damage-reports.archive');
         Route::put('/damage-reports/{damageReport}/restore', [DamageReportMonitorController::class, 'restore'])

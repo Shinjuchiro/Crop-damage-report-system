@@ -62,9 +62,6 @@
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <x-monitor.badge kind="match" :value="$match" />
-            @if (in_array($report->date_check ?? null, [\App\Support\DateCheck::REVIEW, \App\Support\DateCheck::REVIEWED], true))
-                <x-monitor.badge kind="dates" :value="$report->date_check" />
-            @endif
             @if ($submitted)
                 <x-monitor.badge kind="validation" :value="$reviewState" />
             @else
@@ -93,23 +90,6 @@
                 <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Reported Damaged Area</dt><dd class="text-right font-medium text-foreground">{{ number_format($report->crops->sum('damaged_area_hectares'), 2) }} ha</dd></div>
                 <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Farmer Estimated Damage</dt><dd class="text-right font-medium text-foreground">{{ $estimate !== null ? round($estimate) . '%' : '-' }}</dd></div>
             </dl>
-
-            @if (($report->date_flags ?? collect())->isNotEmpty())
-                <div class="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/60 px-3 py-2.5 text-xs text-amber-900 dark:text-amber-200">
-                    <p class="font-semibold">Date check: dates need review</p>
-                    <p class="mt-0.5">This record contains a date inconsistency and requires MAO review.</p>
-                    <ul class="mt-1 list-inside list-disc space-y-0.5">
-                        @foreach ($report->date_flags as $flag)<li>{{ $flag }}</li>@endforeach
-                    </ul>
-                    <p class="mt-1.5 text-amber-800 dark:text-amber-300">The report is kept as filed and was not rejected for this.</p>
-                    @if ($report->date_review ?? null)
-                        <p class="mt-1.5 text-muted-foreground">
-                            Reviewed by {{ $report->date_review->reviewer?->full_name ?? $report->date_review->reviewer?->username ?? 'the office' }}
-                            on {{ $report->date_review->reviewed_at?->format('M d, Y') }}@if ($report->date_review->remarks): &ldquo;{{ $report->date_review->remarks }}&rdquo;@endif
-                        </p>
-                    @endif
-                </div>
-            @endif
 
             <div class="border-t border-border pt-3">
                 <p class="mb-2 text-xs text-muted-foreground">Reported crops</p>
@@ -258,7 +238,7 @@
                 </div>
                 @if ($row['area_flag'])
                     <p class="border-t border-border bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
-                        Inconsistent area: the reported damaged area is larger than the planted area. Flagged for inspection; the report is not rejected.
+                        Inconsistent area: the reported damaged area is larger than the planted area. Worth checking on site; the report is not rejected.
                     </p>
                 @endif
             </div>

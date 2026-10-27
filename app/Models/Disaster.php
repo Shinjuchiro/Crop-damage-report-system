@@ -46,7 +46,9 @@ class Disaster extends Model
      */
     public function scopeOfferedToFarmers($query)
     {
-        return $query->active()->where(function ($w) {
+        // An event with no official date cannot be used to check dates, so it is
+        // never offered (Oct 2026).
+        return $query->active()->whereNotNull('date_start')->where(function ($w) {
             $w->whereDoesntHave('broadcasts')
               ->orWhereHas('broadcasts', fn ($b) => $b->where('status', 'sent'));
         });

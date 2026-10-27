@@ -279,10 +279,10 @@ class DamageReportController extends Controller
             // or adding to this list later (Technician\InspectionController)
             // can tell which ones were the farmer's own choice.
             // is_primary marks the MAIN event, the one the dates are checked
-            // against. With one event that is it; with several it is the one the
-            // farmer chose, if they chose.
+            // against: the first one the farmer chose. Extra events may be
+            // added but are never used for the date check.
             $linked  = collect($data['disasters'] ?? []);
-            $primary = $this->primaryEventId($data);
+            $primary = $linked->isNotEmpty() ? (int) $linked->first() : null;
 
             $report->disasters()->sync(
                 $linked->mapWithKeys(fn ($disasterId) => [
@@ -498,14 +498,9 @@ class DamageReportController extends Controller
             'crops.*.production_cost'          => ['required', 'numeric', 'min:0', 'max:99999999'],
             'crops.*.farmgate_price_per_kg'    => ['required', 'numeric', 'min:0', 'max:99999'],
 
-            // Section 33 asked for Disaster 1 to be required. It no longer is,
-            // because a declared event only exists for weather. See
-            // assertDisasterLinkedWhenDeclared() below for the rule that
-            // replaced it.
+            // A weather cause now REQUIRES a recorded disaster (Oct 2026): see
+            // assertDisasterRecorded(). Other causes have no event to pick.
             'disasters'   => ['nullable', 'array'],
-            // The main event, when several are linked. Optional: leaving it out
-            // never blocks a report (it is flagged for the office instead).
-            'primary_disaster' => ['nullable', 'integer'],
             'disasters.*' => [
                 Rule::exists('disasters', 'id')->whereNull('archived_at'),
                 // Only events a farmer is actually offered: not one whose
@@ -548,7 +543,7 @@ class DamageReportController extends Controller
         // Three checks the normal rules cannot do on their own.
         $this->assertHvccSpecified($validated['crops']);
         $this->assertDamagedAreaFits($validated['crops']);
-        $this->assertDisasterLinkedWhenDeclared($validated);
+        $this->assertDisasterRecorded($validated);
         $this->assertDisasterMatchesCause($validated);
         $this->assertDatesFollowEvent($validated);
 
@@ -561,9 +556,9 @@ class DamageReportController extends Controller
      *
      * A line may only point at a record that belongs to THIS farmer and is not
      * archived or deleted. Anything else is refused. The record's date is
-     * copied as it stands, even when it disagrees with the disaster date: the
-     * report is not rejected for that (it is flagged for the MAO instead, see
-     * App\Support\DateCheck).
+     * copied as it stands and the record itself is never altered. If that date
+     * is not before the recorded disaster date, assertDatesFollowEvent() stops
+     * the NEW report with a clear message.
      */
     private function applyPlantingRecords(array $crops): array
     {
@@ -608,54 +603,75 @@ class DamageReportController extends Controller
     }
 
     /**
-     * The id of the report's MAIN event: the only linked event, or the one the
-     * farmer marked when several are linked. Null when none (or several and
-     * none marked, or a mark that is not one of the linked events).
+     * THE RECORDED DISASTER IS THE SOURCE OF TRUTH (Oct 2026)
+     *
+     * When the office has recorded and published a disaster of the farmer's
+     * weather cause, the farmer must choose one, and the dates are checked
+     * against it. If the office has recorded none yet, the farmer can still file
+     * (the planting date just has to be before the damage date), and nothing is
+     * flagged. A cause with no event kind (Other) has nothing to match.
+     *
+     * Reports saved before this rule are never touched; this only stops a new
+     * one.
      */
-    private function primaryEventId(array $data): ?int
+    private function assertDisasterRecorded(array $validated): void
     {
-        $linked = collect($data['disasters'] ?? [])->map(fn ($id) => (int) $id)->values();
+        $cause = $validated['damage_cause'];
 
-        if ($linked->count() === 1) {
-            return $linked->first();
+        if (! in_array($cause, DamageReport::WEATHER_CAUSES, true)) {
+            return;
         }
 
-        $chosen = isset($data['primary_disaster']) && $data['primary_disaster'] !== ''
-            ? (int) $data['primary_disaster'] : null;
+        $linked = collect($validated['disasters'] ?? [])->filter()->values();
 
-        return $chosen !== null && $linked->contains($chosen) ? $chosen : null;
+        if ($linked->isEmpty()) {
+            $available = Disaster::offeredToFarmers()->where('type', $cause)->whereNotNull('date_start')->exists();
+
+            // The office has recorded no disaster of this kind: there is nothing to
+            // choose and no date to check against, and the farmer can still file.
+            if (! $available) {
+                return;
+            }
+
+            throw ValidationException::withMessages([
+                'disasters' => 'Please select the relevant recorded disaster to validate the crop damage date.',
+            ]);
+        }
+
+        // Every chosen event needs an official date to check against.
+        if (Disaster::whereIn('id', $linked)->whereNull('date_start')->exists()) {
+            throw ValidationException::withMessages([
+                'disasters' => 'That disaster has no official date recorded yet, so this report cannot be submitted against it.',
+            ]);
+        }
     }
 
     /**
-     * The two date rules, against the official disaster date.
+     * The two date rules, against the recorded disaster date.
      *
      *   planting date  must be BEFORE the disaster date (strictly earlier)
      *   damage date    must be AFTER the disaster date (strictly later)
      *
-     * The disaster date itself fails both. It is always the date recorded on
-     * the disaster the farmer linked: never today, and never the day an
+     * The disaster date itself fails both. The date is always the one recorded
+     * on the disaster the farmer chose: never today, and never the day an
      * advisory was written or sent, so a report filed months later is held to
-     * the same dates.
+     * the same dates. The date the form is submitted is kept separately.
      *
-     * Only NEW typed dates are refused. A planting date copied from a Crop
-     * Planted report is accepted whatever it says, so a report is never
-     * rejected because an old planting record has a wrong date; the
-     * disagreement is flagged for the MAO instead (App\Support\DateCheck).
+     * Applies to every planting line in a NEW report, including one copied from
+     * a Crop Planted record: the record itself is never changed or deleted, but
+     * a report built on a planting date that is not before the disaster is not
+     * accepted.
      *
-     * WHICH DISASTER? A report can be linked to several events. The dates are
-     * checked against its MAIN event: the only one, or the one the farmer marked
-     * as the main one. If there are several and none is marked, no date is picked
-     * for them: the report is still accepted and DateCheck flags it for the MAO.
+     * The MAIN event is the first one linked. Extra events are allowed but are
+     * not used for the check.
      *
-     * With no linked event there is no disaster date to compare to, so the one
-     * thing left to check is that a typed planting date is not after the
-     * damage date.
+     * With no event (cause Other) there is no disaster date, so the one thing
+     * left to check is that a planting date is not after the damage date.
      */
     private function assertDatesFollowEvent(array $validated): void
     {
         $damaged  = Carbon::parse($validated['date_damaged'])->startOfDay();
-        $noEvent  = blank($validated['disasters'] ?? []);
-        $mainId   = $this->primaryEventId($validated);
+        $mainId   = collect($validated['disasters'] ?? [])->filter()->first();
         $mainDate = $mainId ? Disaster::whereKey($mainId)->value('date_start') : null;
         $official = $mainDate ? Carbon::parse($mainDate)->startOfDay() : null;
 
@@ -667,16 +683,15 @@ class DamageReportController extends Controller
         }
 
         foreach ($validated['crops'] as $index => $crop) {
-            if (! empty($crop['planting_record_crop_id'])) {
-                continue;                 // from a record: accepted, flagged later
-            }
-
             $planted = Carbon::parse($crop['date_planted'])->startOfDay();
 
             if ($official && $planted->gte($official)) {
                 $errors["crops.{$index}.date_planted"] = 'The actual planting date must be before the disaster date. '
-                    . 'The disaster date is ' . $official->format('F j, Y') . '.';
-            } elseif ($noEvent && $planted->gt($damaged)) {
+                    . 'The disaster date is ' . $official->format('F j, Y') . '.'
+                    . (! empty($crop['planting_record_crop_id'])
+                        ? ' This date comes from your Crop Planted report, which is not changed.'
+                        : '');
+            } elseif (! $official && $planted->gt($damaged)) {
                 $errors["crops.{$index}.date_planted"] = 'The planting date cannot be after the date the crop was damaged.';
             }
         }

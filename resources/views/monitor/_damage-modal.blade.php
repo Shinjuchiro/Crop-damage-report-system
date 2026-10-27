@@ -71,9 +71,6 @@
         <div class="flex flex-wrap items-center gap-2">
             <x-monitor.badge kind="assignment" :value="$report->is_assigned ? 'assigned' : 'unassigned'" />
             <x-monitor.badge kind="match" :value="$report->planting_match" />
-            @if (in_array($report->date_check ?? null, [\App\Support\DateCheck::REVIEW, \App\Support\DateCheck::REVIEWED], true))
-                <x-monitor.badge kind="dates" :value="$report->date_check" />
-            @endif
         </div>
     </div>
 
@@ -95,68 +92,6 @@
                     <div class="flex justify-between gap-3"><dt class="shrink-0 text-muted-foreground">Total Damaged Area</dt><dd class="text-right font-medium text-foreground">{{ number_format($report->crops->sum('damaged_area_hectares'), 2) }} ha</dd></div>
                 </dl>
             </div>
-
-            {{-- Dates against the official disaster date. Shown only when something
-                 disagrees; the report is kept exactly as filed. The office can record
-                 that it has reviewed them (nothing about the report changes). --}}
-            @if (($report->date_flags ?? collect())->isNotEmpty())
-                @php $review = $report->date_review ?? null; @endphp
-                <div x-data="{ confirming: false, remarks: '' }"
-                     class="rounded-lg border px-3 py-2.5 text-xs {{ $review ? 'border-border bg-muted text-foreground' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200' }}">
-                    <p class="font-semibold">Date check: {{ $review ? 'dates reviewed' : 'dates need review' }}</p>
-                    @unless ($review)<p class="mt-0.5">This record contains a date inconsistency and requires MAO review.</p>@endunless
-                    <ul class="mt-1 list-inside list-disc space-y-0.5">
-                        @foreach ($report->date_flags as $flag)<li>{{ $flag }}</li>@endforeach
-                    </ul>
-
-                    @if ($review)
-                        <p class="mt-2 text-muted-foreground">
-                            Reviewed by <span class="font-medium text-foreground">{{ $review->reviewer?->full_name ?? $review->reviewer?->username ?? 'the office' }}</span>
-                            on {{ $review->reviewed_at?->format('M d, Y g:i A') }}.
-                            @if ($review->remarks) <span class="block text-foreground">&ldquo;{{ $review->remarks }}&rdquo;</span> @endif
-                        </p>
-                        @if ($report->date_review_stale ?? false)
-                            <p class="mt-1.5 font-medium text-amber-800 dark:text-amber-300">The reasons above have changed since that review.</p>
-                        @endif
-                    @else
-                        <p class="mt-1.5 text-amber-800 dark:text-amber-300">
-                            The report is kept as filed and was not rejected for this. If the disaster date itself was entered wrongly,
-                            correct it in Disaster Management and this check updates.
-                        </p>
-                    @endif
-
-                    @if ($isMao && (! $review || ($report->date_review_stale ?? false)))
-                        <button type="button" @click="confirming = true"
-                                class="mt-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110">
-                            {{ $review ? 'Review again' : 'Mark as reviewed' }}
-                        </button>
-
-                        <div x-show="confirming" x-cloak class="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-                            <div class="my-auto w-full max-w-md rounded-xl bg-card p-6 text-sm text-foreground shadow-xl">
-                                <h3 class="mb-1 text-lg font-semibold">Mark these dates as reviewed?</h3>
-                                <p class="mb-3 text-muted-foreground">
-                                    This records that you looked at the dates below. The report, its planting date and its status stay exactly as they are.
-                                </p>
-                                <ul class="mb-3 list-inside list-disc space-y-0.5 rounded-lg bg-muted p-3 text-xs">
-                                    @foreach ($report->date_flags as $flag)<li>{{ $flag }}</li>@endforeach
-                                </ul>
-                                <form method="POST" action="{{ route('mao.damage-reports.date-review', $report) }}">
-                                    @csrf
-                                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Remarks (optional)</label>
-                                    <textarea name="remarks" x-model="remarks" rows="3" maxlength="500"
-                                              class="mb-4 w-full rounded-lg border border-input px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-ring"></textarea>
-                                    <div class="flex gap-3">
-                                        <button type="button" @click="confirming = false"
-                                                class="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-muted/60">Cancel</button>
-                                        <button type="submit"
-                                                class="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110">Confirm review</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    @endif
-                </div>
-            @endif
 
             {{-- Disaster type + declared events --}}
             <div class="border-t border-border pt-4">
@@ -218,8 +153,7 @@
                                 </template>
                             </ul>
                             <p class="mb-4 text-xs text-muted-foreground" x-show="disasterIds.length > 1">
-                                Select the main event: the planting and damage dates are checked against its disaster date.
-                                You can leave it unselected and the report is flagged for review instead.
+                                Select the main event: the one whose disaster date the planting and damage dates are measured against.
                             </p>
                             <p class="mb-4 text-sm text-muted-foreground" x-show="! disasterIds.length">
                                 No disaster event - only appropriate if the cause was pests, plant disease, or heat.
@@ -293,7 +227,7 @@
                         @if ($row['area_flag'])
                             <p class="mt-1 rounded bg-amber-50 px-2 py-1 font-medium text-amber-800">
                                 Inconsistent area: {{ number_format((float) $line->damaged_area_hectares, 2) }} ha reported damaged against
-                                {{ number_format((float) $row['planted_area'], 2) }} ha planted. Flagged for the technician to measure; the report is not rejected.
+                                {{ number_format((float) $row['planted_area'], 2) }} ha planted. Worth measuring on site; the report is not rejected.
                             </p>
                         @endif
                     </div>

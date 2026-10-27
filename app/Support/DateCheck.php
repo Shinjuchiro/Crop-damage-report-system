@@ -92,76 +92,22 @@ class DateCheck
             return;
         }
 
-        $reports->each(fn ($report) => $report->loadMissing('disasters', 'crops.crop', 'dateReviews.reviewer'));
+        $reports->each(fn ($report) => $report->loadMissing('disasters'));
 
+        /* NO FLAGGING (Oct 2026, client decision)
+           Reports are no longer marked or queued for review because of their
+           dates. Invalid dates are stopped when a NEW report is made (the
+           calendar and the server both refuse them), and reports saved earlier
+           are simply kept as they are. Only the official date is worked out,
+           for display. */
         foreach ($reports as $report) {
             $official = self::officialDate($report);
-            $flags    = collect();
 
-            // Several events and none marked as the main one.
-            if ($report->disasters->count() > 1 && $official === null) {
-                $flags->push(sprintf(
-                    'Linked to %d disaster events (%s) with no main event chosen, so the dates were not checked against a disaster date.',
-                    $report->disasters->count(),
-                    $report->disasters->pluck('name')->implode(', ')
-                ));
-            }
-
-            if ($official) {
-                foreach ($report->crops as $line) {
-                    if ($line->date_planted && $line->date_planted->gte($official)) {
-                        $flags->push(sprintf(
-                            'Planting date for %s (%s) is not before the disaster date (%s).',
-                            self::cropName($line),
-                            $line->date_planted->format('M d, Y'),
-                            $official->format('M d, Y')
-                        ));
-                    }
-                }
-
-                if ($report->date_damaged && $report->date_damaged->lte($official)) {
-                    $flags->push(sprintf(
-                        'Crop damage date (%s) is not after the disaster date (%s).',
-                        $report->date_damaged->format('M d, Y'),
-                        $official->format('M d, Y')
-                    ));
-                }
-            }
-
-            // Whether or not there is an event, damage cannot come before planting.
-            if ($report->date_damaged) {
-                foreach ($report->crops as $line) {
-                    if ($line->date_planted && $report->date_damaged->lt($line->date_planted)) {
-                        $flags->push(sprintf(
-                            'Crop damage date (%s) is before the planting date for %s (%s).',
-                            $report->date_damaged->format('M d, Y'),
-                            self::cropName($line),
-                            $line->date_planted->format('M d, Y')
-                        ));
-                    }
-                }
-            }
-
-            $flags  = $flags->unique()->values();
-            $latest = $report->dateReviews->last();
-
-            $report->official_date = $official;
-            $report->date_flags    = $flags;
-
-            // The latest review of this report, and whether the reasons have
-            // changed since (a disaster date corrected, a disaster re-linked).
-            // A review is a recorded decision; it is not wiped when that
-            // happens, but the office is told, and can review again.
-            $report->date_review       = $latest;
-            $report->date_review_stale = $latest !== null
-                && array_values($latest->flags_snapshot ?? []) !== $flags->all();
-
-            $report->date_check = match (true) {
-                $flags->isNotEmpty() && $latest !== null => self::REVIEWED,
-                $flags->isNotEmpty()                     => self::REVIEW,
-                $official !== null                       => self::CONSISTENT,
-                default                                  => self::NOT_CHECKED,
-            };
+            $report->official_date     = $official;
+            $report->date_flags        = collect();
+            $report->date_review       = null;
+            $report->date_review_stale = false;
+            $report->date_check        = $official !== null ? self::CONSISTENT : self::NOT_CHECKED;
         }
     }
 
