@@ -607,7 +607,20 @@
 
                         <div class="flex items-start justify-between gap-4 px-4 py-3">
                             <dt class="text-sm text-muted-foreground">Inspection Photos</dt>
-                            <dd class="text-right text-sm font-medium" x-text="photoSummary()"></dd>
+                            <dd class="text-right text-sm font-medium">
+                                <span x-text="photoSummary()"></span>
+
+                                {{-- Each photo opens full size in its own tab, so it can be
+                                     checked before the inspection is submitted. --}}
+                                <span x-show="photoLinks().length" x-cloak class="mt-2 flex flex-wrap justify-end gap-2">
+                                    <template x-for="link in photoLinks()" :key="link.url">
+                                        <a :href="link.url" target="_blank" rel="noopener" :title="'Open ' + link.label"
+                                           class="block h-14 w-14 overflow-hidden rounded-lg border border-border hover:ring-2 ring-primary">
+                                            <img :src="link.url" :alt="link.label" class="h-full w-full object-cover">
+                                        </a>
+                                    </template>
+                                </span>
+                            </dd>
                         </div>
 
                         <div class="flex items-start justify-between gap-4 px-4 py-3">
@@ -1030,6 +1043,18 @@
                 this.previews.splice(index, 1);
             },
 
+            /* Every photo taken so far, for the review to open. */
+            photoLinks() {
+                const links = [];
+
+                if (this.shots.wide)    links.push({ label: 'Wide shot', url: this.shots.wide });
+                if (this.shots.closeup) links.push({ label: 'Close-up shot', url: this.shots.closeup });
+
+                this.previews.forEach((p, i) => links.push({ label: 'Extra photo ' + (i + 1), url: p.url }));
+
+                return links;
+            },
+
             photoSummary() {
                 const parts = [];
 
@@ -1181,7 +1206,11 @@
                     { label: 'Damage severity',     value: this.severityLabel() },
                     { label: "Farmer's estimate",   value: this.farmerEstimate + '%' },
                     { label: 'You assessed',        value: this.percent + '%' },
-                    { label: 'Inspection photos',   value: this.photoSummary() },
+                    {
+                        label: 'Inspection photos',
+                        value: this.photoSummary(),
+                        links: this.photoLinks(),
+                    },
                     { label: 'Disaster event',      value: this.disasterSummary() },
                     { label: 'Notes',               value: this.notes ? this.notes.slice(0, 90) + (this.notes.length > 90 ? '...' : '') : 'Not written' },
                     {

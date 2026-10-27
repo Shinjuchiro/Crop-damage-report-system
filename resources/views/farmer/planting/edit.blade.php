@@ -260,6 +260,10 @@
                     label: 'Photos',
                     value: String(this.keptExisting() + this.files.length)
                         + (this.removedIds.length ? ' (' + this.removedIds.length + ' removed)' : ''),
+                    links: this.existingPhotos
+                        .filter(p => ! this.removedIds.includes(p.id))
+                        .map(p => ({ label: 'Saved photo', url: p.url }))
+                        .concat(this.previews.map((p, i) => ({ label: 'New photo ' + (i + 1), url: p.url }))),
                 });
 
                 return JSON.stringify(rows);

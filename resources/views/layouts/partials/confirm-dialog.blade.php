@@ -19,6 +19,7 @@
         tone: 'default',
         review: [],
         proceed: null,
+        viewer: null,
 
         /*
          | Stop the page behind the dialog scrolling while it is open.
@@ -53,6 +54,7 @@
             this.tone    = detail.tone;
             this.review  = detail.review || [];
             this.proceed = detail.proceed;
+            this.viewer  = null;
 
             // Guarded so a second request while one is already showing does
             // not lock twice and leave the page stuck after it closes.
@@ -71,6 +73,7 @@
 
             this.open    = false;
             this.proceed = null;
+            this.viewer  = null;
             this.unlock();
         },
 
@@ -83,6 +86,7 @@
 
             this.open    = false;
             this.proceed = null;
+            this.viewer  = null;
             this.unlock();
 
             if (run) {
@@ -91,7 +95,7 @@
         },
      }"
      @confirm-request.window="show($event.detail)"
-     @keydown.escape.window="open && cancel()"
+     @keydown.escape.window="open && (viewer ? viewer = null : cancel())"
      x-cloak>
 
     {{--
@@ -122,6 +126,23 @@
              x-transition:enter-start="opacity-0 translate-y-6 sm:scale-95 sm:translate-y-0"
              x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
              class="relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-card text-card-foreground shadow-2xl sm:rounded-2xl">
+
+            {{-- One photo, full size, over the review. Back returns to the
+                 review exactly as it was. --}}
+            <div x-show="viewer" x-cloak
+                 class="absolute inset-0 z-10 flex flex-col bg-card">
+                <div class="flex items-center justify-between gap-3 border-b border-border px-5 py-3 sm:px-7">
+                    <p class="min-w-0 truncate text-sm font-semibold text-foreground" x-text="viewer ? viewer.label : ''"></p>
+                    <button type="button" @click="viewer = null"
+                            class="shrink-0 rounded-xl border border-input bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
+                        Back to review
+                    </button>
+                </div>
+                <div class="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-muted p-3">
+                    <img :src="viewer ? viewer.url : ''" :alt="viewer ? viewer.label : ''"
+                         class="max-h-[70vh] w-auto max-w-full rounded-lg object-contain">
+                </div>
+            </div>
 
             {{-- Heading --}}
             <div class="flex items-start gap-4 px-5 pt-6 sm:px-7">
@@ -159,7 +180,33 @@
                         <template x-for="row in review" :key="row.label">
                             <div class="flex flex-col gap-0.5 py-2 sm:flex-row sm:justify-between sm:gap-6">
                                 <dt class="text-sm text-muted-foreground" x-text="row.label"></dt>
-                                <dd class="text-sm font-semibold text-foreground sm:text-right" x-text="row.value"></dd>
+                                <dd class="text-sm font-semibold text-foreground sm:text-right">
+                                    <span x-text="row.value"></span>
+
+                                    {{-- Photos and files in this row stay openable, so
+                                         the person can look at exactly what they are
+                                         about to send before they confirm. An image
+                                         opens here, over the review; any other file
+                                         opens in its own tab. --}}
+                                    <span x-show="row.links && row.links.length" x-cloak
+                                          class="mt-2 flex flex-wrap gap-2 sm:justify-end">
+                                        <template x-for="(link, i) in (row.links || [])" :key="link.url">
+                                            <span>
+                                                <button type="button" x-show="link.image !== false"
+                                                        @click="viewer = link"
+                                                        :aria-label="'View ' + link.label"
+                                                        class="block h-14 w-14 overflow-hidden rounded-lg border border-border bg-card
+                                                               ring-primary hover:ring-2 focus:outline-none focus:ring-2">
+                                                    <img :src="link.url" :alt="link.label" class="h-full w-full object-cover">
+                                                </button>
+                                                <a x-show="link.image === false" :href="link.url" target="_blank" rel="noopener"
+                                                   class="inline-flex max-w-[12rem] items-center truncate rounded-lg border border-border
+                                                          bg-card px-3 py-2 text-xs font-semibold text-primary underline hover:bg-accent"
+                                                   x-text="link.label"></a>
+                                            </span>
+                                        </template>
+                                    </span>
+                                </dd>
                             </div>
                         </template>
                     </dl>

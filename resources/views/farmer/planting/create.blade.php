@@ -277,7 +277,11 @@
                 });
 
                 rows.push({ label: 'Total area', value: this.totalArea().toFixed(2) + ' ha' });
-                rows.push({ label: 'Photos attached', value: String(this.files.length) });
+                rows.push({
+                    label: 'Photos attached',
+                    value: String(this.files.length),
+                    links: this.previews.map((p, i) => ({ label: 'Photo ' + (i + 1), url: p.url })),
+                });
 
                 return JSON.stringify(rows);
             },

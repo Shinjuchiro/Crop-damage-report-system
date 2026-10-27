@@ -59,6 +59,14 @@
         crops: @js($seedCrops),
         hvcc: @js($crops->where('is_hvcc', true)->pluck('id')->map(fn ($id) => (string) $id)->values()),
         confirming: false,
+        certName: '',
+        certUrl: '',
+        pickCert(event) {
+            if (this.certUrl) { URL.revokeObjectURL(this.certUrl); }
+            const file = event.target.files[0];
+            this.certName = file ? file.name : '';
+            this.certUrl  = file ? URL.createObjectURL(file) : '';
+        },
         isHvcc(id) { return this.hvcc.includes(String(id)); },
         addCrop() { this.crops.push({ crop_id: '', crop_specify: '' }); },
         removeCrop(i) { this.crops.splice(i, 1); },
@@ -238,7 +246,7 @@
             @endif
 
             <input id="barangay_certificate" type="file" name="barangay_certificate"
-                   accept=".jpg,.jpeg,.png,.pdf"
+                   accept=".jpg,.jpeg,.png,.pdf" @change="pickCert($event)"
                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm file:mr-3 file:rounded file:border-0 file:bg-green-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white">
             <p class="mt-1 text-xs text-slate-500">JPG, PNG or PDF, up to 5MB.</p>
         </div>
@@ -307,6 +315,13 @@
                     Please make sure everything you changed is correct. Your corrected application goes to
                     <strong>{{ $farmer->association->name ?? 'your Farmers\' Association' }}</strong> for
                     review, and then on to the Municipal Agriculture Office.
+                </p>
+                {{-- The file being sent, openable, so it can be checked before
+                     it goes. --}}
+                <p x-show="certName" x-cloak class="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    New Barangay Certificate:
+                    <a :href="certUrl" target="_blank" rel="noopener"
+                       class="font-medium text-green-800 underline hover:no-underline" x-text="certName"></a>
                 </p>
                 <div class="flex gap-3">
                     <button type="button" @click="confirming = false"

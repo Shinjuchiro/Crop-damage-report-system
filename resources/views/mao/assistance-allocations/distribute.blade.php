@@ -399,7 +399,11 @@
                     { label: 'For report',       value: this.chosenReport()?.reference || 'Not chosen' },
                     { label: 'Assistance',       value: @js($allocation->display_name) },
                     { label: 'Date handed over', value: this.distributedAt || 'Not chosen' },
-                    { label: 'Photos attached',  value: String(this.previews.length) },
+                    {
+                        label: 'Photos attached',
+                        value: String(this.previews.length),
+                        links: this.previews.map((p, i) => ({ label: 'Photo ' + (i + 1), url: p.url })),
+                    },
                     { label: 'Remarks',          value: this.remarks || 'None' },
                 ]);
             },

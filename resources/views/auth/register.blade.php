@@ -772,8 +772,15 @@
 
                                 <template x-if="f.ownership_type === 'land_owner'">
                                     <div><dt class="text-xs text-muted-foreground">Barangay Certificate</dt>
-                                         <dd class="text-sm font-medium text-foreground"
-                                             x-text="documentName || 'No file selected'"></dd></div>
+                                         <dd class="text-sm font-medium text-foreground">
+                                             <template x-if="! documentName"><span>No file selected</span></template>
+                                             <template x-if="documentName && documentUrl">
+                                                 <a :href="documentUrl" target="_blank" rel="noopener"
+                                                    class="font-medium text-primary underline hover:no-underline"
+                                                    x-text="documentName"></a>
+                                             </template>
+                                             <template x-if="documentName && ! documentUrl"><span x-text="documentName"></span></template>
+                                         </dd></div>
                                 </template>
 
                                 <template x-if="f.ownership_type === 'tenant'">
@@ -982,6 +989,7 @@
             stepError: '',
             agreed: false,
             documentName: '',
+            documentUrl: '',
 
             // Supporting documents (tenants). supportFiles holds the actual File
             // objects the form will submit; supportMeta holds the name and size
@@ -1284,6 +1292,11 @@
             pickCertificate(event) {
                 const file = event.target.files[0];
 
+                if (this.documentUrl) {
+                    URL.revokeObjectURL(this.documentUrl);
+                    this.documentUrl = '';
+                }
+
                 if (!file) {
                     this.documentName = '';
                     return;
@@ -1309,6 +1322,7 @@
 
                 this.stepError = '';
                 this.documentName = file.name;
+                this.documentUrl = URL.createObjectURL(file);
             },
 
             /**

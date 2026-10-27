@@ -1329,7 +1329,11 @@
                 }
 
                 rows.push({ label: 'Total damaged area', value: this.totalArea().toFixed(2) + ' ha' });
-                rows.push({ label: 'Photos attached', value: String(this.previews.length) });
+                rows.push({
+                    label: 'Photos attached',
+                    value: String(this.previews.length),
+                    links: this.previews.map((p, i) => ({ label: 'Photo ' + (i + 1), url: p.url })),
+                });
 
                 // Section 91.6: anything to do with a location gets read back
                 // before it is saved, including the fact that none was set.
