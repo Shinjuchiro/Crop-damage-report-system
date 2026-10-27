@@ -2,35 +2,56 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>@yield('title', 'Crop Damage Reporting and Assistance Allocation System')</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/tanza-seal.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-100 font-sans antialiased">
+<body class="min-h-screen font-sans antialiased" style="background:#0d3d1b;">
 
-    <div class="min-h-screen flex flex-col items-center justify-center px-4 py-10">
+{{--
+    THE SIGNED-OUT SCREENS THAT ARE NOT THE LOGIN FORM
 
-        @unless($hideBrandHeader ?? false)
-            <div class="mb-6 text-center">
-                <div class="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-green-800">
-                    <svg class="h-9 w-9 text-lime-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M12 21c0-6 3-10 8-12-1 6-4 9-8 12zM12 21c0-5-2.5-8-7-10 1 5 3 8 7 10z"/>
-                    </svg>
-                </div>
-                <h1 class="text-xl font-bold text-green-900 sm:text-2xl">Crop Damage Reporting</h1>
-                <p class="text-sm text-slate-600">and Assistance Allocation System &mdash; Tanza, Cavite</p>
-            </div>
-        @endunless
+    "Your application needs correction", "Account pending" and "Account
+    blocked" are what a farmer lands on after signing in, so they carry the
+    login page's look: the FITSC office photo under a green tint, the Tanza
+    seal and the office name, and a white card on top.
 
-        <div class="w-full {{ $wide ?? false ? 'max-w-3xl' : 'max-w-md' }}">
-            @yield('content')
-        </div>
+    The photo layer is pinned to the window and written inline, the same
+    way the login's is, so it can never stop short of the bottom of a long
+    page and leave a plain strip, and so it does not depend on a stylesheet
+    that may be older than the page.
+--}}
+<div aria-hidden="true" style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:0;">
+    <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
+         style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
+    <div style="position:absolute;top:0;right:0;bottom:0;left:0;background:rgba(13,61,27,0.70);"></div>
+</div>
 
-        <p class="mt-8 text-center text-xs text-slate-500">
-            Municipal Agriculture Office &mdash; Tanza, Cavite
+<div class="flex min-h-screen flex-col items-center justify-center px-4 py-10"
+     style="position:relative;z-index:1;">
+
+    {{-- The seal and the office name, the same pair the login card carries. --}}
+    <div class="mb-5 text-center text-white">
+        <span class="mx-auto mb-3 flex items-center justify-center rounded-full bg-white p-2 shadow-lg"
+              style="width:4.5rem;height:4.5rem;box-shadow:0 0 0 4px rgba(255,255,255,0.3),0 10px 25px rgba(0,0,0,0.3);">
+            <img src="{{ asset('images/tanza-seal.png') }}"
+                 alt="Seal of the Municipality of Tanza, Cavite" style="width:100%;height:100%;">
+        </span>
+        <p class="text-base font-bold leading-tight sm:text-lg">
+            Farmers Information and<br>Technology Services Center
         </p>
+        <p class="mt-1 text-sm font-medium" style="color:#7ddc8f;">Municipality of Tanza</p>
     </div>
+
+    <div class="w-full {{ $wide ?? false ? 'max-w-3xl' : 'max-w-md' }}">
+        @yield('content')
+    </div>
+
+    <p class="mt-8 text-center text-xs" style="color:rgba(255,255,255,0.75);">
+        &copy; {{ date('Y') }} Farmers Information and Technology Services Center. All rights reserved.
+    </p>
+</div>
 
 </body>
 </html>

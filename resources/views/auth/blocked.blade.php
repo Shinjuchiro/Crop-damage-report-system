@@ -31,7 +31,7 @@
 --}}
 
 @section('content')
-<div class="rounded-2xl bg-white p-8 shadow-sm">
+<div class="rounded-2xl bg-white p-8 shadow-sm" style="box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
 
     @if ($reason)
         {{-- ---------- REJECTED, WITH A REASON ---------- --}}

@@ -78,6 +78,15 @@ class FarmerCorrectionRequest extends FormRequest
                cannot express: it depends on what is already stored. */
             'barangay_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
 
+            /* A tenant's supporting documents. New files are ADDED to the ones
+               already on record, and any existing one can be ticked for
+               removal. That a tenant ends up with between one and five in
+               total depends on what is stored, so the controller checks it. */
+            'supporting_documents'   => ['nullable', 'array', 'max:5'],
+            'supporting_documents.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'remove_documents'       => ['nullable', 'array'],
+            'remove_documents.*'     => ['integer'],
+
             // --- Farm information ---
             'farm_size_hectares' => ['nullable', 'numeric', 'min:0', 'max:999999'],
 
@@ -98,6 +107,10 @@ class FarmerCorrectionRequest extends FormRequest
             'phone_number.required'          => 'Please enter your mobile number.',
             'barangay_certificate.mimes'     => 'The certificate has to be a JPG, PNG or PDF file.',
             'barangay_certificate.max'       => 'The certificate has to be smaller than 5MB.',
+            'supporting_documents.max'       => 'You can upload up to 5 supporting documents.',
+            'supporting_documents.*.mimes'   => 'Each supporting document must be a JPG, PNG or PDF file.',
+            'supporting_documents.*.max'     => 'Each supporting document must be 5MB or smaller.',
+            'supporting_documents.*.file'    => 'One of the supporting documents could not be uploaded. Please choose it again.',
         ];
     }
 }

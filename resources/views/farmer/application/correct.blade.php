@@ -94,7 +94,7 @@
     @endif
 
     <form method="POST" action="{{ route('farmer.application.resubmit') }}" enctype="multipart/form-data"
-          class="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
+          class="rounded-2xl bg-white p-6 shadow-sm sm:p-8" style="box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
         @csrf
         @method('PUT')
 
@@ -248,6 +248,50 @@
                    accept=".jpg,.jpeg,.png,.pdf" @change="pickCert($event)"
                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm file:mr-3 file:rounded file:border-0 file:bg-green-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white">
             <p class="mt-1 text-xs text-slate-500">JPG, PNG or PDF, up to 5MB.</p>
+        </div>
+
+        {{-- Tenant only: the papers that describe the arrangement. The ones
+             already on record can be ticked for removal, and new ones are
+             added to them (up to 5 in total). --}}
+        <div x-show="ownership === 'tenant'" x-cloak class="mb-6">
+            <label for="supporting_documents" class="{{ $labelClass }}">Supporting Documents</label>
+
+            @if ($farmer->supportingDocuments->isNotEmpty())
+                <p class="mb-2 text-sm text-slate-600">
+                    These are the documents on your application. Tick any you want to remove,
+                    and add new ones below.
+                </p>
+                <ul class="mb-3 space-y-2">
+                    @foreach ($farmer->supportingDocuments as $document)
+                        <li class="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                            @if ($document->is_image)
+                                <img src="{{ $document->url }}" alt="" class="h-10 w-10 shrink-0 rounded object-cover">
+                            @else
+                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-red-50 text-[10px] font-bold text-red-700">
+                                    {{ $document->is_pdf ? 'PDF' : 'FILE' }}
+                                </span>
+                            @endif
+                            <a href="{{ $document->url }}" target="_blank" rel="noopener"
+                               class="min-w-0 flex-1 truncate font-medium text-green-800 hover:underline">{{ $document->file_name }}</a>
+                            <label class="flex shrink-0 items-center gap-1.5 text-xs text-slate-600">
+                                <input type="checkbox" name="remove_documents[]" value="{{ $document->id }}"
+                                       @checked(in_array($document->id, array_map('intval', (array) old('remove_documents', [])), true))>
+                                Remove
+                            </label>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <p class="mb-2 text-sm text-slate-600">
+                    Tenants have to upload at least one supporting document, such as a tenancy agreement
+                    or an authorization letter from the land owner.
+                </p>
+            @endif
+
+            <input id="supporting_documents" type="file" name="supporting_documents[]" multiple
+                   accept=".jpg,.jpeg,.png,.pdf"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm file:mr-3 file:rounded file:border-0 file:bg-green-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white">
+            <p class="mt-1 text-xs text-slate-500">JPG, PNG or PDF, up to 5MB each, 5 files in total.</p>
         </div>
 
         {{-- ---------- FARM INFORMATION ---------- --}}

@@ -34,7 +34,7 @@
     </div>
 @endif
 
-<div class="rounded-2xl bg-white p-8 shadow-sm">
+<div class="rounded-2xl bg-white p-8 shadow-sm" style="box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
 
     <div class="text-center">
         <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full

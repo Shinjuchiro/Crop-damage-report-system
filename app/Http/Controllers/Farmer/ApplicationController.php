@@ -172,7 +172,7 @@ class ApplicationController extends Controller
         $farmer = $this->returnedFarmer();
 
         return view('farmer.application.correct', [
-            'farmer'    => $farmer->load('mainCrops.crop'),
+            'farmer'    => $farmer->load('mainCrops.crop', 'supportingDocuments'),
             'barangays' => Barangay::orderBy('name')->get(),
             // inDisplayOrder() so the pickers read Rice, Corn, HVCC like
             // everywhere else in the system (revision step 3).
@@ -212,6 +212,39 @@ class ApplicationController extends Controller
                     'Land owners have to upload a Barangay Certificate proving they own the land.']);
         }
 
+        /* A tenant keeps between one and five supporting documents in total:
+           the ones already on record that they have not ticked for removal,
+           plus whatever they attach now. A land owner's are left alone. */
+        $removeIds    = collect($request->input('remove_documents', []))->map(fn ($id) => (int) $id)->all();
+        $newFiles     = $request->file('supporting_documents', []);
+        $keptDocuments = $farmer->supportingDocuments()->whereNotIn('id', $removeIds)->count();
+
+        if ($data['ownership_type'] === 'tenant') {
+            $total = $keptDocuments + count($newFiles);
+
+            if ($total < 1) {
+                return back()->withInput()->withErrors(['supporting_documents' =>
+                    'Tenants must keep or upload at least one supporting document, such as a tenancy agreement or an authorization letter.']);
+            }
+
+            if ($total > 5) {
+                return back()->withInput()->withErrors(['supporting_documents' =>
+                    'A tenant can have up to 5 supporting documents. Remove one you no longer need before adding another.']);
+            }
+        }
+
+        $storedDocuments = [];
+        if ($data['ownership_type'] === 'tenant') {
+            foreach ($newFiles as $file) {
+                $storedDocuments[] = [
+                    'file_path' => $file->store('supporting-documents', 'local'),
+                    'file_name' => mb_substr($file->getClientOriginalName(), 0, 255),
+                    'mime_type' => $file->getMimeType(),
+                    'file_size' => $file->getSize(),
+                ];
+            }
+        }
+
         // Stored before the transaction, since a file write is not rolled
         // back by the database anyway. The old file is left where it is: it
         // is the document the association already saw, and deleting it
@@ -223,7 +256,7 @@ class ApplicationController extends Controller
             ? $request->file('barangay_certificate')->store('barangay-certificates', 'local')
             : $farmer->barangay_certificate_path;
 
-        DB::transaction(function () use ($farmer, $data, $certificatePath) {
+        DB::transaction(function () use ($farmer, $data, $certificatePath, $storedDocuments, $removeIds) {
             $farmer->update([
                 'barangay_id'               => $data['barangay_id'],
                 'first_name'                => $data['first_name'],
@@ -262,6 +295,19 @@ class ApplicationController extends Controller
                     'crop_id'      => $crop['crop_id'],
                     'crop_specify' => $crop['crop_specify'] ?? null,
                 ]);
+            }
+
+            /* Supporting documents (tenants). Removed rows go; the files stay
+               on disk, like a replaced certificate, so what the association
+               already saw can still be traced. */
+            if ($data['ownership_type'] === 'tenant') {
+                if ($removeIds !== []) {
+                    $farmer->supportingDocuments()->whereIn('id', $removeIds)->delete();
+                }
+
+                foreach ($storedDocuments as $document) {
+                    \App\Models\FarmerSupportingDocument::create($document + ['farmer_id' => $farmer->id]);
+                }
             }
 
             $farmer->resubmitToAssociation();
