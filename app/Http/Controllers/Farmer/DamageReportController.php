@@ -72,6 +72,9 @@ class DamageReportController extends Controller
      */
     public const MAX_CROPS = 5;
 
+    /** Disaster events one report can be linked to. The first is the main event. */
+    public const MAX_DISASTERS = 3;
+
     /**
      * "My Reports" page.
      */
@@ -143,6 +146,7 @@ class DamageReportController extends Controller
             // So the form stops at the same number the validation does. One
             // constant, two places that need it.
             'maxCrops' => self::MAX_CROPS,
+            'maxEvents' => self::MAX_DISASTERS,
 
             // The farmer's own Crop Planted entries, so a crop (and the date
             // they actually planted it) can be picked instead of remembered.
@@ -500,7 +504,7 @@ class DamageReportController extends Controller
 
             // A weather cause now REQUIRES a recorded disaster (Oct 2026): see
             // assertDisasterRecorded(). Other causes have no event to pick.
-            'disasters'   => ['nullable', 'array'],
+            'disasters'   => ['nullable', 'array', 'max:' . self::MAX_DISASTERS],
             'disasters.*' => [
                 Rule::exists('disasters', 'id')->whereNull('archived_at'),
                 // Only events a farmer is actually offered: not one whose
@@ -518,6 +522,7 @@ class DamageReportController extends Controller
         ], [
             'farm_location_description.required'        => 'Please describe where the damaged farm is.',
             'crops.required'                            => 'Please add at least one damaged crop.',
+            'disasters.max'                           => 'One report can be linked to up to ' . self::MAX_DISASTERS . ' events.',
             'crops.max'                                 => 'One report can cover up to ' . self::MAX_CROPS
                 . ' crops. Please submit the rest as a separate report.',
             'date_damaged.required'                     => 'Please enter the date the crop was damaged.',

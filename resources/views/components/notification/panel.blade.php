@@ -37,7 +37,10 @@
     'showRoute' => null,
 ])
 
-@php $items = $items ?? collect(); @endphp
+@php
+    $items  = $items ?? collect();
+    $groups = \App\Support\NotificationGroups::group($items);
+@endphp
 
 <div x-data="{ open: false, tab: 'all' }" class="relative">
 
@@ -124,16 +127,27 @@
         </div>
 
         <div class="max-h-[60vh] overflow-y-auto border-t border-border">
-            @forelse ($items as $item)
-                {{-- A read row is simply not rendered on the Unread tab.
-                     x-show rather than a filter, so switching tabs costs
-                     nothing and the scroll position survives it. --}}
-                <div @if ($item->is_read) x-show="tab === 'all'" @endif
-                     class="border-b border-border last:border-0">
-                    <x-notification.row
-                        :notification="$item"
-                        :href="$showRoute ? route($showRoute, $item) : null"
-                        compact />
+            @forelse ($groups as $label => $rows)
+                {{-- A group whose rows are all read has nothing to show on the
+                     Unread tab, so its heading goes with them. --}}
+                <div @if ($rows->every(fn ($r) => $r->is_read)) x-show="tab === 'all'" @endif>
+                    <h3 class="bg-muted/40 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        {{ $label }}
+                    </h3>
+
+                    @foreach ($rows as $item)
+                        {{-- A read row is simply not rendered on the Unread tab.
+                             x-show rather than a filter, so switching tabs costs
+                             nothing and the scroll position survives it. --}}
+                        <div @if ($item->is_read) x-show="tab === 'all'" @endif
+                             class="border-b border-border last:border-0">
+                            <x-notification.row
+                                :notification="$item"
+                                :href="$showRoute ? route($showRoute, $item) : null"
+                                compact
+                                :stamp="true" />
+                        </div>
+                    @endforeach
                 </div>
             @empty
                 <p class="px-4 py-10 text-center text-sm text-muted-foreground">

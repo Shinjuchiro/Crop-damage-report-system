@@ -87,7 +87,8 @@
         @js($weatherCauses),
         @js(array_values(array_intersect($causesWithEvents, $weatherCauses))),
         @js($maxCrops),
-        @js($plantingOptions)
+        @js($plantingOptions),
+        @js($maxEvents ?? 3)
      )">
 
     @if ($errors->any())
@@ -168,14 +169,14 @@
                                 </button>
                             </div>
 
-                            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            <div class="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
                                 {{-- Pick the crop from the farmer's own Crop Planted reports, and
                                      its real planting date comes with it. Meant for the farmer who
                                      cannot remember the date. --}}
                                 <input type="hidden" :name="`crops[${index}][planting_record_crop_id]`" :value="row.record_id">
 
-                                <div class="space-y-1.5 sm:col-span-2 xl:col-span-3" x-show="plantingList.length" x-cloak>
+                                <div class="space-y-1.5 sm:col-span-2 lg:col-span-3" x-show="plantingList.length" x-cloak>
                                     <label class="block text-sm font-medium">
                                         Choose from your Crop Planted reports
                                         <span class="block text-xs font-normal text-muted-foreground">
@@ -207,12 +208,12 @@
                                     </div>
                                 </div>
 
-                                <p x-show="! plantingList.length" class="text-xs text-muted-foreground sm:col-span-2 xl:col-span-3">
+                                <p x-show="! plantingList.length" class="text-xs text-muted-foreground sm:col-span-2 lg:col-span-3">
                                     No existing planting record was found. You may continue with the Crop Damage Report by completing the required fields.
                                     If you cannot remember the planting date, record your planting under Crop Planted first.
                                 </p>
 
-                                <div class="space-y-1.5 sm:col-span-2 xl:col-span-3">
+                                <div class="space-y-1.5">
                                     <label class="block text-sm font-medium">
                                         Crop Type <span class="text-destructive">*</span>
                                         <span class="block text-xs font-normal text-muted-foreground">Uri ng pananim</span>
@@ -226,18 +227,6 @@
                                             <option :value="crop.id" x-text="crop.name"></option>
                                         </template>
                                     </select>
-                                </div>
-
-                                <div class="space-y-1.5 sm:col-span-2 xl:col-span-3" x-show="isHvcc(row)" x-cloak>
-                                    <label class="block text-sm font-medium">
-                                        Which high value crop? <span class="text-destructive">*</span>
-                                        <span class="block text-xs font-normal text-muted-foreground">
-                                            Halimbawa: Ampalaya, Talong, Mangga
-                                        </span>
-                                    </label>
-                                    <input type="text" :name="`crops[${index}][crop_specify]`"
-                                           x-model="row.crop_specify" maxlength="100" :readonly="!! row.record_id"
-                                           class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
                                 </div>
 
                                 <div class="space-y-1.5">
@@ -280,7 +269,19 @@
                                     </p>
                                 </div>
 
-                                <div class="space-y-1.5 sm:col-span-2 xl:col-span-3">
+                                <div class="space-y-1.5 sm:col-span-2 lg:col-span-3" x-show="isHvcc(row)" x-cloak>
+                                    <label class="block text-sm font-medium">
+                                        Which high value crop? <span class="text-destructive">*</span>
+                                        <span class="block text-xs font-normal text-muted-foreground">
+                                            Halimbawa: Ampalaya, Talong, Mangga
+                                        </span>
+                                    </label>
+                                    <input type="text" :name="`crops[${index}][crop_specify]`"
+                                           x-model="row.crop_specify" maxlength="100" :readonly="!! row.record_id"
+                                           class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                                </div>
+
+                                <div class="space-y-1.5 sm:col-span-2 lg:col-span-3">
                                     <label class="block text-sm font-medium">
                                         Your Estimate of the Damage <span class="text-destructive">*</span>
                                         <span class="block text-xs font-normal text-muted-foreground">
@@ -345,7 +346,7 @@
 
                                 {{-- Shown, not typed. The office needs to know where this
                                      number comes from, and so does the farmer. --}}
-                                <div class="rounded-lg bg-card px-4 py-3 text-sm sm:col-span-2 xl:col-span-3">
+                                <div class="rounded-lg bg-card px-4 py-3 text-sm sm:col-span-2 lg:col-span-3">
                                     <div class="flex items-center justify-between gap-3">
                                         <span class="text-muted-foreground">
                                             Estimated damage cost
@@ -535,7 +536,7 @@
                             </div>
                         </template>
 
-                        <button type="button" @click="addDisaster()"
+                        <button type="button" @click="addDisaster()" x-show="canAddDisaster()"
                                 class="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed
                                        border-input px-4 py-3 text-sm font-medium text-muted-foreground
                                        transition-colors hover:border-primary hover:bg-accent hover:text-accent-foreground">
@@ -545,6 +546,10 @@
                             </svg>
                             Add another event
                         </button>
+
+                        <p x-show="! canAddDisaster()" x-cloak class="text-xs text-muted-foreground">
+                            One report can be linked to up to <strong x-text="maxEvents"></strong> events.
+                        </p>
 
                         {{-- The first event is the one the dates are checked against. --}}
                         <p x-show="chosenEvents().length > 1" x-cloak class="text-xs text-muted-foreground">
@@ -838,7 +843,7 @@
 
 @push('scripts')
 <script>
-    function damageReportForm(cropList, disasterList, farmSize, causeList, weatherCauses, causesWithEvents, maxCrops, plantingList) {
+    function damageReportForm(cropList, disasterList, farmSize, causeList, weatherCauses, causesWithEvents, maxCrops, plantingList, maxEvents) {
         return {
             cropList,
             plantingList,
@@ -849,6 +854,7 @@
                DamageReportController::MAX_CROPS so the form and the
                validation can never disagree. */
             maxCrops,
+            maxEvents,
 
             // causeList        every cause, key to label
             // weatherCauses    the ones the office declares events for
@@ -1148,7 +1154,12 @@
 
             canAddCrop() { return this.crops.length < this.maxCrops; },
 
-            addDisaster() { this.disasters.push(emptyDisaster()); },
+            addDisaster() {
+                if (this.disasters.length >= this.maxEvents) return;
+                this.disasters.push(emptyDisaster());
+            },
+
+            canAddDisaster() { return this.disasters.length < this.maxEvents; },
 
             crop(row) {
                 return this.cropList.find(c => String(c.id) === String(row.crop_id));

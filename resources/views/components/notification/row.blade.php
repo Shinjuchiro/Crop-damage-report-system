@@ -29,12 +29,16 @@
       notification  a Notification row, with its broadcast loaded
       href          where the row goes; null renders it as a plain block
       compact       tighter padding and a shorter message, for the dropdown
+      stamp         show the clock time or date instead of the short "2d"
 --}}
 
 @props([
     'notification',
     'href'    => null,
     'compact' => false,
+    // On the full page the time is the clock time or date, as the page's
+    // Today / Yesterday headings expect. The dropdown keeps the short "2d".
+    'stamp'   => false,
 ])
 
 @php
@@ -82,6 +86,16 @@
         'parts'  => 1,
         'syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE,
     ]);
+
+    if ($stamp && $notification->created_at) {
+        $at = $notification->created_at;
+
+        $when = match (true) {
+            $at->isToday()     => $at->format('g:i A'),
+            $at->isYesterday() => 'Yesterday, ' . $at->format('g:i A'),
+            default            => $at->format('F j, Y'),
+        };
+    }
 
     $unread = ! $notification->is_read;
 

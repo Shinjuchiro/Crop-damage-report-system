@@ -13,15 +13,13 @@
     all read". They are now one component, so the bell's dropdown and all
     four pages show a notification the same way.
 
-    NEW, THEN EARLIER
+    GROUPED BY WHEN IT ARRIVED
 
-    The same split the apps people already use make: what you have not read
-    yet, then everything else. It is more useful than a plain reverse
-    chronological list, because the question is almost never "what arrived
-    on Tuesday" - it is "what have I not seen".
-
-    The headings only appear on the All tab. On Unread everything is new by
-    definition, and a heading over a list of one kind of thing is furniture.
+    Today, Yesterday, Earlier This Week, then Older, the way the apps people
+    already use group them. Each row still shows the unread dot and wash, so
+    "what have I not seen" is answered by the dot, and the Unread tab filters
+    to it. A heading with nothing under it is not shown. The newest first
+    order comes from the controllers, so every group is one unbroken run.
 
     props
       items        a paginator of Notification rows, broadcast loaded
@@ -46,9 +44,7 @@
 @php
     $isUnreadTab = $filter === 'unread';
 
-    // Split only on the All tab; see the note above.
-    $fresh  = $isUnreadTab ? collect() : $items->getCollection()->filter(fn ($row) => ! $row->is_read);
-    $older  = $isUnreadTab ? $items->getCollection() : $items->getCollection()->filter(fn ($row) => $row->is_read);
+    $groups = \App\Support\NotificationGroups::group($items->getCollection());
 @endphp
 
 <div class="space-y-4">
@@ -87,34 +83,20 @@
                         :message="$isUnreadTab ? 'You have no unread notifications.' : $emptyMessage" />
         </x-ui.card>
     @else
-        @if ($fresh->isNotEmpty())
-            <div>
-                <h2 class="mb-2 px-1 text-base font-bold text-foreground">New</h2>
-                <x-ui.card :padded="false">
-                    @foreach ($fresh as $row)
-                        <div class="border-b border-border last:border-0">
-                            <x-notification.row :notification="$row" :href="route($showRoute, $row)" />
-                        </div>
-                    @endforeach
-                </x-ui.card>
-            </div>
-        @endif
-
-        @if ($older->isNotEmpty())
-            <div>
-                @unless ($isUnreadTab)
-                    <h2 class="mb-2 px-1 text-base font-bold text-foreground">Earlier</h2>
-                @endunless
-
-                <x-ui.card :padded="false">
-                    @foreach ($older as $row)
-                        <div class="border-b border-border last:border-0">
-                            <x-notification.row :notification="$row" :href="route($showRoute, $row)" />
-                        </div>
-                    @endforeach
-                </x-ui.card>
-            </div>
-        @endif
+        @foreach ($groups as $label => $rows)
+            @if ($rows->isNotEmpty())
+                <div>
+                    <h2 class="mb-2 px-1 text-base font-bold text-foreground">{{ $label }}</h2>
+                    <x-ui.card :padded="false">
+                        @foreach ($rows as $row)
+                            <div class="border-b border-border last:border-0">
+                                <x-notification.row :notification="$row" :href="route($showRoute, $row)" :stamp="true" />
+                            </div>
+                        @endforeach
+                    </x-ui.card>
+                </div>
+            @endif
+        @endforeach
 
         @if ($items->hasPages())
             <div class="pt-1">{{ $items->links() }}</div>
