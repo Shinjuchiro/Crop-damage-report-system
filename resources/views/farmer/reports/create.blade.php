@@ -265,8 +265,8 @@
                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm read-only:bg-muted read-only:text-muted-foreground">
 
                                     <p x-show="row.record_id" x-cloak class="text-xs text-muted-foreground">
-                                        Taken from your Crop Planted report. To change it, correct that report or choose
-                                        "I will enter it myself".
+                                        This is the actual planting date recorded in your Crop Planted report. It is not changed
+                                        by this damage report.
                                     </p>
                                     <p x-show="! row.record_id && ! officialDate()" class="text-xs text-muted-foreground">
                                         Choose the event in the next section and this date is checked against its official date.
@@ -278,16 +278,6 @@
                                     <p x-show="plantedTooLate(row)" x-cloak class="text-xs font-medium text-destructive">
                                         The actual planting date must be before the disaster date.
                                     </p>
-                                </div>
-
-                                                {{-- A date taken from a Crop Planted report is held to the same
-                                     rule. The report itself is never changed; only this new damage
-                                     report is stopped. --}}
-                                <div x-show="row.record_id && plantedTooLate(row)" x-cloak
-                                     class="rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-xs text-red-900 dark:text-red-200 sm:col-span-2 xl:col-span-3">
-                                    <span class="block font-semibold">The actual planting date must be before the disaster date.</span>
-                                    <span x-text="recordConflict(row)"></span>
-                                    Your Crop Planted report is not changed. Choose a different planting record, or check the date with the office.
                                 </div>
 
                                 <div class="space-y-1.5 sm:col-span-2 xl:col-span-3">
@@ -1077,13 +1067,19 @@
                 return !! (official && this.dateDamaged && this.dateDamaged <= official);
             },
 
+            /* Only a date the farmer types is held to the rule. A date that comes
+               from a Crop Planted report is shown as recorded and never judged. */
             plantedTooLate(row) {
+                if (row.record_id) {
+                    return false;
+                }
+
                 const max = this.plantedMax();
 
                 return !! (max && row.date_planted && row.date_planted > max);
             },
 
-            /** True when a typed date or a record's date breaks the planting rule. */
+            /** True when a date the farmer typed breaks the planting rule. */
             anyPlantedInvalid() {
                 return this.crops.some(row => this.plantedTooLate(row));
             },
@@ -1136,27 +1132,6 @@
                     row.record_id = '';
                     row.date_planted = '';
                 }
-            },
-
-            /** Why a record's date disagrees with the event, in a sentence; '' when it does not. */
-            recordConflict(row) {
-                if (! row.date_planted) {
-                    return '';
-                }
-
-                const official = this.officialDate();
-
-                if (official && row.date_planted >= official) {
-                    return 'The planting date on this Crop Planted report (' + this.fmt(row.date_planted)
-                        + ') is not before the disaster date (' + this.fmt(official) + ').';
-                }
-
-                if (this.dateDamaged && row.date_planted > this.dateDamaged) {
-                    return 'The planting date on this Crop Planted report (' + this.fmt(row.date_planted)
-                        + ') is after the date the crop was damaged.';
-                }
-
-                return '';
             },
 
             /* ---------- crops ---------- */

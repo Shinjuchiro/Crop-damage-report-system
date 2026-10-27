@@ -556,9 +556,9 @@ class DamageReportController extends Controller
      *
      * A line may only point at a record that belongs to THIS farmer and is not
      * archived or deleted. Anything else is refused. The record's date is
-     * copied as it stands and the record itself is never altered. If that date
-     * is not before the recorded disaster date, assertDatesFollowEvent() stops
-     * the NEW report with a clear message.
+     * copied as it stands and the record itself is never altered. A copied
+     * date is not judged against the disaster date; only dates the farmer
+     * types are.
      */
     private function applyPlantingRecords(array $crops): array
     {
@@ -657,10 +657,10 @@ class DamageReportController extends Controller
      * advisory was written or sent, so a report filed months later is held to
      * the same dates. The date the form is submitted is kept separately.
      *
-     * Applies to every planting line in a NEW report, including one copied from
-     * a Crop Planted record: the record itself is never changed or deleted, but
-     * a report built on a planting date that is not before the disaster is not
-     * accepted.
+     * The planting rule applies to a planting date the farmer enters in a NEW
+     * report. A line copied from an existing Crop Planted record uses the date
+     * already recorded there: it is not asked for again, not changed, and the
+     * report is not refused because of it.
      *
      * The MAIN event is the first one linked. Extra events are allowed but are
      * not used for the check.
@@ -683,14 +683,17 @@ class DamageReportController extends Controller
         }
 
         foreach ($validated['crops'] as $index => $crop) {
+            // Date taken from an existing planting record: shown as recorded,
+            // never judged here.
+            if (! empty($crop['planting_record_crop_id'])) {
+                continue;
+            }
+
             $planted = Carbon::parse($crop['date_planted'])->startOfDay();
 
             if ($official && $planted->gte($official)) {
                 $errors["crops.{$index}.date_planted"] = 'The actual planting date must be before the disaster date. '
-                    . 'The disaster date is ' . $official->format('F j, Y') . '.'
-                    . (! empty($crop['planting_record_crop_id'])
-                        ? ' This date comes from your Crop Planted report, which is not changed.'
-                        : '');
+                    . 'The disaster date is ' . $official->format('F j, Y') . '.';
             } elseif (! $official && $planted->gt($damaged)) {
                 $errors["crops.{$index}.date_planted"] = 'The planting date cannot be after the date the crop was damaged.';
             }
