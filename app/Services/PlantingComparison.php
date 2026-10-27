@@ -87,21 +87,19 @@ class PlantingComparison
         }
 
         /* The dates, kept apart: when the crop was damaged, when the report was
-           filed, the disaster date it is checked against, and anything that does
-           not agree. For the technician to look at, like everything else here.
-           Nothing is changed or decided by it. */
+           filed, the disaster date. For the technician to look at. Nothing is
+           changed or decided by it. */
         $dates = [
             'damage_date'   => $report->date_damaged,
             'submitted'     => $report->submitted_at ?? $report->created_at,
             'official_date' => $report->official_date,
-            'flags'         => $report->date_flags->all(),
         ];
 
         return [
             'rows'          => $rows,
             'planted_total' => $plantedTotal,
             'damaged_total' => $damagedTotal,
-            'warning_count' => $warningCount + count($dates['flags']),
+            'warning_count' => $warningCount,
             'dates'         => $dates,
         ];
     }

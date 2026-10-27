@@ -315,12 +315,6 @@ class DamageReport extends Model
             ->orWhereDoesntHave('crops'));
     }
 
-    /** Reports whose dates disagree with their disaster event's official date (see DateCheck). */
-    public function scopeDateFlagged($query)
-    {
-        return $query->whereRaw(\App\Support\DateCheck::reviewSql());
-    }
-
     /**
      * Reports whose crop damage actually happened between two dates.
      *
@@ -335,24 +329,6 @@ class DamageReport extends Model
         return $query
             ->when($from, fn ($q) => $q->whereRaw("{$when} >= ?", [\Illuminate\Support\Carbon::parse($from)->toDateString()]))
             ->when($to, fn ($q) => $q->whereRaw("{$when} <= ?", [\Illuminate\Support\Carbon::parse($to)->toDateString()]));
-    }
-
-    /** Flagged, and nobody in the office has reviewed the dates yet. */
-    public function scopeDateReview($query)
-    {
-        return $query->dateFlagged()->whereDoesntHave('dateReviews');
-    }
-
-    /** Flagged, and the office has reviewed the dates. */
-    public function scopeDateReviewed($query)
-    {
-        return $query->dateFlagged()->whereHas('dateReviews');
-    }
-
-    /** The office's reviews of this report's dates, oldest first. */
-    public function dateReviews()
-    {
-        return $this->hasMany(DamageReportDateReview::class)->orderBy('reviewed_at')->orderBy('id');
     }
 
     /** Reports where every crop line has a matching planting record. */
