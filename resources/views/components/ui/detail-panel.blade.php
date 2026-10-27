@@ -68,7 +68,13 @@
 @endphp
 
 @if ($selected)
-    <div class="fixed inset-0 z-[80] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
+    {{-- Positioning and the height cap are inline on purpose. They used to be
+         Tailwind classes only, and on a machine whose compiled stylesheet was
+         older than them the cap was missing: the panel grew taller than the
+         window, the whole overlay scrolled, and the dim (absolute inside that
+         scroller) scrolled away with it, leaving the page bright below. --}}
+    <div class="flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
+         style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:80;"
          role="dialog"
          aria-modal="true"
          x-data
@@ -77,7 +83,7 @@
         {{-- The dim. Its own layer rather than a background on the flex
              container, so a click lands on it and not on the panel. --}}
         <a href="{{ $closeUrl }}"
-           class="absolute inset-0 bg-slate-900/60"
+           style="position:fixed;top:0;right:0;bottom:0;left:0;background-color:rgba(15,23,42,0.6);"
            aria-label="Close"></a>
 
         {{-- CENTRED, AND WHY A LONG ONE STILL LOOKS RIGHT
@@ -105,7 +111,7 @@
 
              On a phone it stays a bottom sheet (items-end), which is where
              a thumb is. --}}
-        <div {{ $attributes->class(
+        <div {{ $attributes->merge(['style' => 'position:relative;max-height:90vh;'])->class(
                 'relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden '
                 . 'rounded-t-2xl border border-border bg-card shadow-2xl sm:max-h-[86vh] sm:rounded-2xl'
             ) }}>

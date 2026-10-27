@@ -52,7 +52,17 @@
                    says how many are in front of you, which is the honest
                    claim when a list is paginated. */
                 $grouped  = ($view ?? 'grouped') !== 'flat';
-                $rows     = $plantings->getCollection();
+                /* ONE ROW PER PLANTING REPORT
+
+                   The query returns one row per planted crop, so a report
+                   with Rice, Ampalaya and Okra arrives as three rows. A
+                   farmer filed ONE report, so it is shown once, with every
+                   crop in it named in the Crop column. */
+                $rows     = $plantings->getCollection()->unique('crop_planting_record_id')->values();
+                $cropLabel = fn ($planting) => $planting->plantingRecord?->crops
+                    ->map(fn ($c) => $c->crop_specify ?: $c->crop?->name)
+                    ->filter()->unique()->implode(', ')
+                    ?: ($planting->crop_specify ?: ($planting->crop?->name ?? '-'));
                 $perGroup = $rows->groupBy(fn ($row) => $row->plantingRecord?->farmer?->id)->map->count();
 
                 // Which farmer's block starts open: the one whose planting is
@@ -134,7 +144,7 @@
                 <ul class="space-y-3 lg:hidden" @if ($grouped) x-data="{ open: {{ $openId ?? 'null' }} }" @endif>
                     @php $phoneLast = null; @endphp
 
-                    @forelse ($plantings as $planting)
+                    @forelse ($rows as $planting)
                         @php $cardFarmer = $planting->plantingRecord?->farmer; @endphp
 
                         @if ($grouped && $cardFarmer?->id !== $phoneLast)
@@ -166,7 +176,7 @@
                                                   ? 'RECORD ' . $seq[$planting->id]
                                                   : ($cardFarmer ? 'FARM-' . str_pad($cardFarmer->id, 3, '0', STR_PAD_LEFT) : '-')"
                                               :title="$grouped
-                                                  ? ($planting->crop_specify ?: $planting->crop?->name ?? 'Crop')
+                                                  ? $cropLabel($planting)
                                                   : ($cardFarmer?->full_name ?? 'Unknown')"
                                               :status="$cardFarmer?->activity_status" />
                         </li>
@@ -202,9 +212,9 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
-                                @forelse ($plantings->getCollection()->groupBy(fn ($row) => (int) $row->plantingRecord?->farmer_id) as $farmerId => $group)
+                                @forelse ($rows->groupBy(fn ($row) => (int) $row->plantingRecord?->farmer_id) as $farmerId => $group)
                                     @php $farmer = $group->first()->plantingRecord?->farmer; @endphp
-                                    <x-record.farmer-block :farmer="$farmer"
+                                    <x-record.farmer-block seen="planting" :farmer="$farmer"
                                                            :count="$group->count()"
                                                            :group-id="$farmerId"
                                                            :href="$farmer ? route('mao.farmers.show', $farmer) : null"
@@ -213,7 +223,7 @@
                                             <tr class="hover:bg-muted/60 {{ $selected?->id === $planting->crop_planting_record_id ? 'bg-muted/60' : '' }}">
                                                 <td class="px-4 py-4 text-muted-foreground">Record {{ $seq[$planting->id] }}</td>
                                                 <td class="px-4 py-4 font-medium text-foreground">
-                                                    {{ $planting->crop_specify ?: $planting->crop?->name ?? '-' }}
+                                                    {{ $cropLabel($planting) }}
                                                 </td>
                                                 <td class="px-4 py-4 text-center">
                                                     <span class="inline-flex rounded px-3 py-1 text-xs font-medium {{ $farmer?->activity_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' }}">
@@ -268,7 +278,7 @@
                         </thead>
                         <tbody class="divide-y divide-border text-sm">
 
-                            @forelse ($plantings as $planting)
+                            @forelse ($rows as $planting)
                                 @php $farmer = $planting->plantingRecord?->farmer; @endphp
 
                                 <tr class="hover:bg-muted/60 {{ $selected?->id === $planting->crop_planting_record_id ? 'bg-muted/60' : '' }}">

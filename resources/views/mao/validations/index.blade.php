@@ -200,15 +200,14 @@
                             <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
                                 @forelse ($rows->groupBy(fn ($row) => (int) $row->farmer_id) as $farmerId => $group)
                                     @php $farmer = $group->first()->farmer; @endphp
-                                    <x-record.farmer-block :farmer="$farmer"
+                                    <x-record.farmer-block seen="validation" :farmer="$farmer"
                                                            :count="$group->count()"
                                                            :group-id="$farmerId"
                                                            :href="$farmer ? route('mao.farmers.show', $farmer) : null"
-                                                           :headers="[['Report ID'], ['Farmer'], ['Assessment Status', 'text-center'], ['Action', 'text-center']]">
+                                                           :headers="[['Report ID'], ['Assessment Status', 'text-center'], ['Action', 'text-center']]">
                                         @foreach ($group as $report)
                                             <tr class="hover:bg-muted/60 {{ $selected?->id === $report->id ? 'bg-muted/60' : '' }}">
                                                 <td class="px-4 py-4 text-foreground">{{ $report->reference }}</td>
-                                                <td class="px-4 py-4 text-muted-foreground">{{ $report->farmer?->full_name ?? 'Unknown' }}</td>
                                                 <td class="px-4 py-4 text-center">
                                                     <x-monitor.badge kind="validation" :value="$report->review_state" />
                                                 </td>

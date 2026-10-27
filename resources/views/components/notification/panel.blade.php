@@ -62,9 +62,10 @@
              itself. Inset over the drawing, a single digit read as part of
              the icon and a "9+" squashed into it. --}}
         @if ($unread > 0)
-            <span class="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center
+            <span style="position:absolute;right:-2px;top:-2px;box-shadow:0 0 0 2px var(--card, #fff);"
+                  class="flex h-[18px] min-w-[18px] items-center justify-center
                          rounded-full bg-destructive px-1 text-[10px] font-bold leading-none
-                         text-destructive-foreground ring-2 ring-card"
+                         text-destructive-foreground"
                   aria-hidden="true">
                 {{ $unread > 9 ? '9+' : $unread }}
             </span>
@@ -75,7 +76,8 @@
          screen, and without something behind it the page underneath keeps
          inviting taps that only close it. --}}
     <div x-show="open" x-cloak x-transition.opacity
-         class="fixed inset-0 z-30 bg-foreground/20 sm:hidden"
+         style="background:rgba(0,0,0,0.2);"
+         class="fixed inset-0 z-30 sm:hidden"
          @click="open = false" aria-hidden="true"></div>
 
     <div x-show="open" x-cloak
@@ -85,8 +87,8 @@
          @click.outside="open = false"
          @keydown.escape.window="open = false"
          role="menu"
-         class="absolute right-0 top-full z-40 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden
-                rounded-2xl border border-border bg-card shadow-xl">
+         style="position:absolute;right:0;top:100%;z-index:40;margin-top:0.5rem;width:min(22rem,calc(100vw - 1.5rem));overflow:hidden;"
+         class="rounded-2xl border border-border bg-card shadow-xl">
 
         {{-- Heading --}}
         <div class="flex items-center justify-between gap-3 px-4 pb-2 pt-3.5">
@@ -126,7 +128,7 @@
             </button>
         </div>
 
-        <div class="max-h-[60vh] overflow-y-auto border-t border-border">
+        <div style="max-height:60vh;overflow-y:auto;" class="border-t border-border">
             @forelse ($groups as $label => $rows)
                 {{-- A group whose rows are all read has nothing to show on the
                      Unread tab, so its heading goes with them. --}}

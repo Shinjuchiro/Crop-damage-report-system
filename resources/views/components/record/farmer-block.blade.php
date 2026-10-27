@@ -30,6 +30,8 @@
       groupId  the farmer's id, the value `open` is compared with
       href     unused; kept so existing callers do not break
       headers  heading cells of the inner table: [label, extra classes]
+      seen     'damage_report' | 'planting' | 'validation': shows a red "N new"
+               beside the count for records this user has not opened yet
       association  false drops the Association column (the association's own
                screens: every member is in the same one, so it says nothing)
 --}}
@@ -42,12 +44,18 @@
     'href'    => null,
     'headers' => [],
     'association' => true,
+    'seen'    => null,
 ])
 
 @php
     $gid   = (int) $groupId;
     $code  = $farmer ? 'FARM-' . str_pad((string) $farmer->id, 3, '0', STR_PAD_LEFT) : '-';
     $where = $farmer?->barangay?->name ?? '';
+
+    // How many of this farmer's records the signed in user has not opened yet.
+    $newCount = ($seen && $farmer)
+        ? (\App\Support\Seen::newByFarmer(auth()->user(), $seen)[$farmer->id] ?? 0)
+        : 0;
 @endphp
 
 {{-- 1. THE FARMER ROW --}}
@@ -75,8 +83,19 @@
     @endif
 
     <td class="px-4 py-4 text-center">
-        <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
-            {{ number_format($count) }}
+        <span class="inline-flex items-center justify-center gap-2">
+            <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
+                {{ number_format($count) }}
+            </span>
+            @if ($newCount > 0)
+                {{-- New to this user: filed since they last looked and not yet
+                     opened with View. Same rule as the tab badges above. --}}
+                <span class="rounded-full px-2 py-0.5 text-[11px] font-bold leading-none"
+                      style="background:#b91c1c;color:#fff;"
+                      title="{{ $newCount }} new, not yet opened">
+                    {{ $newCount }} new
+                </span>
+            @endif
         </span>
     </td>
 

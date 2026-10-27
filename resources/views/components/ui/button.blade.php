@@ -38,7 +38,7 @@
            was barely readable. A solid blue-700 under white text is 8.6:1,
            well past the 4.5:1 that normal text needs, and it reads the
            same on every device because nothing is left translucent. */
-        'view'        => 'bg-blue-700 text-white shadow-sm hover:bg-blue-800',
+        'view'        => 'bg-blue-700 text-white shadow-sm hover:brightness-110',
     ];
 
     $sizes = [
@@ -63,10 +63,17 @@
     $classes = $base . ' '
         . ($variants[$variant] ?? $variants['default']) . ' '
         . ($sizes[$icon ? 'icon' : $size] ?? $sizes['default']);
+
+    /* The View colour is also written inline. bg-blue-700 only exists in the
+       stylesheet once Vite has been rebuilt after it was introduced; on a
+       machine with an older public/build the class is simply missing and
+       the button came out as white text on a white row, so every View
+       button looked empty. Inline, it cannot go missing. */
+    $inline = $variant === 'view' ? 'background-color:#1d4ed8;color:#ffffff;' : null;
 @endphp
 
 @if ($href)
-    <a href="{{ $href }}" {{ $attributes->class($classes) }}>{{ $slot }}</a>
+    <a href="{{ $href }}" {{ $attributes->merge(array_filter(['style' => $inline]))->class($classes) }}>{{ $slot }}</a>
 @else
-    <button {{ $attributes->merge(['type' => 'button'])->class($classes) }}>{{ $slot }}</button>
+    <button {{ $attributes->merge(array_filter(['type' => 'button', 'style' => $inline]))->class($classes) }}>{{ $slot }}</button>
 @endif

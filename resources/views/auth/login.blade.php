@@ -229,7 +229,12 @@
      edge instead of living in its own panel. Nothing from the phone
      layout above appears here.
 =================================================================== --}}
-<div class="fit-shell relative hidden overflow-hidden lg:flex lg:items-center lg:justify-center lg:px-10 lg:py-14">
+{{-- position:fixed + inset:0 pins this panel to the visible window itself,
+     not to a vh/dvh figure the browser worked out earlier, so the photo can
+     never stop short of the bottom and leave a white strip. Inline on
+     purpose: it has to beat .fit-on .fit-shell, which sets a fixed height. --}}
+<div class="fit-shell relative hidden overflow-hidden lg:flex lg:items-center lg:justify-center lg:px-10 lg:py-14"
+     style="position:fixed;inset:0;height:auto;min-height:0;overflow-y:auto;">
 
     <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
          class="absolute inset-0 h-full w-full object-cover" aria-hidden="true">

@@ -689,7 +689,7 @@
                         <label class="block text-sm font-medium">
                             Barangay
                             <span class="block text-xs font-normal text-muted-foreground">
-                                Defaults to the barangay on your profile
+                                Barangays covered by your association. Defaults to the one on your profile.
                             </span>
                         </label>
                         <select name="reported_barangay_id"

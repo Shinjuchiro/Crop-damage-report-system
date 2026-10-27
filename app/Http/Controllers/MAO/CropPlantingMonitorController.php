@@ -65,6 +65,14 @@ class CropPlantingMonitorController extends Controller
                 fn ($planting) => $planting->plantingRecord?->farmer_id
             )
             : $this->filtered($request)
+                // One row per planting REPORT: a report with three crops is
+                // three crop rows, so only its first matching one is paged.
+                ->whereRaw(
+                    'crop_planting_record_crops.id = (select min(c2.id) from crop_planting_record_crops c2'
+                    . ' where c2.crop_planting_record_id = crop_planting_record_crops.crop_planting_record_id'
+                    . ($request->filled('crop_id') ? ' and c2.crop_id = ?' : '') . ')',
+                    $request->filled('crop_id') ? [$request->crop_id] : []
+                )
                 ->orderByDesc('date_planted')
                 ->orderByDesc('crop_planting_record_crops.id')
                 ->paginate(15)
@@ -126,6 +134,7 @@ class CropPlantingMonitorController extends Controller
                 'plantingRecord.farmer.user',
                 'plantingRecord.farmer.association',
                 'plantingRecord.farmer.barangay',
+                'plantingRecord.crops.crop',
             ])
             ->whereHas('plantingRecord', fn ($q) => $q->notDeleted()->whereNull('archived_at'))
             ->when($request->filled('crop_id'),

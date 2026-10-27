@@ -133,7 +133,8 @@ class DamageReportController extends Controller
             // from these lists (see app/Models/Concerns/Archivable.php).
             'crops'     => Crop::active()->inDisplayOrder()->get(),
             'disasters' => Disaster::offeredToFarmers()->orderByDesc('date_start')->orderBy('name')->get(),
-            'barangays' => Barangay::orderBy('name')->get(),
+            // Only the barangays the farmer's own association covers.
+            'barangays' => $this->allowedBarangays($farmer),
 
             // The cause list lives on the model, not in the database, because
             // it is a fixed vocabulary and not something the office edits.
@@ -465,7 +466,9 @@ class DamageReportController extends Controller
             'date_damaged'      => ['required', 'date', 'after_or_equal:2000-01-01'],
 
             'farm_location_description' => ['required', 'string', 'max:500'],
-            'reported_barangay_id'      => ['nullable', Rule::exists('barangays', 'id')],
+            // Only a barangay the farmer's association covers (the form offers
+            // no others; this is what stops one being posted by hand).
+            'reported_barangay_id'      => ['nullable', Rule::in($this->allowedBarangays($this->farmer())->pluck('id')->all())],
             'description'               => ['nullable', 'string', 'max:2000'],
 
             /* Sections 37 and 49: the farmer's own coordinates.
@@ -817,6 +820,24 @@ class DamageReportController extends Controller
      * times during one request and there is no reason to hit the database
      * again each time.
      */
+    /**
+     * The barangays this farmer may name as the farm's location: the ones the
+     * association they belong to covers, plus the barangay on their own
+     * profile so the list is never empty and their default is always in it.
+     */
+    private function allowedBarangays(Farmer $farmer)
+    {
+        $covered = $farmer->association
+            ? $farmer->association->barangays()->orderBy('barangays.name')->get()
+            : collect();
+
+        if ($farmer->barangay && ! $covered->contains('id', $farmer->barangay->id)) {
+            $covered = $covered->push($farmer->barangay)->sortBy('name')->values();
+        }
+
+        return $covered;
+    }
+
     private function farmer(): Farmer
     {
         static $farmer;

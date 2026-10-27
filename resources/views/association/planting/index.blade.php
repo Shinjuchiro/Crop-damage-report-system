@@ -171,15 +171,14 @@
                         <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
                             @foreach ($rows->groupBy(fn ($r) => (int) $r->farmer_id) as $farmerId => $group)
                                 @php $farmer = $group->first()->farmer; @endphp
-                                <x-record.farmer-block :farmer="$farmer"
+                                <x-record.farmer-block seen="planting" :farmer="$farmer"
                                                        :count="$group->count()"
                                                        :group-id="$farmerId"
                                                        :association="false"
-                                                       :headers="[['Record No.'], ['Farmer'], ['Status', 'text-center'], ['Action', 'text-right']]">
+                                                       :headers="[['Record No.'], ['Status', 'text-center'], ['Action', 'text-right']]">
                                     @foreach ($group as $record)
                                         <tr class="hover:bg-muted/60 {{ $selected?->id === $record->id ? 'bg-muted/60' : '' }}">
                                             <td class="whitespace-nowrap px-4 py-4 font-medium">REC-{{ str_pad($record->id, 4, '0', STR_PAD_LEFT) }}</td>
-                                            <td class="px-4 py-4 text-muted-foreground">{{ $record->farmer?->full_name ?? 'Unknown' }}</td>
                                             <td class="px-4 py-4 text-center"><x-ui.status :value="$record->farmer?->activity_status" /></td>
                                             <td class="px-4 py-4 text-right">
                                                 <x-ui.button :href="$viewUrl($record->id)" variant="view" size="sm">View</x-ui.button>
