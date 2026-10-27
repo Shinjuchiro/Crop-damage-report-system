@@ -42,6 +42,11 @@
     // disagreeing with. It is never overwritten (section 45).
     $farmerEstimate = round($report->crops->avg('estimated_damage_percent'));
 
+    // For the Alpine config below, built here so the attribute only has to
+    // carry two plain variables.
+    $initialDisasterIds = $report->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()->all();
+    $disasterLabels     = $availableDisasters->pluck('name', 'id')->all();
+
     $steps = [
         1 => ['Capture Photos',        'Kumuha ng malinaw na larawan ng mga nasirang pananim.'],
         2 => ['Assess Damage Severity', 'Piliin ang damage level batay sa aktwal na kondisyon ng pananim.'],
@@ -61,8 +66,14 @@
         reportedLng: {{ $report->reported_longitude !== null ? (float) $report->reported_longitude : 'null' }},
         farmerEstimate: {{ $farmerEstimate }},
         notesGap: {{ $notesGap }},
-        initialDisasterIds: {!! json_encode($report->disasters->pluck('id')->map(fn ($id) => (string) $id)->values()) !!},
-        disasterLabels: {!! json_encode($availableDisasters->pluck('name', 'id')) !!}
+        {{-- @js, not json_encode: this sits inside a double quoted HTML
+             attribute, and json_encode's plain double quotes closed the
+             attribute early the moment a report had any disaster linked.
+             Alpine then got half an expression, the form never started, and
+             every panel stayed hidden - only the farmer's summary and the
+             submit button (plain CSS) showed. @js escapes for attributes. --}}
+        initialDisasterIds: @js($initialDisasterIds),
+        disasterLabels: @js($disasterLabels)
      })">
 
     @if ($errors->any())
