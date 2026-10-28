@@ -137,9 +137,9 @@
                              transition: background-color 0.15s ease; }
             .sidebar-brand:hover, .sidebar-brand:focus-visible { background-color: rgba(255, 255, 255, 0.08); }
             .sidebar-brand { position: relative; }
-            .sidebar-brand-arrow { position: absolute; top: 0.7rem; right: 0.8rem; opacity: 0;
+            .sidebar-brand-arrow { position: absolute; top: 0.75rem; right: 0.85rem; opacity: 0;
                                    transition: opacity 0.15s ease; pointer-events: none; }
-            .sidebar-wrap:hover .sidebar-brand-arrow, .sidebar-wrap:has(:focus-visible) .sidebar-brand-arrow { opacity: 0.55; }
+            .sidebar-wrap:hover .sidebar-brand-arrow, .sidebar-wrap:has(:focus-visible) .sidebar-brand-arrow { opacity: 0.9; }
             .sidebar-wrap:hover .sidebar-brand:hover .sidebar-brand-arrow,
             .sidebar-wrap .sidebar-brand:focus-visible .sidebar-brand-arrow { opacity: 1; }
             .sidebar-brand img { flex: none; width: 3.5rem; height: 3.5rem; min-width: 3.5rem;
@@ -227,6 +227,29 @@
         :is(div, section, article):is(.rounded-xl, .rounded-2xl).border-border:not(.border-dashed):not([class*="bg-muted"]):not([class*="bg-accent"]):not([class*="bg-secondary"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-amber"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-sky"]):not([class*="bg-yellow"]):not([class*="bg-orange"]):not([class*="bg-slate"]) {
             box-shadow: 0 6px 18px -2px rgba(15, 23, 42, 0.30), 0 2px 5px 0 rgba(15, 23, 42, 0.22);
         }
+        /* LESS DEAD SPACE (Oct 2026)
+           Tighter outer margins, page-frame padding and the common gaps
+           between blocks, from a tablet up. Phones keep their own spacing.
+           Inline so it applies without rebuilding the stylesheet. */
+        @media (min-width: 1024px) {
+            .fits-main { padding: 1rem 1.25rem; }
+        }
+        @media (min-width: 640px) {
+            .fits-frame { padding: 1.25rem; }
+            .fits-main .gap-8 { gap: 1.5rem; }
+            .fits-main .gap-6 { gap: 1.25rem; }
+            .fits-main .gap-5 { gap: 1rem; }
+            .fits-main .mb-8 { margin-bottom: 1.5rem; }
+            .fits-main .mb-6 { margin-bottom: 1.25rem; }
+            .fits-main .mb-5 { margin-bottom: 1rem; }
+            .fits-main .mt-8 { margin-top: 1.5rem; }
+            .fits-main .mt-6 { margin-top: 1.25rem; }
+            .fits-main .my-8 { margin-top: 1.5rem; margin-bottom: 1.5rem; }
+            .fits-main .my-6 { margin-top: 1.25rem; margin-bottom: 1.25rem; }
+            .fits-main .py-10 { padding-top: 1.75rem; padding-bottom: 1.75rem; }
+            .fits-main .py-12 { padding-top: 2rem; padding-bottom: 2rem; }
+            .fits-main .p-6 { padding: 1.25rem; }
+        }
         /* a.shadow-sm cards (stat tiles that are links) as well */
         a.rounded-xl.shadow-sm, a.rounded-2xl.shadow-sm {
             box-shadow: 0 6px 18px -2px rgba(15, 23, 42, 0.30), 0 2px 5px 0 rgba(15, 23, 42, 0.22);
@@ -252,9 +275,9 @@
                 Technology Services Center
             </p>
             {{-- The small "opens elsewhere" arrow, top right; only drawn once the menu is open. --}}
-            <svg class="sidebar-brand-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M7 17L17 7M9 7h8v8"/>
+            <svg class="sidebar-brand-arrow" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
             </svg>
         </a>
 
@@ -388,7 +411,7 @@
              pb-28 on phones leaves room for the bottom bar. Without it the
              last row of every list sits underneath it.
         ================================================================== --}}
-        <main class="flex-1 px-3 pb-28 pt-4 sm:px-5 lg:px-8 lg:pt-6 lg:pb-6">
+        <main class="fits-main flex-1 px-3 pb-28 pt-4 sm:px-5 lg:px-8 lg:pt-6 lg:pb-6">
             <div class="w-full">
 
                 {{-- THE PAGE FRAME
@@ -437,7 +460,7 @@
                      background not dimmed" glitch. The loading veil above
                      already gives the page a clean appearance. --}}
                 <div @class([
-                    'rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6'
+                    'fits-frame rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6'
                         => ! View::hasSection('noFrame'),
                 ])>
 

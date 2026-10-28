@@ -906,6 +906,12 @@
                 this.$watch('stepError', (message) => {
                     if (message && window.fitsNotice) {
                         window.fitsNotice({ title: 'Please check your information', message: message, tone: 'danger' });
+
+                        /* A watcher only fires when the value CHANGES. Without
+                           this reset, pressing Continue a second time with the
+                           same problem set the very same message again, saw no
+                           change, and showed no popup at all. */
+                        this.$nextTick(() => { this.stepError = ''; });
                     }
                 });
 

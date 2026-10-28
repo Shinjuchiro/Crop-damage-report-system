@@ -38,7 +38,9 @@
 @endphp
 
 <{{ $tag }} @if ($href) href="{{ $href }}" @endif
-   {{ $attributes->class('mb-5 flex items-center gap-3 rounded-2xl bg-accent px-4 py-4 sm:px-5') }}>
+   {{-- A green shadow, to match the green of the banner itself. Inline so it
+        does not wait on the compiled stylesheet. --}}
+   {{ $attributes->class('mb-5 flex items-center gap-3 rounded-2xl bg-accent px-4 py-4 sm:px-5')->merge(['style' => 'box-shadow:0 6px 18px -2px rgba(22,101,52,0.35),0 2px 5px 0 rgba(22,101,52,0.25);']) }}>
 
     {{-- The leaf. Two strokes rather than a filled blob so it keeps its shape
          at 24px on a phone. --}}

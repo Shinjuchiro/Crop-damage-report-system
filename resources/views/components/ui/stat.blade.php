@@ -118,7 +118,7 @@ Below 1024px the card is the compact one: a 36px round icon with the
     $valueTone = $tones[$tone] ?? $tones['default'];
 
     // p-3 on a phone, the original p-5 from sm up.
-    $classes = 'block rounded-xl border border-border bg-card p-3 shadow-sm sm:p-5'
+    $classes = 'block rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4'
         . ($href ? ' card-hover hover:border-primary/40' : '');
 @endphp
 

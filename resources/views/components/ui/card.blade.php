@@ -50,7 +50,7 @@
              just sits above its content with air between them, and a card
              that is already separated by its own edge does not need a
              second line inside it. --}}
-        <div class="flex flex-wrap items-start justify-between gap-3 px-4 pb-1 pt-4 sm:px-5 sm:pt-5">
+        <div class="flex flex-wrap items-start justify-between gap-3 px-4 pb-1 pt-3.5 sm:px-4 sm:pt-4">
             <div class="min-w-0">
                 {{-- Sentence case and bold, as in the reference, rather than
                      the small capitals this used to use. Capitals read as a
@@ -72,7 +72,7 @@
         </div>
     @endif
 
-    <div class="{{ $padded ? 'p-4 sm:p-5' : '' }}">
+    <div class="{{ $padded ? 'p-3.5 sm:p-4' : '' }}">
         {{ $slot }}
     </div>
 
