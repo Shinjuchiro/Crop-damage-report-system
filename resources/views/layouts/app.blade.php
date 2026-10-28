@@ -333,12 +333,20 @@
 
                      On desktop this is hidden: the sidebar already carries
                      the seal and the full office name. --}}
-                <span class="flex min-w-0 items-center gap-2 lg:hidden">
+                <a href="https://www.facebook.com/agriculture.tanza" target="_blank" rel="noopener noreferrer"
+                   title="Open the Tanza Municipal Agriculture Office on Facebook"
+                   aria-label="Municipal Agriculture Office of Tanza on Facebook (opens in a new tab)"
+                   class="flex min-w-0 items-center gap-2 lg:hidden">
                     <img src="{{ asset('images/tanza-seal.png') }}"
                          alt="Seal of the Municipality of Tanza, Cavite"
-                         class="h-9 w-9 shrink-0">
-                    <span class="truncate text-base font-bold tracking-tight">TANZA-FITS</span>
-                </span>
+                         class="h-9 w-9 shrink-0"
+                         style="width:clamp(1.75rem, 8.5vw, 2.25rem);height:clamp(1.75rem, 8.5vw, 2.25rem);">
+                    {{-- The name scales with the phone's width (about 12px on the
+                         narrowest screens up to 16px), so it fits beside the
+                         Install button and bell instead of being cut off. --}}
+                    <span class="truncate font-bold tracking-tight"
+                          style="font-size:clamp(0.75rem, 3.8vw, 1rem);">TANZA-FITS</span>
+                </a>
             </div>
 
             <div class="flex shrink-0 items-center gap-1 sm:gap-2">

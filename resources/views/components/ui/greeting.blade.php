@@ -29,9 +29,9 @@
     // English greeting with the Filipino one under it, the way the rest of
     // the app labels things.
     [$greetEn, $greetFil] = match (true) {
-        $hour < 12 => ['Good morning',   'Magandang umaga'],
-        $hour < 18 => ['Good afternoon', 'Magandang hapon'],
-        default    => ['Good evening',   'Magandang gabi'],
+        $hour < 12 => ['Good morning',   'Magandang Umaga'],
+        $hour < 18 => ['Good afternoon', 'Magandang Hapon'],
+        default    => ['Good evening',   'Magandang Gabi'],
     };
 
     $tag = $href ? 'a' : 'div';
@@ -62,7 +62,7 @@
             {{ $subtitle ?? $role }}
         </span>
         <span class="block truncate text-xs text-accent-foreground/60">
-            {{ $greetFil }} po
+            {{ $greetFil }} po!
         </span>
     </span>
 

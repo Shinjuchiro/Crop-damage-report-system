@@ -183,15 +183,50 @@
                                             Piliin mula sa inyong naitalang pagtatanim. Kusa nitong ilalagay ang petsa ng pagtatanim.
                                         </span>
                                     </label>
-                                    <select x-model="row.record_id" @change="pickRecord(row)"
-                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm"
-                                            style="font-weight:700;">
-                                        <option value="">My planting is not listed, I will enter it myself</option>
-                                        <template x-for="p in availablePlantings(row)" :key="p.id">
-                                            <option :value="String(p.id)"
-                                                    x-text="String(p.crop_name).toUpperCase() + ' - planted ' + p.date_label + ' (' + Number(p.area).toFixed(2) + ' ha) ' + p.reference"></option>
-                                        </template>
-                                    </select>
+                                    {{-- A custom list instead of a plain <select>, because a native
+                                         select cannot make just the crop name bold. The chosen planting
+                                         is still held in row.record_id, exactly as before. --}}
+                                    <div class="relative" x-data="{ pickerOpen: false }"
+                                         @click.outside="pickerOpen = false" @keydown.escape.window="pickerOpen = false">
+                                        <button type="button" @click="pickerOpen = ! pickerOpen"
+                                                :aria-expanded="pickerOpen.toString()" aria-haspopup="listbox"
+                                                class="flex h-12 w-full items-center justify-between gap-3 rounded-md border border-input bg-card px-3 text-left text-base shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20">
+                                            <span class="min-w-0 truncate">
+                                                <template x-if="recordOf(row)">
+                                                    <span>
+                                                        <span class="font-bold" x-text="String(recordOf(row).crop_name).toUpperCase()"></span><span x-text="' - planted ' + recordOf(row).date_label + ' (' + Number(recordOf(row).area).toFixed(2) + ' ha) ' + recordOf(row).reference"></span>
+                                                    </span>
+                                                </template>
+                                                <template x-if="! recordOf(row)">
+                                                    <span>My planting is not listed, I will enter it myself</span>
+                                                </template>
+                                            </span>
+                                            <svg class="h-4 w-4 shrink-0 text-muted-foreground" fill="none" stroke="currentColor" stroke-width="2"
+                                                 stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                                        </button>
+
+                                        <ul x-show="pickerOpen" x-cloak role="listbox"
+                                            class="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-auto rounded-md border border-input bg-card py-1 shadow-lg">
+                                            <li role="option">
+                                                <button type="button"
+                                                        @click="row.record_id = ''; pickRecord(row); pickerOpen = false"
+                                                        class="block w-full px-3 py-2 text-left text-base hover:bg-accent"
+                                                        :class="! row.record_id ? 'bg-accent' : ''">
+                                                    My planting is not listed, I will enter it myself
+                                                </button>
+                                            </li>
+                                            <template x-for="p in availablePlantings(row)" :key="p.id">
+                                                <li role="option">
+                                                    <button type="button"
+                                                            @click="row.record_id = String(p.id); pickRecord(row); pickerOpen = false"
+                                                            class="block w-full px-3 py-2 text-left text-base hover:bg-accent"
+                                                            :class="String(row.record_id) === String(p.id) ? 'bg-accent' : ''">
+                                                        <span class="font-bold" x-text="String(p.crop_name).toUpperCase()"></span><span x-text="' - planted ' + p.date_label + ' (' + Number(p.area).toFixed(2) + ' ha) ' + p.reference"></span>
+                                                    </button>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
 
                                     {{-- What was picked, spelled out: the planting date used is the
                                          ACTUAL planting date, never the day the record was made. --}}

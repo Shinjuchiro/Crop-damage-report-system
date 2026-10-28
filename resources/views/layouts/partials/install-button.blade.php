@@ -1,44 +1,74 @@
 {{--
-    "Install app" button.
+    "Install" button, shown to every user in the top bar.
 
     Chrome and Edge fire beforeinstallprompt when the site qualifies as an app.
-    We hold that event in resources/js/app.js and show this button instead,
-    because a farmer is not going to find "Add to Home screen" buried in the
-    browser menu on their own.
+    We hold that event in resources/js/app.js. When it is available the button
+    opens the browser's own install prompt. When it is not (iPhone Safari,
+    Firefox, a page without https, or the browser has not decided yet) the
+    button still shows and opens a short popup that explains how to add the app
+    to the home screen for that device.
 
-    The button hides itself when the browser has not offered installation, when
-    the app is already installed, or when the page is already running as an
-    installed app.
+    The button only hides when the page is already running as an installed app
+    or right after the app has been installed.
+
+    Note: this x-data sits inside a double quoted HTML attribute, so use single
+    quotes only in the script below.
 --}}
 <div x-data="{
-        available: false,
+        available: true,
 
         init() {
-            if (window.deferredInstallPrompt) {
-                this.available = true;
-            }
-
             if (window.matchMedia('(display-mode: standalone)').matches
                 || window.navigator.standalone === true) {
                 this.available = false;
             }
         },
 
+        manualSteps() {
+            const ua = window.navigator.userAgent || '';
+            const isIos = /iPhone|iPad|iPod/i.test(ua)
+                || (/Macintosh/i.test(ua) && window.navigator.maxTouchPoints > 1);
+            const isAndroid = /Android/i.test(ua);
+            const local = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+            if (!window.isSecureContext && !local) {
+                return 'This site is not on a secure (https) address, so the browser cannot install it as an app. Ask your administrator to open the site using https, then try again.';
+            }
+
+            if (isIos) {
+                return 'Open this page in Safari. Tap the Share button, then choose Add to Home Screen, then tap Add.';
+            }
+
+            if (isAndroid) {
+                return 'Tap the three dots menu at the top right of your browser, then choose Install app or Add to Home screen.';
+            }
+
+            return 'Open your browser menu and choose Install TANZA-FITS (in Chrome or Edge, look for the install icon at the right end of the address bar).';
+        },
+
         async install() {
             const prompt = window.deferredInstallPrompt;
 
             if (!prompt) {
+                if (typeof window.fitsNotice === 'function') {
+                    window.fitsNotice({
+                        title: 'Install TANZA-FITS',
+                        message: this.manualSteps(),
+                    });
+                }
                 return;
             }
 
-            this.available = false;
             window.deferredInstallPrompt = null;
 
             prompt.prompt();
-            await prompt.userChoice;
+            const choice = await prompt.userChoice;
+
+            if (choice && choice.outcome === 'accepted') {
+                this.available = false;
+            }
         },
      }"
-     @pwa-installable.window="available = true"
      @pwa-installed.window="available = false"
      x-show="available"
      x-cloak>

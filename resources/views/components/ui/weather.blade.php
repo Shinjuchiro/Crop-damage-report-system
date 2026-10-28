@@ -72,8 +72,21 @@
     </div>
 </div>
 
+{{-- On a narrow phone the condition and high/low block no longer fits beside
+     the temperature and place, and used to be drawn over them. Below ~430px
+     the row is allowed to wrap and that block drops under the text, lined up
+     with it. Inline so it never waits on the compiled stylesheet. --}}
+<style>
+    .wx-card  { flex-wrap: wrap; }
+    .wx-main  { flex: 1 1 9rem; min-width: 9rem; }
+    .wx-right { flex: 0 0 auto; margin-left: auto; }
+    @media (max-width: 430px) {
+        .wx-right { flex: 1 1 100%; margin-left: 0; text-align: left !important; padding-left: 3.75rem; }
+    }
+</style>
+
 <div x-show="reading" x-cloak
-     class="flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-5">
+     class="wx-card flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-5">
 
     {{-- The drawing. Stroke and fill, so it holds its shape at 44px, and the
          sun keeps its warm colour while the cloud stays grey: this is the
@@ -125,7 +138,7 @@
         </svg>
     </span>
 
-    <div class="min-w-0 flex-1">
+    <div class="wx-main min-w-0 flex-1">
         <p class="flex items-baseline gap-1">
             <span class="text-2xl font-bold tracking-tight text-foreground" x-text="reading?.temperature"></span>
             <span class="text-lg font-semibold text-foreground">&deg;C</span>
@@ -136,7 +149,7 @@
         </p>
     </div>
 
-    <div class="shrink-0 text-right">
+    <div class="wx-right shrink-0 text-right">
         <p class="text-sm font-medium text-foreground" x-text="reading?.description"></p>
         <p class="text-xs text-muted-foreground">
             H: <span x-text="reading?.high"></span>&deg; &nbsp;
