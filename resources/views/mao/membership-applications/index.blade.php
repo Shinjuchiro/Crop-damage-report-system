@@ -34,6 +34,16 @@
         {{-- LIST --}}
         <div>
             <x-ui.card title="Membership Applications">
+                {{-- Archived applications are reached from here, the same way
+                     Crop Damage Monitoring does it, instead of being one more
+                     choice in the status filter. The Archive page lists them
+                     and can restore them. --}}
+                <x-slot:actions>
+                    <a href="{{ route('mao.archive.index', ['type' => 'farmers']) }}"
+                       class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
+                        View archived
+                    </a>
+                </x-slot:actions>
 
                 @if ($errors->any())
                     <div class="mb-5 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
@@ -52,7 +62,7 @@
                          choosing All Status used to come back filtered to
                          Pending with the dropdown reset. --}}
                     <x-ui.select name="status" onchange="this.form.submit()"
-                                 :options="$filters + ['all' => 'All Status']"
+                                 :options="\Illuminate\Support\Arr::except($filters, [MembershipApplication::ARCHIVED]) + ['all' => 'All Status']"
                                  :selected="$status" class="sm:w-56" />
 
                     <x-ui.select name="barangay_id" placeholder="All Barangays" onchange="this.form.submit()"

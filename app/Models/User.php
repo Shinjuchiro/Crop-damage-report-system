@@ -95,11 +95,16 @@ class User extends Authenticatable
      * The uploaded profile photo's public URL, or null when the account has
      * none and the initials avatar should show instead. See
      * App\Http\Controllers\Concerns\ManagesProfilePhoto.
+     *
+     * Built with asset() so it follows the address the page was opened on.
+     * Storage::url() uses APP_URL instead, which breaks the picture whenever
+     * the site is opened from another PC or phone with a different address.
+     * It still needs the public/storage link: php artisan storage:link.
      */
     public function getProfilePhotoUrlAttribute(): ?string
     {
         return $this->profile_photo_path
-            ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->profile_photo_path)
+            ? asset('storage/' . ltrim($this->profile_photo_path, '/'))
             : null;
     }
 
