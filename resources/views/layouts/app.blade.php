@@ -8,6 +8,43 @@
 
     @include('layouts.partials.pwa-head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Hides anything marked x-cloak from the very first paint.
+
+         This rule also lives in resources/css/app.css, but that is not enough
+         on its own: while `npm run dev` is running (public/hot exists) Vite
+         injects the stylesheet from JavaScript AFTER the page has painted,
+         and until it lands every closed modal on the page is drawn
+         unstyled, in flow at the bottom, with no dim behind it. It then
+         snaps away or into place when the CSS arrives. That was the "modal
+         appears below, then jumps, and the background is not dimmed for a
+         second". Inline here, it is in force before anything else loads. --}}
+    <style>[x-cloak] { display: none !important; }</style>
+    {{-- SHOW THE PAGE ONLY WHEN IT IS READY
+
+         Content used to appear piece by piece: the page first, then photos,
+         then the weather card a moment later, which pushed everything below
+         it down. Now the content area is held back (and a small spinner
+         shown) until the page has fully loaded AND, on a dashboard, the
+         weather lookup has finished. The class is added by script, so with
+         scripts off nothing is ever hidden; and show() below is also forced
+         after six seconds, so a slow forecast can never hold a page back.
+         Inline on purpose: it has to be in force before the stylesheet. --}}
+    <style>
+        /* visibility, not opacity. Anything less than full opacity turns <main>
+           into its own stacking context, and every modal lives inside it:
+           for as long as that lasts the sidebar and the top bar are drawn
+           ON TOP of the modal and its dim, and they jump behind it when
+           the fade ends. Same reason the frame below no longer animates. */
+        html.fits-loading main { visibility: hidden; }
+        html.fits-loading body::after {
+            content: ""; position: fixed; top: 50%; left: 50%; z-index: 60;
+            width: 2.25rem; height: 2.25rem; margin: -1.125rem 0 0 -1.125rem;
+            border: 3px solid rgba(21, 128, 61, 0.2); border-top-color: #15803d;
+            border-radius: 9999px; animation: fits-spin 0.7s linear infinite;
+        }
+        @keyframes fits-spin { to { transform: rotate(360deg); } }
+    </style>
+    <script>document.documentElement.classList.add('fits-loading');</script>
     @stack('head')
 
     {{-- ARMS THE SPLASH FOR THE NEXT SIGN-IN
@@ -219,8 +256,18 @@
                      Nothing a page does changes: the sections it sets are
                      the same ones, hideHeading still opts out for the pages
                      that print their own. --}}
+                {{-- NO ENTRANCE ANIMATION ON THIS FRAME, ON PURPOSE. It used to
+                     slide up (a transform) and then fade (an opacity
+                     animation). Either one turns the frame into a containing
+                     block (transform) or a stacking context (opacity) for
+                     every modal inside it, and every modal on every page
+                     lives in here. For the length of the animation each one
+                     was placed against the frame, or drawn UNDER the sidebar
+                     and top bar, and then jumped into place when it ended.
+                     That was the "modal appears below, snaps into place,
+                     background not dimmed" glitch. The loading veil above
+                     already gives the page a clean appearance. --}}
                 <div @class([
-                    'animate-fade-up',
                     'rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6'
                         => ! View::hasSection('noFrame'),
                 ])>
@@ -296,5 +343,29 @@
 @include('layouts.partials.confirm-dialog')
 
 @stack('scripts')
+<script>
+    (function () {
+        var root = document.documentElement, done = false;
+
+        function show() {
+            if (done) { return; }
+            done = true;
+            root.classList.remove('fits-loading');
+        }
+
+        function check() {
+            if (document.readyState !== 'complete') { return; }
+            if (document.querySelector('[x-data="tanzaWeather()"]') && ! window.__fitsWeatherReady) { return; }
+            requestAnimationFrame(function () { requestAnimationFrame(show); });
+        }
+
+        window.addEventListener('load', check);
+        window.addEventListener('fits-weather-ready', check);
+        // Back/forward can restore the page from memory without a load event.
+        window.addEventListener('pageshow', function (e) { if (e.persisted) { show(); } });
+        setTimeout(show, 6000);
+        check();
+    })();
+</script>
 </body>
 </html>

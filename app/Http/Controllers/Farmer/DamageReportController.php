@@ -828,7 +828,7 @@ class DamageReportController extends Controller
     private function allowedBarangays(Farmer $farmer)
     {
         $covered = $farmer->association
-            ? $farmer->association->barangays()->orderBy('barangays.name')->get()
+            ? $farmer->association->coverage()->orderBy('barangays.name')->get()
             : collect();
 
         if ($farmer->barangay && ! $covered->contains('id', $farmer->barangay->id)) {

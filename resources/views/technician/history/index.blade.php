@@ -90,60 +90,74 @@
                 @endforeach
             </ul>
 
-            {{-- ---------- TABLET AND UP ---------- --}}
-            <div class="hidden lg:block">
-                <x-ui.table>
-                    <x-slot:head>
-                        <tr>
-                            <th>Report Id</th>
-                            <th>Farmer</th>
-                            <th>Barangay</th>
-                            <th>Submitted</th>
-                            <th class="text-right">Action</th>
-                        </tr>
-                    </x-slot:head>
+            {{-- ---------- TABLET AND UP: one folded row per farmer ----------
+                 Same shape as the MAO's Crop Management Report. Opening a
+                 farmer shows every inspection of theirs. --}}
+            @php
+                $rows   = $inspections->getCollection();
+                $groups = $rows->groupBy(fn ($row) => (int) $row->damageReport?->farmer_id);
+                $openId = $groups->count() === 1 ? $groups->keys()->first() : null;
+            @endphp
 
-                    @foreach ($inspections as $inspection)
-                        @php
-                            $report   = $inspection->damageReport;
-                            $estimate = $report?->crops->avg('estimated_damage_percent');
-                        @endphp
-
-                        <tr>
-                            <td class="whitespace-nowrap font-medium">{{ $report?->full_reference ?? '-' }}</td>
-
-                            <td>
-                                <span class="font-medium">{{ $report?->farmer?->full_name ?? 'Unknown' }}</span>
-                            </td>
-
-                            <td class="text-muted-foreground">
-                                {{ $report?->reportedBarangay?->name ?? $report?->farmer?->barangay?->name ?? '-' }}
-                            </td>
-
-                            {{-- Both figures side by side. Section 45: the
-                                 farmer's estimate is never overwritten, so the
-                                 gap between the two stays visible forever. --}}
-                            <td class="whitespace-nowrap text-muted-foreground">
-                                {{ $inspection->validated_at?->format('M d, Y g:i A') }}
-                            </td>
-
-                            <td class="whitespace-nowrap text-right">
-                                {{-- Opens the whole chain: what was planted,
-                                     what the farmer reported, what you
-                                     assessed. --}}
-                                <x-ui.button size="sm" variant="outline"
-                                             :href="route('technician.history.show', $inspection)">
-                                    View
-                                </x-ui.button>
-                            </td>
-                        </tr>
-                    @endforeach
-                </x-ui.table>
+            <div class="hidden p-4 sm:p-5 lg:block">
+                <div class="overflow-x-auto rounded-xl border border-border">
+                    <table class="w-full text-left">
+                        <thead class="bg-muted/70">
+                            <tr class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                <th class="px-4 py-3">Farmer ID</th>
+                                <th class="px-4 py-3">Farmer</th>
+                                <th class="px-4 py-3">Association</th>
+                                <th class="px-4 py-3 text-center">Number of Reports</th>
+                                <th class="w-12 px-4 py-3"><span class="sr-only">Open</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border text-sm" x-data="{ open: {{ $openId ?? 'null' }} }">
+                            @foreach ($groups as $farmerId => $group)
+                                @php $farmer = $group->first()->damageReport?->farmer; @endphp
+                                <x-record.farmer-block :farmer="$farmer"
+                                                       :count="$group->count()"
+                                                       :group-id="$farmerId"
+                                                       :headers="[['Report ID'], ['Barangay'], ['Submitted'], ['Severity'], ['Action', 'text-right']]">
+                                    @foreach ($group as $inspection)
+                                        @php $report = $inspection->damageReport; @endphp
+                                        <tr class="hover:bg-muted/60">
+                                            <td class="whitespace-nowrap px-4 py-4 font-medium text-foreground">{{ $report?->full_reference ?? '-' }}</td>
+                                            <td class="px-4 py-4 text-muted-foreground">
+                                                {{ $report?->reportedBarangay?->name ?? $report?->farmer?->barangay?->name ?? '-' }}
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-4 text-muted-foreground">
+                                                {{ $inspection->validated_at?->format('M d, Y g:i A') }}
+                                            </td>
+                                            <td class="px-4 py-4"><x-ui.status :value="$inspection->severity" /></td>
+                                            <td class="whitespace-nowrap px-4 py-4 text-right">
+                                                <x-ui.button size="sm" variant="view"
+                                                             :href="route('technician.history.show', $inspection)">
+                                                    View Details
+                                                </x-ui.button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </x-record.farmer-block>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         @endif
 
-        @if ($inspections->hasPages())
-            <x-slot:footer>{{ $inspections->links() }}</x-slot:footer>
+        @if ($inspections->isNotEmpty())
+            <x-slot:footer>
+                @php [$from, $to, $total] = \App\Support\FarmerGroups::range($inspections); @endphp
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-muted-foreground">
+                        Showing {{ number_format($from) }} to {{ number_format($to) }}
+                        of {{ number_format($total) }} {{ \Illuminate\Support\Str::plural('farmer', $total) }}
+                    </p>
+                    @if ($inspections->hasPages())
+                        <div>{{ $inspections->links() }}</div>
+                    @endif
+                </div>
+            </x-slot:footer>
         @endif
     </x-ui.card>
 </div>

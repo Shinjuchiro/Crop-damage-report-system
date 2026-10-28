@@ -176,6 +176,17 @@
                     });
                 },
 
+                /* The lookup is over, whatever it found. The page holds its
+                   content back until this has happened (see the loading veil
+                   in layouts/app.blade.php), so the weather card is already
+                   in place when the page appears instead of popping in a
+                   moment later and pushing everything down. */
+                finish() {
+                    this.settled = true;
+                    window.__fitsWeatherReady = true;
+                    window.dispatchEvent(new Event('fits-weather-ready'));
+                },
+
                 async load() {
                     try {
                         const response = await fetch(this.endpoint, {
@@ -188,16 +199,16 @@
                            same way: leave whatever is on screen alone
                            rather than blanking a good reading because one
                            poll failed. */
-                        if (response.status !== 200) { this.settled = true; return; }
+                        if (response.status !== 200) { this.finish(); return; }
 
                         const data = await response.json();
 
                         if (data && typeof data.temperature === 'number') {
                             this.reading = data;
                         }
-                        this.settled = true;
+                        this.finish();
                     } catch (e) {
-                        this.settled = true;
+                        this.finish();
                         /* Offline, or the app is restarting. The card keeps
                            its last reading, or stays hidden if it never had
                            one. Nothing else on the page cares. */

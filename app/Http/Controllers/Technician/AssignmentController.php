@@ -105,24 +105,37 @@ class AssignmentController extends Controller
      */
     public function history(Request $request)
     {
-        $inspections = Validation::where('technician_id', Auth::id())
-            ->whereNotNull('validated_at')
+        $query = Validation::where('validations.technician_id', Auth::id())
+            ->whereNotNull('validations.validated_at')
             ->with([
                 'damageReport.farmer.barangay',
+                'damageReport.farmer.association',
                 'damageReport.reportedBarangay',
                 'damageReport.crops.crop',
             ])
             ->withCount('photos')
-            ->when($request->query('severity'), fn ($q, $severity) => $q->where('severity', $severity))
+            ->when($request->query('severity'), fn ($q, $severity) => $q->where('validations.severity', $severity))
             ->when($request->query('q'), function ($q, $term) {
                 $q->whereHas('damageReport.farmer', function ($farmer) use ($term) {
                     $farmer->where('first_name', 'like', "%{$term}%")
                            ->orWhere('last_name', 'like', "%{$term}%");
                 });
-            })
-            ->orderByDesc('validated_at')
-            ->paginate(15)
-            ->withQueryString();
+            });
+
+        /* By farmer, like the MAO's Crop Management Report: a page is a
+           handful of farmers, each folded, and opening one shows every
+           inspection of theirs. Whoever was inspected most recently first. */
+        $inspections = \App\Support\FarmerGroups::paginate(
+            $query,
+            fn ($q) => $q->join('damage_reports', 'damage_reports.id', '=', 'validations.damage_report_id')
+                ->select('damage_reports.farmer_id')
+                ->groupBy('damage_reports.farmer_id')
+                ->orderByRaw('MAX(validations.validated_at) DESC')
+                ->orderBy('damage_reports.farmer_id'),
+            fn ($q, $ids) => $q->whereHas('damageReport', fn ($r) => $r->whereIn('farmer_id', $ids))
+                ->orderByDesc('validations.validated_at'),
+            fn ($inspection) => $inspection->damageReport?->farmer_id
+        )->withQueryString();
 
         return view('technician.history.index', [
             'inspections' => $inspections,

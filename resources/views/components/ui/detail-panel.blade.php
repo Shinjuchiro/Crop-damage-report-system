@@ -68,6 +68,13 @@
 @endphp
 
 @if ($selected)
+    {{-- A short fade, nothing that moves. The record opens by a page load, so
+         without this the dim and the panel just appear all at once, and with a
+         slide or scale they would visibly settle into place. The keyframes are
+         inline so they never depend on the compiled stylesheet being current. --}}
+    <style>
+        @keyframes fits-modal-in { from { opacity: 0; } to { opacity: 1; } }
+    </style>
     {{-- Positioning and the height cap are inline on purpose. They used to be
          Tailwind classes only, and on a machine whose compiled stylesheet was
          older than them the cap was missing: the panel grew taller than the
@@ -111,7 +118,7 @@
 
              On a phone it stays a bottom sheet (items-end), which is where
              a thumb is. --}}
-        <div {{ $attributes->merge(['style' => 'position:relative;max-height:90vh;'])->class(
+        <div {{ $attributes->merge(['id' => 'fits-detail-panel', 'style' => 'position:relative;max-height:90vh;visibility:hidden;'])->class(
                 'relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden '
                 . 'rounded-t-2xl border border-border bg-card shadow-2xl sm:max-h-[86vh] sm:rounded-2xl'
             ) }}>
@@ -135,4 +142,32 @@
             </div>
         </div>
     </div>
+    {{-- KEPT HIDDEN UNTIL THE PAGE IS STYLED
+
+         The record opens by a page load. While `npm run dev` is running, Vite
+         injects the stylesheet from JavaScript after the first paint, so for
+         a moment the panel was drawn with none of its layout: down the page,
+         then snapping into place. The dim is inline and shows at once; the panel is hidden until the scripts (and so the
+         stylesheet) have run, then faded in. The timeout is a safety net so
+         a failed script can never leave a record permanently invisible. --}}
+    <script>
+        (function () {
+            var shown = false;
+            function reveal() {
+                if (shown) { return; }
+                shown = true;
+                var el = document.getElementById('fits-detail-panel');
+                if (! el) { return; }
+                el.style.animation = 'fits-modal-in 140ms ease-out';
+                el.style.visibility = 'visible';
+            }
+            function ready() { requestAnimationFrame(function () { requestAnimationFrame(reveal); }); }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', ready);
+            } else {
+                ready();
+            }
+            setTimeout(reveal, 1500);
+        })();
+    </script>
 @endif

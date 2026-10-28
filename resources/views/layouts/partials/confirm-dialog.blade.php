@@ -106,6 +106,7 @@
         400 stops competing with the rest of the page.
     --}}
     <div x-show="open"
+         style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:100;"
          class="fixed inset-0 z-[100] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-4"
          role="dialog"
          aria-modal="true"
@@ -117,14 +118,13 @@
         <div x-show="open"
              x-transition.opacity.duration.150ms
              @click="cancel()"
+             style="position:absolute;top:0;right:0;bottom:0;left:0;background-color:rgba(15,23,42,0.6);"
              class="absolute inset-0 bg-slate-900/60"
              aria-hidden="true"></div>
 
         {{-- relative, so the panel sits above the dim rather than under it --}}
         <div x-show="open"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0 translate-y-6 sm:scale-95 sm:translate-y-0"
-             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+             x-transition.opacity.duration.150ms
              class="relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-card text-card-foreground shadow-2xl sm:rounded-2xl">
 
             {{-- One photo, full size, over the review. Back returns to the

@@ -88,6 +88,7 @@
 
     <div x-show="open"
          x-transition.opacity.duration.150ms
+         style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background-color:rgba(15,23,42,0.55);"
          class="fixed inset-0 z-[90] flex items-end justify-center bg-slate-900/55 p-0 sm:items-center sm:p-4"
          role="dialog" aria-modal="true">
 
@@ -95,9 +96,7 @@
              x-ref="panel"
              tabindex="-1"
              @click.outside="close()"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0 translate-y-6 sm:scale-95 sm:translate-y-0"
-             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+             x-transition.opacity.duration.150ms
              class="max-h-[90vh] w-full {{ $widths[$size] ?? $widths['md'] }} overflow-y-auto
                     rounded-t-2xl bg-card text-card-foreground shadow-2xl outline-none sm:rounded-xl">
 

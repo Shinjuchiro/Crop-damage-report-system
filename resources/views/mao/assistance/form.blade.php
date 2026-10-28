@@ -119,8 +119,9 @@
 
         {{-- Review before saving (revision section 91) --}}
         <div x-show="confirm" x-cloak x-transition.opacity
+             style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background-color:rgba(0,0,0,0.4);"
              class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-            <div x-show="confirm" x-transition class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
+            <div x-show="confirm" x-transition.opacity.duration.150ms class="my-auto w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
                 <h3 class="mb-1 text-lg font-semibold text-foreground">
                     {{ $assistance ? 'Review Changes' : 'Confirm New Assistance' }}
                 </h3>

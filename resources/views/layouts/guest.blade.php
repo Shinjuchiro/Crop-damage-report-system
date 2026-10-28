@@ -6,6 +6,17 @@
     <title>@yield('title', 'Crop Damage Reporting and Assistance Allocation System')</title>
     <link rel="icon" type="image/png" href="{{ asset('images/tanza-seal.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Hides anything marked x-cloak from the very first paint.
+
+         This rule also lives in resources/css/app.css, but that is not enough
+         on its own: while `npm run dev` is running (public/hot exists) Vite
+         injects the stylesheet from JavaScript AFTER the page has painted,
+         and until it lands every closed modal on the page is drawn
+         unstyled, in flow at the bottom, with no dim behind it. It then
+         snaps away or into place when the CSS arrives. That was the "modal
+         appears below, then jumps, and the background is not dimmed for a
+         second". Inline here, it is in force before anything else loads. --}}
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="min-h-screen font-sans antialiased" style="background:#0d3d1b;">
 

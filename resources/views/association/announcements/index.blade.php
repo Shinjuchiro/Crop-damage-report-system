@@ -147,9 +147,10 @@
          COMPOSER - compose, then review, then send
     ====================================================================== --}}
     <div x-show="showing" x-cloak x-transition.opacity
+         style="position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background-color:rgba(0,0,0,0.4);"
          class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-10">
 
-        <div x-show="showing" x-transition class="w-full max-w-xl rounded-xl bg-card shadow-xl">
+        <div x-show="showing" x-transition.opacity.duration.150ms class="w-full max-w-xl rounded-xl bg-card shadow-xl">
 
             {{-- @submit.prevent on the form turns the first press into "go to
                  the review step" rather than a send; only the button on the
