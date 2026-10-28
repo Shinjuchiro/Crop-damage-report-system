@@ -506,7 +506,9 @@
                          live - right-aligned to match where they sit on the
                          desktop heading row above (justify-between puts them
                          on the right there too). --}}
-                    @hasSection('header-actions')
+                    {{-- A page can opt out with @section('hideMobileActions', true)
+                         when those actions are not wanted on phones and tablets. --}}
+                    @if (View::hasSection('header-actions') && ! View::hasSection('hideMobileActions'))
                         <div class="mb-4 flex justify-end lg:hidden">@yield('header-actions')</div>
                     @endif
 

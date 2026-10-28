@@ -5,6 +5,9 @@
 {{-- The greeting banner below carries the name and the role. --}}
 @section('hideHeading', true)
 
+{{-- The period and Filter pills are not shown on phones or tablets. --}}
+@section('hideMobileActions', true)
+
 @section('header-actions')
     <form method="GET" class="flex items-center gap-2">
         <div class="relative">
