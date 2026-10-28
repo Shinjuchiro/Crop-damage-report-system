@@ -136,6 +136,12 @@
                              padding: 0.7rem 0; overflow: hidden; color: inherit; text-decoration: none;
                              transition: background-color 0.15s ease; }
             .sidebar-brand:hover, .sidebar-brand:focus-visible { background-color: rgba(255, 255, 255, 0.08); }
+            .sidebar-brand { position: relative; }
+            .sidebar-brand-arrow { position: absolute; top: 0.7rem; right: 0.8rem; opacity: 0;
+                                   transition: opacity 0.15s ease; pointer-events: none; }
+            .sidebar-wrap:hover .sidebar-brand-arrow, .sidebar-wrap:has(:focus-visible) .sidebar-brand-arrow { opacity: 0.55; }
+            .sidebar-wrap:hover .sidebar-brand:hover .sidebar-brand-arrow,
+            .sidebar-wrap .sidebar-brand:focus-visible .sidebar-brand-arrow { opacity: 1; }
             .sidebar-brand img { flex: none; width: 3.5rem; height: 3.5rem; min-width: 3.5rem;
                                  aspect-ratio: 1 / 1; object-fit: contain;
                                  transition: width 0.2s ease, height 0.2s ease, min-width 0.2s ease; }
@@ -165,6 +171,16 @@
             .sidebar-shell nav svg.h-5 { width: 1.75rem; height: 1.75rem; }
             .sidebar-shell nav a > span.flex,
             .sidebar-shell nav button > span.flex { gap: 1rem; }
+            /* Room between a group's label and its dropdown arrow, so a long
+               label such as Assistance Allocation & Tracking never touches it. */
+            .sidebar-shell nav button > svg { margin-left: 1.25rem; }
+            /* Less padding on the right than on the left (the left one is what
+               centres the icon on the folded rail), and, once open, a long
+               label may wrap onto a second line instead of running into the
+               arrow. Folded, it stays on one line so row heights never change. */
+            .sidebar-shell nav a, .sidebar-shell nav button { padding-right: 0.875rem; }
+            .sidebar-wrap:hover .sidebar-shell nav button > span.flex > span,
+            .sidebar-wrap:has(:focus-visible) .sidebar-shell nav button > span.flex > span { white-space: normal; }
 
             /* Folded: submenus stay out of sight, and a menu number becomes
                a small dot on the corner of its icon. */
@@ -197,14 +213,23 @@
             }
         }
     </style>
-    {{-- Cards were nearly flat against the page. This makes their shadow
-         clearly visible without a heavy look. It targets the rounded panels
-         that carry the shadow-sm class (cards, stat tiles, record cards) and
-         leaves buttons and inputs, which are smaller radii, as they were.
-         Inline so it never waits on the compiled stylesheet. --}}
+    {{-- Cards were nearly flat against the page. This gives every card-like
+         panel a clearly visible shadow: anything carrying shadow-sm, and the
+         plain bordered panels (chart boxes and the like) that never had a
+         shadow at all. Panels with a tinted background (muted, accent,
+         warning, success), dashed placeholders, and anything that is not a
+         plain div/section are left alone, so buttons, inputs, chips and
+         highlight boxes keep their own look. Inline so it never waits on the
+         compiled stylesheet. --}}
     <style>
-        .rounded-xl.shadow-sm, .rounded-2xl.shadow-sm {
-            box-shadow: 0 4px 14px -3px rgba(15, 23, 42, 0.22), 0 1px 4px 0 rgba(15, 23, 42, 0.16);
+        :is(div, section, article).rounded-xl.shadow-sm,
+        :is(div, section, article).rounded-2xl.shadow-sm,
+        :is(div, section, article):is(.rounded-xl, .rounded-2xl).border-border:not(.border-dashed):not([class*="bg-muted"]):not([class*="bg-accent"]):not([class*="bg-secondary"]):not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-amber"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-sky"]):not([class*="bg-yellow"]):not([class*="bg-orange"]):not([class*="bg-slate"]) {
+            box-shadow: 0 6px 18px -2px rgba(15, 23, 42, 0.30), 0 2px 5px 0 rgba(15, 23, 42, 0.22);
+        }
+        /* a.shadow-sm cards (stat tiles that are links) as well */
+        a.rounded-xl.shadow-sm, a.rounded-2xl.shadow-sm {
+            box-shadow: 0 6px 18px -2px rgba(15, 23, 42, 0.30), 0 2px 5px 0 rgba(15, 23, 42, 0.22);
         }
     </style>
     <div class="sidebar-wrap">
@@ -226,6 +251,11 @@
                 Farmers Information and<br>
                 Technology Services Center
             </p>
+            {{-- The small "opens elsewhere" arrow, top right; only drawn once the menu is open. --}}
+            <svg class="sidebar-brand-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M7 17L17 7M9 7h8v8"/>
+            </svg>
         </a>
 
         <div class="border-t border-sidebar-border" style="flex:none;margin:0 0.5rem;"></div>
