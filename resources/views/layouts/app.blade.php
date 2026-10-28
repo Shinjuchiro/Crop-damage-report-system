@@ -120,13 +120,28 @@
                throw away the hover rule above along with it. */
             .sidebar-wrap:has(:focus-visible) { width: 20rem; }
             .sidebar-shell { display: block; position: absolute; top: 0; bottom: 0; left: 0;
-                             width: 100%; overflow: hidden; }
-            /* The office name is a link: a quiet tint and a brighter arrow on
-               hover, nothing more. */
-            .sidebar-brand { transition: background-color 0.15s ease; }
+                             width: 100%; overflow: hidden;
+                             border-radius: 0 12px 12px 0; }
+            /* The office header. Folded: just the seal, centred. Open: a
+               bigger seal with the name centred underneath. The name is
+               collapsed to nothing (not just hidden) while folded, so it can
+               never peek out of the narrow rail. It is also a link, so it
+               gets a quiet tint on hover. */
+            .sidebar-brand { display: flex; flex-direction: column; align-items: center; flex: none;
+                             padding: 1rem 0; overflow: hidden; color: inherit; text-decoration: none;
+                             transition: background-color 0.15s ease; }
             .sidebar-brand:hover, .sidebar-brand:focus-visible { background-color: rgba(255, 255, 255, 0.08); }
-            .sidebar-brand-arrow { opacity: 0.45; transition: opacity 0.15s ease; }
-            .sidebar-brand:hover .sidebar-brand-arrow, .sidebar-brand:focus-visible .sidebar-brand-arrow { opacity: 1; }
+            .sidebar-brand img { flex: none; width: 2.75rem; height: 2.75rem; min-width: 2.75rem;
+                                 aspect-ratio: 1 / 1; object-fit: contain;
+                                 transition: width 0.2s ease, height 0.2s ease, min-width 0.2s ease; }
+            .sidebar-brand-title { max-height: 0; opacity: 0; margin: 0; overflow: hidden;
+                                   text-align: center; white-space: nowrap; font-size: 0.95rem;
+                                   font-weight: 600; line-height: 1.3;
+                                   transition: max-height 0.2s ease, opacity 0.15s ease, margin 0.2s ease; }
+            .sidebar-wrap:hover .sidebar-brand img { width: 5rem; height: 5rem; min-width: 5rem; }
+            .sidebar-wrap:hover .sidebar-brand-title { max-height: 4rem; opacity: 1; margin-top: 0.75rem; }
+            .sidebar-wrap:has(:focus-visible) .sidebar-brand img { width: 5rem; height: 5rem; min-width: 5rem; }
+            .sidebar-wrap:has(:focus-visible) .sidebar-brand-title { max-height: 4rem; opacity: 1; margin-top: 0.75rem; }
             .sidebar-inner  { display: flex; flex-direction: column; width: 100%; height: 100%; }
 
             /* Each menu item is its own box that clips its own text. Folded,
@@ -174,27 +189,20 @@
            aria-label="Main menu">
       <div class="sidebar-inner">
 
-        {{-- Logo. The seal sits where the icons sit, so it is what shows
-             while the menu is folded; the name is clipped until it opens. The whole block
-             links to the office's Facebook page. --}}
+        {{-- Logo. Folded, only a small seal shows, centred in the narrow
+             rail. Open, the seal grows and the office name appears beneath
+             it, both centred. The whole block links to the office's
+             Facebook page. --}}
         <a href="https://www.facebook.com/agriculture.tanza" target="_blank" rel="noopener noreferrer"
            title="Open the Tanza Municipal Agriculture Office on Facebook"
            aria-label="Municipal Agriculture Office of Tanza on Facebook (opens in a new tab)"
-           class="sidebar-brand flex items-center gap-3 py-4 text-inherit no-underline"
-           style="flex:none;padding-left:0.5rem;padding-right:0.75rem;overflow:hidden;white-space:nowrap;color:inherit;text-decoration:none;">
+           class="sidebar-brand">
             <img src="{{ asset('images/tanza-seal.png') }}"
-                 alt="Seal of the Municipality of Tanza, Cavite"
-                 class="shrink-0" style="flex:none;width:2.75rem;min-width:2.75rem;height:2.75rem;aspect-ratio:1/1;object-fit:contain;">
-            <p class="text-sm font-semibold leading-tight">
+                 alt="Seal of the Municipality of Tanza, Cavite">
+            <p class="sidebar-brand-title">
                 Farmers Information and<br>
                 Technology Services Center
             </p>
-            {{-- A faint "opens elsewhere" arrow, clipped away while the menu is folded. --}}
-            <svg class="sidebar-brand-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
-                 style="flex:none;margin-left:auto;">
-                <path d="M7 17L17 7M9 7h8v8"/>
-            </svg>
         </a>
 
         <div class="border-t border-sidebar-border" style="flex:none;margin:0 0.5rem;"></div>
