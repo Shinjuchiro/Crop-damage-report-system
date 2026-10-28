@@ -70,9 +70,6 @@
         @if ($errors->any())
             <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
         @endif
-        @if (session('status'))
-            <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
-        @endif
 
         <form method="POST" action="{{ route('password.otp.update') }}" class="space-y-4">
             @csrf
@@ -193,9 +190,6 @@
 
             @if ($errors->any())
                 <x-ui.alert variant="destructive" class="mt-5">{{ $errors->first() }}</x-ui.alert>
-            @endif
-            @if (session('status'))
-                <x-ui.alert variant="success" class="mt-5">{{ session('status') }}</x-ui.alert>
             @endif
 
             <form method="POST" action="{{ route('password.otp.update') }}" class="mt-5 space-y-4">

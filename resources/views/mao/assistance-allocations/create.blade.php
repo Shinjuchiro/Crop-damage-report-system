@@ -51,9 +51,6 @@
     </x-ui.alert>
 @endif
 
-@if (session('status'))
-    <x-ui.alert class="mb-5">{{ session('status') }}</x-ui.alert>
-@endif
 
 {{-- Saved drafts --}}
 @if ($drafts->isNotEmpty())

@@ -1,5 +1,7 @@
 @extends('layouts.auth')
 @section('title', 'Create an Account')
+{{-- popupErrors: show server validation errors as a popup (see confirm-dialog partial) --}}
+@section('popupErrors', true)
 
 @php
     // If the server rejected the submission, reopen the step that holds the first error.
@@ -172,26 +174,12 @@
                 @endforeach
             </ol>
 
-            {{-- ===================== SERVER ERRORS ===================== --}}
-            @if ($errors->any())
-                <div class="mb-6 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
-                    <p class="mb-1 font-semibold">Please correct the following:</p>
-                    <ul class="list-inside list-disc space-y-0.5">
-                        @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
-                    </ul>
-                </div>
-            @endif
+            {{-- Server errors now open as a popup: see layouts/partials/confirm-dialog. --}}
 
             {{-- ===================== FORM ===================== --}}
             <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data"
                   novalidate @submit="onSubmit($event)">
                 @csrf
-
-                {{-- Client-side step message --}}
-                <div x-show="stepError" x-cloak
-                     class="mb-5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/60 px-4 py-3 text-sm text-amber-800">
-                    <span x-text="stepError"></span>
-                </div>
 
                 {{-- ============================================================
                      STEP 1 - PERSONAL INFORMATION
@@ -842,12 +830,12 @@
                 <div class="mt-9 flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center">
 
                     <a href="{{ route('login') }}" x-show="step === 1"
-                       class="rounded-lg border border-input px-6 py-3 text-center text-sm font-medium text-foreground hover:bg-muted/60">
+                       class="rounded-lg border border-input px-6 py-3.5 text-center text-base font-semibold text-foreground hover:bg-muted/60 sm:flex-1">
                         Cancel
                     </a>
 
                     <button type="button" x-show="step > 1" x-cloak @click="back()"
-                            class="rounded-lg border border-input px-6 py-3 text-sm font-medium text-foreground hover:bg-muted/60">
+                            class="rounded-lg border border-input px-6 py-3.5 text-base font-semibold text-foreground hover:bg-muted/60 sm:flex-1">
                         Back
                     </button>
 
@@ -856,7 +844,7 @@
                          step before the answer arrives. --}}
                     <button type="button" x-show="step < 4" @click="next()"
                             :disabled="checking"
-                            class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#15803d] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-70">
+                            class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#15803d] px-6 py-3.5 text-base font-semibold text-white transition hover:brightness-110 disabled:opacity-70">
                         <span x-text="checking ? 'Checking...' : 'Continue'"></span>
                         <svg class="h-4 w-4" x-show="!checking" fill="none" stroke="currentColor" stroke-width="2"
                              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -865,7 +853,7 @@
                     </button>
 
                     <button type="submit" x-show="step === 4" x-cloak
-                            class="flex flex-1 items-center justify-center gap-2.5 rounded-lg bg-[#15803d] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                            class="flex flex-1 items-center justify-center gap-2.5 rounded-lg bg-[#15803d] px-6 py-3.5 text-base font-semibold text-white transition hover:brightness-110">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
                              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                             <path d="M15 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M8.5 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM19 8v6M22 11h-6"/>
@@ -891,6 +879,14 @@
             step: {{ $startStep }},
 
             init() {
+                /* Step problems ("please fill in your last name") open as a
+                   popup rather than a small banner above the form. */
+                this.$watch('stepError', (message) => {
+                    if (message && window.fitsNotice) {
+                        window.fitsNotice({ title: 'Please check your information', message: message, tone: 'danger' });
+                    }
+                });
+
                 /* Clear a box's red the moment the farmer starts fixing it,
                    rather than leaving it red until they press Next again and
                    wonder whether it worked.

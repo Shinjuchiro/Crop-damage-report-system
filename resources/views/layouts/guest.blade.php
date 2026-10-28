@@ -17,6 +17,11 @@
          appears below, then jumps, and the background is not dimmed for a
          second". Inline here, it is in force before anything else loads. --}}
     <style>[x-cloak] { display: none !important; }</style>
+    {{-- Text size for the whole system: about 16% larger than the browser
+         default. Everything is sized in rem, so changing it here scales the
+         text and the spacing together. It is inline so it takes effect
+         without rebuilding the stylesheet. --}}
+    <style>html { font-size: 116%; }</style>
 </head>
 <body class="min-h-screen font-sans antialiased" style="background:#0d3d1b;">
 

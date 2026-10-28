@@ -735,6 +735,8 @@ Route::middleware(['auth', 'active', 'role:mao'])
            see MAO/SettingsController and resources/views/settings/account.
            blade.php, included from mao/settings/index.blade.php. */
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+        // The MAO's own Account Settings page, opened from the account menu.
+        Route::get('/account-settings', [SettingsController::class, 'account'])->name('account');
         Route::put('/settings', [SettingsController::class, 'updateProfile'])->name('settings.update');
         Route::put('/settings/password', [SettingsController::class, 'updatePassword'])
             ->name('settings.password');

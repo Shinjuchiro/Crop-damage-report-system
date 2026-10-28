@@ -14,12 +14,6 @@
 @section('content')
 <div>
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/60 dark:text-green-300">
-            {{ session('status') }}
-        </div>
-    @endif
-
     @if ($errors->any())
         <div class="mb-4 rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60 px-4 py-3 text-sm text-red-700">
             {{ $errors->first() }}

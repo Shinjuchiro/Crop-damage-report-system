@@ -38,9 +38,6 @@
 
 <div x-data="announcementComposer()" @open-announcement-composer.window="open()">
 
-    @if (session('status'))
-        <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
-    @endif
 
     @if ($errors->any())
         <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>

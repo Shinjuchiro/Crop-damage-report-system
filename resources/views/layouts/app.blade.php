@@ -19,6 +19,11 @@
          appears below, then jumps, and the background is not dimmed for a
          second". Inline here, it is in force before anything else loads. --}}
     <style>[x-cloak] { display: none !important; }</style>
+    {{-- Text size for the whole system: about 16% larger than the browser
+         default. Everything is sized in rem, so changing it here scales the
+         text and the spacing together. It is inline so it takes effect
+         without rebuilding the stylesheet. --}}
+    <style>html { font-size: 116%; }</style>
     {{-- SHOW THE PAGE ONLY WHEN IT IS READY
 
          Content used to appear piece by piece: the page first, then photos,
@@ -88,31 +93,124 @@
     {{-- sidebar-shell pairs with sidebar-scroll on the <nav> below: the
          menu's scrollbar is invisible until the pointer is anywhere over
          this panel. The rules are in resources/css/app.css. --}}
-    <aside class="sidebar-shell hidden w-80 shrink-0 flex-col border-r border-sidebar-border
-                  bg-sidebar text-sidebar-foreground lg:sticky lg:top-0 lg:flex lg:h-screen">
+    {{-- THE ICON RAIL (Oct 2026)
 
-        {{-- Logo. Tighter than before: the old block wasted most of a phone
-             screen height before the first menu item appeared. --}}
-        <div class="flex items-center gap-3 px-4 py-4 lg:flex-col lg:gap-2 lg:px-6 lg:py-5">
+         On a laptop or a landscape tablet the menu is a narrow bar of icons
+         down the left edge. Point at it (or tab into it with the keyboard)
+         and it grows to show the full menu, and the page beside it is
+         pushed to the right by the same amount; move away and both fold
+         back together.
+
+         Two parts. The wrapper takes part in the page layout (sticky, one
+         window tall) and is the thing whose width animates, so the content
+         column beside it shifts with it. The aside inside it fills the
+         wrapper and clips whatever does not fit (the labels). Its contents
+         are always laid out at full width, so nothing re-wraps while it
+         opens. The numbers on the menu become small dots on the icons while
+         it is folded. All the sizes are inline or in the style block below
+         so they never depend on the compiled stylesheet. --}}
+    <style>
+        .sidebar-wrap, .sidebar-shell { display: none; }
+        @media (min-width: 1024px) {
+            .sidebar-wrap  { display: block; flex: none; position: sticky; top: 0; align-self: flex-start;
+                             height: 100vh; width: 3.75rem; z-index: 50;
+                             transition: width 0.2s ease; }
+            .sidebar-wrap:hover { width: 20rem; }
+            /* Separate rule: one browser that cannot read :has() must not
+               throw away the hover rule above along with it. */
+            .sidebar-wrap:has(:focus-visible) { width: 20rem; }
+            .sidebar-shell { display: block; position: absolute; top: 0; bottom: 0; left: 0;
+                             width: 100%; overflow: hidden; }
+            /* The office name is a link: a quiet tint and a brighter arrow on
+               hover, nothing more. */
+            .sidebar-brand { transition: background-color 0.15s ease; }
+            .sidebar-brand:hover, .sidebar-brand:focus-visible { background-color: rgba(255, 255, 255, 0.08); }
+            .sidebar-brand-arrow { opacity: 0.45; transition: opacity 0.15s ease; }
+            .sidebar-brand:hover .sidebar-brand-arrow, .sidebar-brand:focus-visible .sidebar-brand-arrow { opacity: 1; }
+            .sidebar-inner  { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+            /* Each menu item is its own box that clips its own text. Folded,
+               that leaves a small icon-sized square (so the highlighted one
+               is a square, not a long bar cut off by the edge); as the
+               panel grows, the boxes grow with it. The text never wraps, so
+               nothing jumps while it opens, and the left padding is the
+               exact amount that centres a 1.25rem icon in the narrow strip. */
+            .sidebar-shell nav a,
+            .sidebar-shell nav button {
+                overflow: hidden; white-space: nowrap;
+                padding-left: 0.875rem; padding-right: 0.875rem;
+            }
+            /* Larger icons, and a wider gap before the label so that the box
+               (3.25rem wide when folded) never shows the start of a word. */
+            .sidebar-shell nav svg.h-5 { width: 1.5rem; height: 1.5rem; }
+            .sidebar-shell nav a > span.flex,
+            .sidebar-shell nav button > span.flex { gap: 1rem; }
+
+            /* Folded: submenus stay out of sight, and a menu number becomes
+               a small dot on the corner of its icon. */
+            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav .pl-8 { display: none; }
+            /* The small dropdown arrow on a group (Assistance Allocation) is
+               only drawn once the menu is open. */
+            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav button > svg { display: none; }
+            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav a { position: relative; }
+            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav a > span.bg-destructive {
+                position: absolute; left: 1.95rem; top: 0.05rem; margin: 0;
+                min-width: 1rem; height: 1rem; padding: 0 0.2rem; font-size: 9px;
+            }
+        }
+    </style>
+    <div class="sidebar-wrap">
+    <aside class="sidebar-shell flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+           aria-label="Main menu">
+      <div class="sidebar-inner">
+
+        {{-- Logo. The seal sits where the icons sit, so it is what shows
+             while the menu is folded; the name is clipped until it opens. The whole block
+             links to the office's Facebook page. --}}
+        <a href="https://www.facebook.com/agriculture.tanza" target="_blank" rel="noopener noreferrer"
+           title="Open the Tanza Municipal Agriculture Office on Facebook"
+           aria-label="Municipal Agriculture Office of Tanza on Facebook (opens in a new tab)"
+           class="sidebar-brand flex items-center gap-3 py-4 text-inherit no-underline"
+           style="flex:none;padding-left:0.5rem;padding-right:0.75rem;overflow:hidden;white-space:nowrap;color:inherit;text-decoration:none;">
             <img src="{{ asset('images/tanza-seal.png') }}"
                  alt="Seal of the Municipality of Tanza, Cavite"
-                 class="h-11 w-11 shrink-0 lg:h-16 lg:w-16">
-            <p class="text-sm font-semibold leading-tight lg:text-center">
-                Farmers Information and<br class="hidden lg:inline">
+                 class="shrink-0" style="flex:none;width:2.75rem;min-width:2.75rem;height:2.75rem;aspect-ratio:1/1;object-fit:contain;">
+            <p class="text-sm font-semibold leading-tight">
+                Farmers Information and<br>
                 Technology Services Center
             </p>
-        </div>
+            {{-- A faint "opens elsewhere" arrow, clipped away while the menu is folded. --}}
+            <svg class="sidebar-brand-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                 style="flex:none;margin-left:auto;">
+                <path d="M7 17L17 7M9 7h8v8"/>
+            </svg>
+        </a>
 
-        <div class="mx-4 border-t border-sidebar-border lg:mx-5"></div>
+        <div class="border-t border-sidebar-border" style="flex:none;margin:0 0.5rem;"></div>
 
         {{-- Role navigation. flex-col + mt-auto on the trailing "Need Help?"
              block (see the nav-* partials) is what pins it to the very
              bottom of the sidebar instead of just after the last menu item. --}}
-        <nav class="sidebar-scroll flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-3 py-3 text-sm">
+        <nav class="sidebar-scroll flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-3 py-3 text-sm"
+             style="min-height:0;padding-left:0.25rem;padding-right:0.25rem;">
             @include('layouts.partials.nav-' . auth()->user()->role)
         </nav>
 
+      </div>
     </aside>
+    </div>
+    <script>
+        /* Maps and charts measure themselves once; tell them when the page
+           beside the menu has finished changing width. */
+        (function () {
+            var w = document.querySelector('.sidebar-wrap');
+            if (!w) return;
+            w.addEventListener('transitionend', function (e) {
+                if (e.propertyName === 'width') window.dispatchEvent(new Event('resize'));
+            });
+        })();
+    </script>
 
     <div class="flex min-w-0 flex-1 flex-col">
 
@@ -310,11 +408,6 @@
                         <div class="mb-4 flex justify-end lg:hidden">@yield('header-actions')</div>
                     @endif
 
-                    @if (session('status'))
-                        <x-ui.alert variant="success" class="animate-fade-up mb-4">
-                            {{ session('status') }}
-                        </x-ui.alert>
-                    @endif
 
                     @yield('content')
                 </div>

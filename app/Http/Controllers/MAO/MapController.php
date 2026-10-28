@@ -158,6 +158,10 @@ class MapController extends Controller
 
                 return [
                     'id'             => $association->id,
+                    // Archived and deleted associations are still read (their
+                    // old reports must keep showing) but they are not part of
+                    // the active roster the coverage notice is about.
+                    'active'         => $association->archived_at === null && $association->deleted_at === null,
                     'name'           => $association->name,
                     'short'          => $association->short_name,
                     'location'       => $association->barangay?->name ?? $association->location,
@@ -246,7 +250,7 @@ class MapController extends Controller
         | goes missing quietly.
         */
         $withCoverage = $associations->filter(
-            fn ($row) => $row['coverage']->isNotEmpty() || $row['reports'] > 0
+            fn ($row) => ($row['active'] && $row['coverage']->isNotEmpty()) || $row['reports'] > 0
         )->values();
 
         /*
@@ -274,10 +278,13 @@ class MapController extends Controller
             'total_assoc'  => $withCoverage->count(),
             'area'         => $withCoverage->sum('area'),
             'pinned'       => $points->count(),
-            // Counted over ALL associations, not just the drawn ones: the
-            // whole point of this notice is to name the ones that are
-            // missing from the map.
-            'unplaced'     => $associations->filter(fn ($row) => $row['coverage']->isEmpty())->count(),
+            // Counted over every ACTIVE association, not just the drawn ones:
+            // the whole point of this notice is to name the ones that are
+            // missing from the map. An archived or deleted association is
+            // already out of the system, so telling the office to "archive
+            // it" would be asking for something they have done; that is why
+            // the notice kept showing after the extra record was archived.
+            'unplaced'     => $associations->filter(fn ($row) => $row['active'] && $row['coverage']->isEmpty())->count(),
         ];
 
         return view('mao.map.index', [

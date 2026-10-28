@@ -81,9 +81,6 @@
             @if ($errors->any())
                 <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
             @endif
-            @if (session('status'))
-                <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
-            @endif
 
             <div x-show="method === 'email'" x-cloak>
                 <h3 class="text-xl font-bold">Reset Your Password</h3>
@@ -209,9 +206,6 @@
 
                 @if ($errors->any())
                     <x-ui.alert variant="destructive" class="mb-4">{{ $errors->first() }}</x-ui.alert>
-                @endif
-                @if (session('status'))
-                    <x-ui.alert variant="success" class="mb-4">{{ session('status') }}</x-ui.alert>
                 @endif
 
                 <div x-show="method === 'email'" x-cloak>

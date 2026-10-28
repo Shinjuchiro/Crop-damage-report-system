@@ -28,14 +28,15 @@ use Illuminate\Validation\Rules\Password;
 trait ManagesAccountSettings
 {
     /**
-     * Account Settings is the last section of My Profile now (Oct 2026), so
-     * the old settings URL, which may still be bookmarked or linked from an
-     * old notification, goes there. MAO's own SettingsController overrides
-     * this with the reference-data hub.
+     * The Account Settings page: login email, phone number and password.
+     * It is its own page again (it was folded into the bottom of My Profile
+     * for a while), reached from "Account Settings" in the account menu.
+     * MAO's SettingsController overrides index() with the reference-data hub
+     * and has account() for this page instead.
      */
     public function index()
     {
-        return redirect()->to(route(Auth::user()->role . '.profile') . '#account-settings');
+        return view($this->settingsView('index'), ['user' => Auth::user()]);
     }
 
     /**

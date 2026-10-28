@@ -46,6 +46,12 @@ class SettingsController extends Controller
         ]);
     }
 
+    /** The MAO account's own Account Settings page (email, phone, password). */
+    public function account()
+    {
+        return view('mao.settings.account', ['user' => Auth::user()]);
+    }
+
     /**
      * Required by the trait but never actually rendered - index() above is
      * fully overridden and never calls view($this->settingsView(...)).

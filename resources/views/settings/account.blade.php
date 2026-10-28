@@ -34,9 +34,15 @@
     .acct-card form > :last-child { margin-top: auto; align-self: flex-start; }
 </style>
 
-<section id="account-settings" class="scroll-mt-24 border-t border-border pt-8">
-    <h2 class="text-lg font-semibold text-foreground">Account Settings</h2>
-    <p class="mb-5 mt-1 text-sm text-muted-foreground">Manage your login email, phone number and password.</p>
+@php $inPage = $inPage ?? false; @endphp
+{{-- On its own page the page heading already says "Account Settings", so the
+     rule and the second heading are only drawn when this is a section
+     inside another page. --}}
+<section id="account-settings" class="scroll-mt-24 {{ $inPage ? '' : 'border-t border-border pt-8' }}">
+    @unless ($inPage)
+        <h2 class="text-lg font-semibold text-foreground">Account Settings</h2>
+        <p class="mb-5 mt-1 text-sm text-muted-foreground">Manage your login email, phone number and password.</p>
+    @endunless
 
     <div class="grid gap-6" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));">
         <x-ui.card class="acct-card" title="Account Details" description="Your login email and contact number. Everything else on your profile is set by the office and can't be changed here.">

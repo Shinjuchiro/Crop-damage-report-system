@@ -46,6 +46,5 @@
         </dl>
     </x-ui.card>
 
-    @include('settings.account', ['user' => $user])
 </div>
 @endsection
