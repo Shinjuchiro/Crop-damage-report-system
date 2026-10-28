@@ -78,7 +78,13 @@
      whole screen gets a dark green frame (padding + gap) and the two panels
      become separate rounded cards floating inside it, rather than sitting
      edge to edge. --}}
-<div class="fit-shell flex flex-col lg:flex-row lg:gap-4 lg:bg-[#0d3d1b] lg:p-4">
+<div class="fit-shell relative flex flex-col lg:flex-row lg:gap-4 lg:bg-[#0d3d1b] lg:p-4">
+
+    {{-- The office photo behind the card on a laptop or desktop, tinted the
+         same way as the Login screen. Phones keep their small banner. --}}
+    <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
+         class="absolute inset-0 hidden h-full w-full object-cover lg:block" aria-hidden="true">
+    <div class="absolute inset-0 hidden bg-[#0d3d1b]/70 lg:block" aria-hidden="true"></div>
 
     {{-- =====================================================================
          LEFT PANEL - branding and illustration
@@ -121,8 +127,11 @@
     {{-- min-h-0 is what lets this column be shorter than its own content
          inside a flex column: without it a flex item refuses to shrink past
          its content and the overflow moves back out to the page. --}}
+    {{-- From lg up the card is a centred panel of a fixed maximum width
+         rather than the full screen, so a wide monitor does not leave the
+         form floating in a sea of white with the fields far from the edges. --}}
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-8
-                lg:rounded-2xl lg:bg-card lg:px-12 lg:py-10 lg:shadow-xl">
+                lg:relative lg:mx-auto lg:w-full lg:max-w-5xl lg:rounded-2xl lg:bg-card lg:px-12 lg:py-10 lg:shadow-xl">
         <div class="mx-auto max-w-4xl" x-data="farmerRegistration()">
 
             <h1 class="text-2xl font-bold text-foreground sm:text-3xl">Create an Account</h1>
