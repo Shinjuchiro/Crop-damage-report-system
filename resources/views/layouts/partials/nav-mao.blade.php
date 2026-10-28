@@ -31,10 +31,7 @@
        column still reads 'forwarded_to_mao' - that is the record of how
        their application reached its outcome and is deliberately left as it
        was - so the stage alone would never let anybody out of this count. */
-    $pendingRegistrations = \App\Models\Farmer::notDeleted()
-        ->where('membership_stage', \App\Support\MembershipApplication::FORWARDED)
-        ->whereHas('user', fn ($user) => $user->where('status', 'pending'))
-        ->count();
+    $pendingRegistrations = \App\Support\Seen::applications(auth()->user());
 
     // Same idea, one stage further: a technician has already submitted an
     // inspection (status = verified) and it is sitting there waiting for
@@ -76,7 +73,7 @@
             'icon'        => 'M14 3v4a1 1 0 001 1h4M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM8.5 14l2 2 4-4',
             'badge'       => $pendingRegistrations,
             'badge_noun'  => 'application',
-            'badge_label' => 'awaiting review',
+            'badge_label' => 'new to you',
         ],
         /* Opens the associations themselves, and a member list lives inside
            each one. The farmer directory (mao.farmers.*) is the same branch

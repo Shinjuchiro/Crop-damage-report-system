@@ -166,6 +166,9 @@ class MembershipApplicationController extends Controller
             'associationReviewer', 'forwardedBy', 'returnedBy', 'decidedBy',
         ]);
 
+        // Opening an application takes it out of the sidebar's "new to you" count.
+        \App\Support\Seen::mark(\Illuminate\Support\Facades\Auth::user(), 'membership', $farmer->id);
+
         return view('mao.membership-applications.show', [
             'farmer'  => $farmer,
             'history' => MembershipApplication::history($farmer),

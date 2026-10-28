@@ -89,8 +89,10 @@
          full opacity behind the desktop login screen's flat tint instead -
          same two-panel wizard layout either way, just the treatment of the
          background photo changes at the breakpoint. --}}
-    <div class="relative flex shrink-0 flex-col overflow-hidden bg-[#0d3d1b] px-5 py-6 sm:px-8
-                lg:w-[30%] lg:max-w-[420px] lg:rounded-2xl lg:px-10 lg:py-10">
+    {{-- Oct 2026: on a laptop or desktop this panel is gone (the office's IT
+         adviser called it unnecessary), so the form card takes the whole
+         screen. It stays on a phone only, as the small banner across the top. --}}
+    <div class="relative flex shrink-0 flex-col overflow-hidden bg-[#0d3d1b] px-5 py-6 sm:px-8 lg:hidden">
 
         <img src="{{ asset('images/fitsc-office.jpg') }}" alt=""
              class="absolute inset-0 h-full w-full object-cover opacity-40 lg:opacity-100" aria-hidden="true">

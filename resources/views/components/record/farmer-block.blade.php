@@ -30,8 +30,8 @@
       groupId  the farmer's id, the value `open` is compared with
       href     unused; kept so existing callers do not break
       headers  heading cells of the inner table: [label, extra classes]
-      seen     'damage_report' | 'planting' | 'validation': shows a red "N new"
-               beside the count for records this user has not opened yet
+      seen     'damage_report' | 'planting' | 'validation': shows a red bubble
+               on the corner of the farmer's name for records this user has not opened yet
       association  false drops the Association column (the association's own
                screens: every member is in the same one, so it says nothing)
 --}}
@@ -70,7 +70,19 @@
     <td class="px-4 py-4">
         <div class="flex min-w-0 items-center gap-2">
             <div class="min-w-0">
-                <p class="font-bold text-foreground">{{ $farmer?->full_name ?? 'Unknown member' }}</p>
+                {{-- The "new" count is a small red bubble on the top right
+                     corner of the name, the way a chat app marks unread
+                     messages, rather than a pill beside the record count. --}}
+                <p class="font-bold text-foreground">
+                    <span class="relative inline-block">
+                        {{ $farmer?->full_name ?? 'Unknown member' }}
+                        @if ($newCount > 0)
+                            <span class="absolute inline-flex items-center justify-center rounded-full font-bold"
+                                  style="top:-0.7rem;right:-1.3rem;min-width:1.1rem;height:1.1rem;padding:0 0.3rem;background:#b91c1c;color:#fff;font-size:10px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.3);"
+                                  title="{{ $newCount }} new, not yet opened">{{ $newCount > 99 ? '99+' : $newCount }}</span>
+                        @endif
+                    </span>
+                </p>
                 @if ($where !== '')
                     <p class="mt-0.5 text-xs text-muted-foreground">{{ $where }}</p>
                 @endif
@@ -87,15 +99,6 @@
             <span class="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-primary">
                 {{ number_format($count) }}
             </span>
-            @if ($newCount > 0)
-                {{-- New to this user: filed since they last looked and not yet
-                     opened with View. Same rule as the tab badges above. --}}
-                <span class="rounded-full px-2 py-0.5 text-[11px] font-bold leading-none"
-                      style="background:#b91c1c;color:#fff;"
-                      title="{{ $newCount }} new, not yet opened">
-                    {{ $newCount }} new
-                </span>
-            @endif
         </span>
     </td>
 

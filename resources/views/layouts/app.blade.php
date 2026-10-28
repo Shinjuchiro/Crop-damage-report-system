@@ -152,10 +152,20 @@
             /* The small dropdown arrow on a group (Assistance Allocation) is
                only drawn once the menu is open. */
             .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav button > svg { display: none; }
-            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav a { position: relative; }
-            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav a > span.bg-destructive {
-                position: absolute; left: 1.95rem; top: 0.05rem; margin: 0;
-                min-width: 1rem; height: 1rem; padding: 0 0.2rem; font-size: 9px;
+
+            /* THE COUNT BUBBLE, MOBILE LEGENDS STYLE
+               A menu number is a small red bubble sitting on the top right
+               corner of its icon, folded or open, instead of at the far end
+               of the row. That is also what keeps it visible on the folded
+               rail. It applies to every role's menu because they all draw
+               their counts as span.bg-destructive. */
+            .sidebar-shell nav a { position: relative; }
+            .sidebar-shell nav a > span.bg-destructive {
+                position: absolute; left: 1.8rem; top: 0.1rem; margin: 0;
+                min-width: 1.05rem; height: 1.05rem; padding: 0 0.28rem;
+                font-size: 10px; line-height: 1;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+                pointer-events: none;
             }
         }
     </style>

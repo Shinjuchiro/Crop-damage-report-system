@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
  * Three kinds, one per tab:
  *   planting       a planting record filed by a farmer
  *   damage_report  a damage report filed by a farmer
+ *   membership     (see applications()) a registration forwarded to the office
  *   validation     an inspection a technician has finished (counted again
  *                  when it finishes, even if the report itself was seen)
  *
@@ -78,6 +79,27 @@ class Seen
             ->count();
 
         return ['planting' => $planting, 'damage' => $damage, 'validation' => $validation];
+    }
+
+    /**
+     * Membership applications waiting on the office that this person has not
+     * opened yet. Same idea as counts(), with one difference: there is no
+     * badges_since cut-off, because this is a queue and not a feed, so every
+     * application still awaiting a decision counts until it is opened.
+     *
+     * An application leaves the count when it is opened (its View) or when it
+     * is decided, whichever comes first.
+     */
+    public static function applications(User $user): int
+    {
+        return \App\Models\Farmer::notDeleted()
+            ->where('membership_stage', MembershipApplication::FORWARDED)
+            ->whereHas('user', fn ($u) => $u->where('status', 'pending'))
+            ->whereNotExists(fn ($s) => $s->select(DB::raw(1))->from('record_views as rv')
+                ->where('rv.user_id', $user->id)
+                ->where('rv.record_type', 'membership')
+                ->whereColumn('rv.record_id', 'farmers.id'))
+            ->count();
     }
 
     /**
