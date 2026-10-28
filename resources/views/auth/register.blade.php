@@ -55,7 +55,7 @@
      | its own class string and was missed.
      */
     $inputClass = function (?string $name = null) use ($errors) {
-        $base = 'w-full rounded-lg border px-3.5 py-2.5 text-base sm:text-sm text-foreground '
+        $base = 'reg-field w-full rounded-lg border px-3.5 py-2.5 text-base sm:text-sm text-foreground '
               . 'placeholder-slate-400 focus:outline-none focus:ring-2 ';
 
         return $base . ($name && $errors->has($name)
@@ -66,6 +66,17 @@
 @endphp
 
 @section('content')
+
+{{-- One size for every field and every wizard button. A native <select>, a
+     date box and a text box all start out at slightly different heights, and
+     the filled Continue button had no border where Cancel did, so they sat a
+     couple of pixels apart. A fixed height with border-box sizing makes them
+     identical. Inline here so it never depends on the compiled stylesheet. --}}
+<style>
+    .reg-field:not(textarea) { box-sizing: border-box; height: 2.9rem; line-height: 1.25rem; }
+    .reg-field[type="date"], select.reg-field { padding-top: 0; padding-bottom: 0; }
+    .reg-btn { box-sizing: border-box; height: 3.25rem; display: flex; align-items: center; justify-content: center; }
+</style>
 
 {{-- Holds this screen to the size of the device. Unlike Login, nothing here
      is marked to shrink: a step with a dozen fields cannot be squeezed onto
@@ -841,12 +852,12 @@
                 <div class="mt-9 flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center">
 
                     <a href="{{ route('login') }}" x-show="step === 1"
-                       class="rounded-lg border border-input px-6 py-3.5 text-center text-base font-semibold text-foreground hover:bg-muted/60 sm:flex-1">
+                       class="reg-btn rounded-lg border border-input px-6 py-3.5 text-center text-base font-semibold text-foreground hover:bg-muted/60 sm:flex-1">
                         Cancel
                     </a>
 
                     <button type="button" x-show="step > 1" x-cloak @click="back()"
-                            class="rounded-lg border border-input px-6 py-3.5 text-base font-semibold text-foreground hover:bg-muted/60 sm:flex-1">
+                            class="reg-btn rounded-lg border border-input px-6 py-3.5 text-base font-semibold text-foreground hover:bg-muted/60 sm:flex-1">
                         Back
                     </button>
 
@@ -855,7 +866,7 @@
                          step before the answer arrives. --}}
                     <button type="button" x-show="step < 4" @click="next()"
                             :disabled="checking"
-                            class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#15803d] px-6 py-3.5 text-base font-semibold text-white transition hover:brightness-110 disabled:opacity-70">
+                            class="reg-btn flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#15803d] px-6 py-3.5 text-base font-semibold text-white transition hover:brightness-110 disabled:opacity-70">
                         <span x-text="checking ? 'Checking...' : 'Continue'"></span>
                         <svg class="h-4 w-4" x-show="!checking" fill="none" stroke="currentColor" stroke-width="2"
                              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -864,7 +875,7 @@
                     </button>
 
                     <button type="submit" x-show="step === 4" x-cloak
-                            class="flex flex-1 items-center justify-center gap-2.5 rounded-lg bg-[#15803d] px-6 py-3.5 text-base font-semibold text-white transition hover:brightness-110">
+                            class="reg-btn flex flex-1 items-center justify-center gap-2.5 rounded-lg bg-[#15803d] px-6 py-3.5 text-base font-semibold text-white transition hover:brightness-110">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"
                              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                             <path d="M15 19v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V19M8.5 9.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM19 8v6M22 11h-6"/>
@@ -1474,6 +1485,60 @@
                 }
             },
 
+            /* Sends the confirmed registration in the background so the
+               success message appears on this page, and the login screen
+               opens only when the person presses OK.
+
+               A rejected form (422) is handed back to an ordinary form post:
+               the server then redirects back with the old input and shows its
+               usual error popup and step, exactly as before. */
+            sending: false,
+
+            async sendRegistration(form) {
+                if (this.sending) {
+                    return;
+                }
+
+                this.sending = true;
+                const problem = (title, message) => window.fitsNotice
+                    && window.fitsNotice({ title: title, message: message, tone: 'danger' });
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+
+                    if (response.status === 422) {
+                        this.sending = false;
+                        form.submit();
+                        return;
+                    }
+
+                    if (response.status === 419) {
+                        problem('Session expired', 'This page has been open too long. Please refresh the page and try again.');
+                        this.sending = false;
+                        return;
+                    }
+
+                    if (! response.ok) {
+                        problem('Something went wrong', 'We could not submit your registration. Please try again in a moment.');
+                        this.sending = false;
+                        return;
+                    }
+
+                    const data = await response.json();
+                    const goToLogin = () => { window.location.href = data.redirect; };
+
+                    window.fitsNotice({ title: data.message, tone: 'success', onClose: goToLogin });
+                } catch (error) {
+                    problem('Connection problem', 'We could not reach the server. Please check your internet connection and try again.');
+                    this.sending = false;
+                }
+            },
+
             onSubmit(event) {
                 // Enter key on an earlier step should advance, never submit
                 if (this.step < 4) {
@@ -1514,7 +1579,7 @@
                         action:  'Confirm & Submit',
                         tone:    'default',
                         review:  [],
-                        proceed: () => form.submit(),
+                        proceed: () => this.sendRegistration(form),
                     },
                 }));
             },

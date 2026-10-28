@@ -113,8 +113,12 @@
         .sidebar-wrap, .sidebar-shell { display: none; }
         @media (min-width: 1024px) {
             .sidebar-wrap  { display: block; flex: none; position: sticky; top: 0; align-self: flex-start;
-                             height: 100vh; width: 3.75rem; z-index: 50;
+                             height: 100vh; width: 4.75rem; z-index: 50;
                              transition: width 0.2s ease; }
+            /* The top bar is exactly as tall as the folded logo block, so the
+               line under the logo and the line under the top bar are one
+               straight line across the screen. (The 1px is the divider.) */
+            .fits-topbar { height: 5rem; }
             .sidebar-wrap:hover { width: 20rem; }
             /* Separate rule: one browser that cannot read :has() must not
                throw away the hover rule above along with it. */
@@ -128,10 +132,11 @@
                never peek out of the narrow rail. It is also a link, so it
                gets a quiet tint on hover. */
             .sidebar-brand { display: flex; flex-direction: column; align-items: center; flex: none;
-                             padding: 1rem 0; overflow: hidden; color: inherit; text-decoration: none;
+                             box-sizing: border-box; min-height: calc(5rem - 1px); justify-content: center;
+                             padding: 0.7rem 0; overflow: hidden; color: inherit; text-decoration: none;
                              transition: background-color 0.15s ease; }
             .sidebar-brand:hover, .sidebar-brand:focus-visible { background-color: rgba(255, 255, 255, 0.08); }
-            .sidebar-brand img { flex: none; width: 2.75rem; height: 2.75rem; min-width: 2.75rem;
+            .sidebar-brand img { flex: none; width: 3.5rem; height: 3.5rem; min-width: 3.5rem;
                                  aspect-ratio: 1 / 1; object-fit: contain;
                                  transition: width 0.2s ease, height 0.2s ease, min-width 0.2s ease; }
             .sidebar-brand-title { max-height: 0; opacity: 0; margin: 0; overflow: hidden;
@@ -153,11 +158,11 @@
             .sidebar-shell nav a,
             .sidebar-shell nav button {
                 overflow: hidden; white-space: nowrap;
-                padding-left: 0.875rem; padding-right: 0.875rem;
+                padding-left: 1.25rem; padding-right: 1.25rem;
             }
             /* Larger icons, and a wider gap before the label so that the box
-               (3.25rem wide when folded) never shows the start of a word. */
-            .sidebar-shell nav svg.h-5 { width: 1.5rem; height: 1.5rem; }
+               (4.25rem wide when folded) never shows the start of a word. */
+            .sidebar-shell nav svg.h-5 { width: 1.75rem; height: 1.75rem; }
             .sidebar-shell nav a > span.flex,
             .sidebar-shell nav button > span.flex { gap: 1rem; }
 
@@ -168,6 +173,14 @@
                only drawn once the menu is open. */
             .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav button > svg { display: none; }
 
+            /* Folded: the labels are hidden outright, not just clipped by the
+               edge of the box. Clipping alone let the first letters show
+               whenever the rail was a little wider than icon plus gap. The
+               icon wrappers (span.flex) and the count bubble stay visible. */
+            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav a span:not(.flex):not(.bg-destructive),
+            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav button span:not(.flex):not(.bg-destructive),
+            .sidebar-wrap:not(:hover):not(:has(:focus-visible)) .sidebar-shell nav > span span { visibility: hidden; }
+
             /* THE COUNT BUBBLE, MOBILE LEGENDS STYLE
                A menu number is a small red bubble sitting on the top right
                corner of its icon, folded or open, instead of at the far end
@@ -176,12 +189,22 @@
                their counts as span.bg-destructive. */
             .sidebar-shell nav a { position: relative; }
             .sidebar-shell nav a > span.bg-destructive {
-                position: absolute; left: 1.8rem; top: 0.1rem; margin: 0;
+                position: absolute; left: 2.6rem; top: 0.15rem; margin: 0;
                 min-width: 1.05rem; height: 1.05rem; padding: 0 0.28rem;
                 font-size: 10px; line-height: 1;
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
                 pointer-events: none;
             }
+        }
+    </style>
+    {{-- Cards were nearly flat against the page. This makes their shadow
+         clearly visible without a heavy look. It targets the rounded panels
+         that carry the shadow-sm class (cards, stat tiles, record cards) and
+         leaves buttons and inputs, which are smaller radii, as they were.
+         Inline so it never waits on the compiled stylesheet. --}}
+    <style>
+        .rounded-xl.shadow-sm, .rounded-2xl.shadow-sm {
+            box-shadow: 0 4px 14px -3px rgba(15, 23, 42, 0.22), 0 1px 4px 0 rgba(15, 23, 42, 0.16);
         }
     </style>
     <div class="sidebar-wrap">
@@ -236,7 +259,7 @@
              TOP BAR
              Shorter on phones (h-14) so the content starts higher up.
         ================================================================== --}}
-        <header class="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border
+        <header class="fits-topbar sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border
                        bg-card px-3 sm:px-5 lg:h-16 lg:px-8">
 
             <div class="flex min-w-0 items-center gap-2">
@@ -452,6 +475,7 @@
 {{-- One confirmation dialog for the whole system. Any form or link carrying a
      data-confirm attribute is routed here before anything reaches the server. --}}
 @include('layouts.partials.confirm-dialog')
+@include('layouts.partials.equal-buttons')
 
 @stack('scripts')
 <script>

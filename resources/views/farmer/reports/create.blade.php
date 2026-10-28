@@ -184,11 +184,12 @@
                                         </span>
                                     </label>
                                     <select x-model="row.record_id" @change="pickRecord(row)"
-                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                                            class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm"
+                                            style="font-weight:700;">
                                         <option value="">My planting is not listed, I will enter it myself</option>
                                         <template x-for="p in availablePlantings(row)" :key="p.id">
                                             <option :value="String(p.id)"
-                                                    x-text="p.crop_name + ' - planted ' + p.date_label + ' (' + Number(p.area).toFixed(2) + ' ha) ' + p.reference"></option>
+                                                    x-text="String(p.crop_name).toUpperCase() + ' - planted ' + p.date_label + ' (' + Number(p.area).toFixed(2) + ' ha) ' + p.reference"></option>
                                         </template>
                                     </select>
 
@@ -269,16 +270,23 @@
                                     </div>
                                 </div>
 
-                                <div class="space-y-1.5 sm:col-span-2 lg:col-span-3" x-show="isHvcc(row)" x-cloak>
+                                {{-- Only asked for when the farmer enters the planting themselves.
+                                     A planting picked from the list already carries its
+                                     crop name, which is filled in (and still sent) behind
+                                     the scenes. --}}
+                                <div class="space-y-1.5 sm:col-span-2 lg:col-span-3" x-show="isHvcc(row) && ! row.record_id" x-cloak>
                                     <label class="block text-sm font-medium">
                                         Which high value crop? <span class="text-destructive">*</span>
                                         <span class="block text-xs font-normal text-muted-foreground">
                                             Halimbawa: Ampalaya, Talong, Mangga
                                         </span>
                                     </label>
+                                    {{-- Capitals as they type, with the cursor kept where it was. --}}
                                     <input type="text" :name="`crops[${index}][crop_specify]`"
-                                           x-model="row.crop_specify" maxlength="100" :readonly="!! row.record_id"
-                                           class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm">
+                                           :value="row.crop_specify" maxlength="100" :readonly="!! row.record_id"
+                                           @input="const at = $event.target.selectionStart; row.crop_specify = $event.target.value.toUpperCase(); $nextTick(() => $event.target.setSelectionRange(at, at))"
+                                           class="h-12 w-full rounded-md border border-input bg-card px-3 text-base shadow-sm"
+                                           style="font-weight:700;text-transform:uppercase;">
                                 </div>
 
                                 <div class="space-y-1.5">
@@ -1132,7 +1140,7 @@
 
                 if (p) {
                     row.crop_id = String(p.crop_id);
-                    row.crop_specify = p.specify || '';
+                    row.crop_specify = (p.specify || '').toUpperCase();
                     row.date_planted = p.date || '';
                 } else {
                     row.record_id = '';

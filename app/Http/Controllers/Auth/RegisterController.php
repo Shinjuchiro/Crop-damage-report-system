@@ -131,11 +131,22 @@ class RegisterController extends Controller
 
         $this->notifyAssociationOfNewApplication($farmer);
 
-        return redirect()->route('login')->with('status',
-            'Registration submitted successfully. Your application has been sent to your '
+        $message = 'Registration submitted successfully. Your application has been sent to your '
             . 'Farmers\' Association for review, and will then be verified by the Municipal '
-            . 'Agriculture Office.'
-        );
+            . 'Agriculture Office.';
+
+        /* The registration page sends the form in the background so it can
+           show this message on the page the farmer is on, and only take them
+           to the login screen once they press OK. A plain browser post still
+           gets the redirect. */
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message'  => $message,
+                'redirect' => route('login'),
+            ]);
+        }
+
+        return redirect()->route('login')->with('status', $message);
     }
 
     /**

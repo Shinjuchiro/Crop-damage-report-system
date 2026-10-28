@@ -56,6 +56,7 @@
 @yield('content')
 
 @include('layouts.partials.confirm-dialog')
+@include('layouts.partials.equal-buttons')
 
 @stack('scripts')
 </body>

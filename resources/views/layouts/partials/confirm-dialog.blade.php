@@ -73,7 +73,7 @@
         /*
          | A message with one OK button (no question asked). Used for the
          | success messages the server sends back and for form errors:
-         |   fitsNotice({ title, message, tone: 'success'|'danger'|'default', list: [] })
+         |   fitsNotice({ title, message, tone: 'success'|'danger'|'default', list: [], onClose: fn })
          */
         showNotice(d) {
             this.title   = d.title || '';
@@ -83,7 +83,8 @@
             this.tone    = d.tone || 'default';
             this.review  = [];
             this.list    = d.list || [];
-            this.proceed = null;
+            // onClose runs when the person presses OK (or dismisses the popup).
+            this.proceed = d.onClose || null;
             this.viewer  = null;
             this.notice  = true;
 
@@ -110,10 +111,21 @@
                 return;
             }
 
+            // A one-button notice that has an onClose (for example, go to the
+            // login page) must still run it if it is dismissed with Esc or
+            // by clicking outside, or the person is left on a finished form.
+            // (No double quote marks in comments here: this whole script sits
+            // inside an HTML attribute, and one would end it early.)
+            const after = this.notice ? this.proceed : null;
+
             this.open    = false;
             this.proceed = null;
             this.viewer  = null;
             this.unlock();
+
+            if (after) {
+                after();
+            }
         },
 
         confirm() {
